@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}VeilCoin - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">
+        <i class="fas fa-chart-line text-primary"></i> 
+        Dashboard VeilCoin
+    </h1>
+    
+    <!-- Stats en temps réel -->
+    <div class="row mb-4" id="stats-cards">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-primary h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-primary">Hauteur</h5>
+                    <h2 id="height">{{ stats.height }}</h2>
+                    <small>blocs</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-success h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-success">Offre en circulation</h5>
+                    <h2 id="supply">{{ "%.2f"|format(stats.total_supply) }}</h2>
+                    <small>VEIL</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-warning h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-warning">Difficulté</h5>
+                    <h2 id="difficulty">{{ stats.difficulty }}</h2>
+                    <small>zéros requis</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-info h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-info">Mempool</h5>
+                    <h2 id="mempool-count">{{ stats.mempool_size }}</h2>
+                    <small>transactions</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Graphiques -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card bg-dark">
+                <div class="card-body">
+                    <h5 class="card-title">Hashrate en temps réel</h5>
+                    <canvas id="hashrateChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-3">
+            <div class="card bg-dark">
+                <div class="card-body">
+                    <h5 class="card-title">Blocs minés (dernières minutes)</h5>
+                    <canvas id="blocksChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Derniers blocs -->
+    <div class="card bg-dark mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Derniers blocs</h5>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead>
+                        <tr>
+                            <th>Hauteur</th>
+                            <th>Hash</th>
+                            <th>Transactions</th>
+                            <th>Temps</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-blocks">
+                        <tr>
+                            <td colspan="4" class="text-center">Chargement...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Connexion Socket.IO
+const socket = io();
+
+// Graphiques
+const hashrateCtx = document.getElementById('hashrateChart').getContext('2d');
+const blocksCtx = document.getElementById('blocksChart').getContext('2d');
+
+const hashrateChart = new Chart(hashrateCtx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Hashrate (H/s)',
+            data: [],
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: { beginAtZero: true, ticks: { color: '#fff' } },
+            x: { ticks: { color: '#fff' } }
+        }
+    }
+});
+
+const blocksChart = new Chart(blocksCtx, {
+    type: 'bar',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Blocs minés',
+            data: [],
+            backgroundColor: '#198754'
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: { beginAtZero: true, ticks: { color: '#fff' } },
+            x: { ticks: { color: '#fff' } }
+        }
+    }
+});
+
+// Mise à jour temps réel
+socket.on('blockchain_stats', function(stats) {
+    document.getElementById('height').textContent = stats.height;
+    document.getElementById('supply').textContent = stats.total_supply.toFixed(2);
+    document.getElementById('difficulty').textContent = stats.difficulty;
+    document.getElementById('mempool-count').textContent = stats.mempool_size;
+});
+
+socket.on('miner_stats', function(stats) {
+    const now = new Date().toLocaleTimeString();
+    
+    hashrateChart.data.labels.push(now);
+    hashrateChart.data.datasets[0].data.push(stats.hashrate);
+    
+    if (hashrateChart.data.labels.length > 20) {
+        hashrateChart.data.labels.shift();
+        hashrateChart.data.datasets[0].data.shift();
+    }
+    
+    hashrateChart.update();
+});
+
+socket.on('recent_blocks', function(blocks) {
+    const tbody = document.getElementById('recent-blocks');
+    tbody.innerHTML = '';
+    
+    blocks.reverse().forEach(function(block) {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${block.header ? block.header.nonce : 'N/A'}</td>
+            <td><code>${(block.block_hash || '').substring(0, 16)}...</code></td>
+            <td>${block.transactions ? block.transactions.length : 0}</td>
+            <td>${new Date().toLocaleTimeString()}</td>
+        `;
+    });
+    
+    // Mettre à jour le graphique des blocs
+    blocksChart.data.labels.push(new Date().toLocaleTimeString());
+    blocksChart.data.datasets[0].data.push(blocks.length);
+    
+    if (blocksChart.data.labels.length > 20) {
+        blocksChart.data.labels.shift();
+        blocksChart.data.datasets[0].data.shift();
+    }
+    
+    blocksChart.update();
+});
+</script>
+{% endblock %}
