@@ -1,4 +1,3 @@
-# Core module pour VeilCoin
 """
 VeilCoin Core - Module principal
 """
