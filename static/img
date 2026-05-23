@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="veilGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6f42c1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#20c997;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Cercle extérieur -->
+  <circle cx="50" cy="50" r="45" fill="none" stroke="url(#veilGrad)" stroke-width="5"/>
+  
+  <!-- V stylisé (voile) -->
+  <path d="M 30 35 Q 40 25 50 50 Q 60 25 70 35" 
+        fill="none" stroke="url(#veilGrad)" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- Points de confidentialité -->
+  <circle cx="35" cy="60" r="3" fill="#6f42c1"/>
+  <circle cx="50" cy="65" r="3" fill="#20c997"/>
+  <circle cx="65" cy="60" r="3" fill="#6f42c1"/>
+  
+  <!-- Texte -->
+  <text x="50" y="85" text-anchor="middle" fill="#ccc" font-size="8" font-family="Arial">
+    VEIL
+  </text>
+</svg>
