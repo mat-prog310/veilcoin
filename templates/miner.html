@@ -29,4 +29,187 @@
                     
                     <button id="stop-mining-btn" class="btn btn-danger w-100" 
                             onclick="stopMining()" {% if not is_mining %}disabled{% endif %}>
-                        <i class="fas
+                        <i class="fas fa-stop"></i> Arrêter le minage
+                    </button>
+                    
+                    <div id="mining-status" class="mt-3">
+                        {% if is_mining %}
+                        <div class="alert alert-success">⛏️ Minage en cours...</div>
+                        {% else %}
+                        <div class="alert alert-secondary">⚪ Mineur arrêté</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistiques du mineur -->
+        <div class="col-md-8 mb-3">
+            <div class="card bg-dark">
+                <div class="card-body">
+                    <h5 class="card-title">Statistiques du mineur</h5>
+                    
+                    <div class="row" id="miner-stats">
+                        <div class="col-md-4 text-center mb-3">
+                            <h3 id="hashrate-display" class="text-primary">0</h3>
+                            <small>Hashrate (H/s)</small>
+                        </div>
+                        <div class="col-md-4 text-center mb-3">
+                            <h3 id="blocks-found" class="text-success">0</h3>
+                            <small>Blocs trouvés</small>
+                        </div>
+                        <div class="col-md-4 text-center mb-3">
+                            <h3 id="shares-found" class="text-info">0</h3>
+                            <small>Shares acceptés</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Graphique du hashrate -->
+                    <canvas id="miner-hashrate-chart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Logs du mineur -->
+    <div class="card bg-dark">
+        <div class="card-body">
+            <h5 class="card-title">Logs du mineur</h5>
+            <div id="miner-logs" class="bg-black text-light p-3 rounded" 
+                 style="height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.9em;">
+                <div class="text-muted">En attente du démarrage du mineur...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const socket = io();
+const minerChartCtx = document.getElementById('miner-hashrate-chart').getContext('2d');
+
+const minerChart = new Chart(minerChartCtx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Hashrate (H/s)',
+            data: [],
+            borderColor: '#ffc107',
+            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        animation: false,
+        scales: {
+            y: { 
+                beginAtZero: true, 
+                ticks: { color: '#fff' },
+                grid: { color: 'rgba(255,255,255,0.1)' }
+            },
+            x: { 
+                ticks: { color: '#fff' },
+                grid: { color: 'rgba(255,255,255,0.1)' }
+            }
+        },
+        plugins: {
+            legend: { labels: { color: '#fff' } }
+        }
+    }
+});
+
+function addLog(message, type = 'info') {
+    const logsDiv = document.getElementById('miner-logs');
+    const colors = {
+        'info': '#0dcaf0',
+        'success': '#198754',
+        'warning': '#ffc107',
+        'error': '#dc3545'
+    };
+    
+    const time = new Date().toLocaleTimeString();
+    logsDiv.innerHTML += `
+        <div style="color: ${colors[type]}">
+            [${time}] ${message}
+        </div>
+    `;
+    logsDiv.scrollTop = logsDiv.scrollHeight;
+}
+
+async function startMining() {
+    const wallet = document.getElementById('miner-wallet').value;
+    
+    if (!wallet) {
+        alert('Sélectionnez un wallet !');
+        return;
+    }
+    
+    const response = await fetch('/api/miner/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({wallet: wallet})
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+        document.getElementById('start-mining-btn').disabled = true;
+        document.getElementById('stop-mining-btn').disabled = false;
+        document.getElementById('mining-status').innerHTML = `
+            <div class="alert alert-success">⛏️ Minage en cours...</div>
+        `;
+        addLog('Minage démarré - Wallet: ' + data.address, 'success');
+    } else {
+        addLog('Erreur: ' + data.error, 'error');
+    }
+}
+
+async function stopMining() {
+    const response = await fetch('/api/miner/stop');
+    const data = await response.json();
+    
+    if (data.success) {
+        document.getElementById('start-mining-btn').disabled = false;
+        document.getElementById('stop-mining-btn').disabled = true;
+        document.getElementById('mining-status').innerHTML = `
+            <div class="alert alert-secondary">⚪ Mineur arrêté</div>
+        `;
+        addLog('Minage arrêté', 'warning');
+    }
+}
+
+// Mise à jour temps réel des stats du mineur
+socket.on('miner_stats', function(stats) {
+    document.getElementById('hashrate-display').textContent = Math.round(stats.hashrate);
+    document.getElementById('blocks-found').textContent = stats.blocks_mined;
+    document.getElementById('shares-found').textContent = stats.accepted_shares;
+    
+    const now = new Date().toLocaleTimeString();
+    
+    minerChart.data.labels.push(now);
+    minerChart.data.datasets[0].data.push(stats.hashrate);
+    
+    if (minerChart.data.labels.length > 30) {
+        minerChart.data.labels.shift();
+        minerChart.data.datasets[0].data.shift();
+    }
+    
+    minerChart.update();
+    
+    if (stats.blocks_mined > 0) {
+        addLog(`✅ Bloc trouvé ! Total: ${stats.blocks_mined}`, 'success');
+    }
+});
+
+socket.on('block_mined', function(data) {
+    if (data.success) {
+        addLog(`🎉 Nouveau bloc miné ! Récompense: ${data.reward} VEIL`, 'success');
+        addLog(`Hash: ${data.block.block_hash.substring(0, 20)}...`, 'info');
+    }
+});
+</script>
+{% endblock %}
