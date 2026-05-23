@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}VeilCoin - Blockchain Explorer{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4"><i class="fas fa-cubes text-info"></i> Explorateur Blockchain</h1>
+    
+    <!-- Résumé -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-info h-100">
+                <div class="card-body text-center">
+                    <h5>Hauteur</h5>
+                    <h2 class="text-info" id="explorer-height">{{ stats.height }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-success h-100">
+                <div class="card-body text-center">
+                    <h5>Transactions totales</h5>
+                    <h2 class="text-success" id="explorer-tx">{{ stats.total_transactions }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-warning h-100">
+                <div class="card-body text-center">
+                    <h5>Récompense actuelle</h5>
+                    <h2 class="text-warning" id="explorer-reward">{{ stats.current_reward }} VEIL</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-primary h-100">
+                <div class="card-body text-center">
+                    <h5>Prochain halving</h5>
+                    <h2 class="text-primary" id="explorer-halving">{{ stats.blocks_until_halving }}</h2>
+                    <small>blocs restants</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Liste des blocs -->
+    <div class="card bg-dark">
+        <div class="card-body">
+            <h5 class="card-title">Derniers blocs</h5>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Hash</th>
+                            <th>Transactions</th>
+                            <th>Récompense</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="blocks-table">
+                        {% for block in blocks %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <code>{{ block.block_hash[:16] if block.block_hash else 'N/A' }}...</code>
+                            </td>
+                            <td>{{ block.transactions|length }}</td>
+                            <td class="text-success">
+                                {{ block.transactions[0].outputs[0].amount if block.transactions else 0 }} VEIL
+                            </td>
+                            <td>
+                                <small>{{ block.header.timestamp|int if block.header else 'N/A' }}</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const socket = io();
+
+socket.on('recent_blocks', function(blocks) {
+    const tbody = document.getElementById('blocks-table');
+    tbody.innerHTML = '';
+    
+    blocks.forEach(function(block, index) {
+        const row = tbody.insertRow();
+        const reward = block.transactions && block.transactions[0] ? 
+                       block.transactions[0].outputs[0].amount : 0;
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td><code>${(block.block_hash || '').substring(0, 16)}...</code></td>
+            <td>${block.transactions ? block.transactions.length : 0}</td>
+            <td class="text-success">${reward} VEIL</td>
+            <td><small>${new Date().toLocaleTimeString()}</small></td>
+        `;
+    });
+});
+
+socket.on('blockchain_stats', function(stats) {
+    document.getElementById('explorer-height').textContent = stats.height;
+    document.getElementById('explorer-tx').textContent = stats.total_transactions;
+    document.getElementById('explorer-reward').textContent = stats.current_reward + ' VEIL';
+    document.getElementById('explorer-halving').textContent = stats.blocks_until_halving;
+});
+</script>
+{% endblock %}
