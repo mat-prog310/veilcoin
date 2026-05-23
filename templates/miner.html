@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}VeilCoin - Mineur{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4"><i class="fas fa-microchip text-warning"></i> Mineur VeilCoin</h1>
+    
+    <div class="row">
+        <!-- Contrôle du mineur -->
+        <div class="col-md-4 mb-3">
+            <div class="card bg-dark">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Contrôle du mineur</h5>
+                    
+                    <div class="mb-3">
+                        <select id="miner-wallet" class="form-select">
+                            <option value="">Sélectionner un wallet</option>
+                            {% for wallet in wallets %}
+                            <option value="{{ wallet }}">{{ wallet }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <button id="start-mining-btn" class="btn btn-success w-100 mb-2" 
+                            onclick="startMining()" {% if is_mining %}disabled{% endif %}>
+                        <i class="fas fa-play"></i> Démarrer le minage
+                    </button>
+                    
+                    <button id="stop-mining-btn" class="btn btn-danger w-100" 
+                            onclick="stopMining()" {% if not is_mining %}disabled{% endif %}>
+                        <i class="fas
