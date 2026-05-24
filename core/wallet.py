@@ -71,3 +71,16 @@ class VeilWallet:
         self.transactions.append({'tx_id': tx.tx_id, 'type': 'send', 'to': to_address[:16]+'...', 'amount': amount, 'fee': 0.001, 'timestamp': datetime.now().isoformat()})
         self.save()
         return tx
+
+    def create_new(self):
+        words = [secrets.choice(WORDS) for _ in range(12)]
+        self.seed_phrase = " ".join(words)
+        self.seed_hash = hashlib.sha256(self.seed_phrase.encode()).hexdigest()
+        self.private_key = hashlib.sha256(self.seed_phrase.encode()).hexdigest()
+        self.public_key = hashlib.sha256(self.private_key.encode()).hexdigest()
+        self.address = f"V1{hashlib.sha256(hashlib.sha256(self.public_key.encode()).digest()).hexdigest()[:40]}"
+        self.balance = 0.0
+        self.created_at = datetime.now().isoformat()
+        self.save()
+        print(f"✅ Wallet '{self.wallet_name}' sauvegardé: {self.address[:20]}...")
+        return {'address': self.address, 'seed_phrase': self.seed_phrase, 'balance': self.balance}
