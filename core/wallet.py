@@ -1,5 +1,6 @@
 """
 Wallet VeilCoin avec seed phrase BIP39
+Sauvegarde persistante sur disque Render
 """
 import hashlib, os, json, secrets
 from datetime import datetime
@@ -8,6 +9,7 @@ WORDS = ["abandon","ability","able","about","above","absent","absorb","abstract"
 
 class VeilWallet:
     def __init__(self, wallet_name="default"):
+        from config import Config
         self.wallet_name = wallet_name
         self.address = ""
         self.public_key = ""
@@ -17,7 +19,7 @@ class VeilWallet:
         self.balance = 0.0
         self.transactions = []
         self.created_at = ""
-        self.wallet_path = os.path.join("data", "wallets", f"{wallet_name}.json")
+        self.wallet_path = os.path.join(Config.DATA_DIR, "wallets", f"{wallet_name}.json")
 
     def create_new(self):
         words = [secrets.choice(WORDS) for _ in range(12)]
