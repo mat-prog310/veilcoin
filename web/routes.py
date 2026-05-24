@@ -130,3 +130,32 @@ def api_offers(): return jsonify(pool.get_open_offers())
 
 @app.route('/api/pool/info')
 def api_pool_info(): return jsonify(pool.get_pool_info())
+
+# API Offres d'achat
+@app.route('/api/market/create-buy-offer', methods=['POST'])
+def api_create_buy_offer():
+    d = request.get_json()
+    return jsonify(pool.create_buy_offer(
+        d.get('wallet'),
+        float(d.get('amount', 0)),
+        float(d.get('price_per_veil', 0.0001)),
+        d.get('paypal_email', '')
+    ))
+
+@app.route('/api/market/seller-lock', methods=['POST'])
+def api_seller_lock():
+    d = request.get_json()
+    return jsonify(pool.seller_lock_veil(d.get('offer_id'), d.get('wallet')))
+
+@app.route('/api/market/buyer-accept-seller', methods=['POST'])
+def api_buyer_accept_seller():
+    d = request.get_json()
+    return jsonify(pool.buyer_accept_seller(d.get('offer_id'), d.get('wallet'), d.get('buyer_paypal', '')))
+
+@app.route('/api/market/sell-offers')
+def api_sell_offers():
+    return jsonify(pool.get_open_sell_offers())
+
+@app.route('/api/market/buy-offers')
+def api_buy_offers():
+    return jsonify(pool.get_open_buy_offers())
