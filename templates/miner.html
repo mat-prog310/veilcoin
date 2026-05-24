@@ -2,20 +2,134 @@
 {% block title %}VeilCoin - Mineur{% endblock %}
 {% block content %}
 <div class="container">
-    <h1 class="mb-4"><i class="fas fa-microchip text-warning"></i> Mineur</h1>
+    <h1 class="mb-4"><i class="fas fa-microchip text-warning"></i> Mineur VeilCoin</h1>
+    
     <div class="row">
-        <div class="col-md-4 mb-3"><div class="card bg-dark"><div class="card-body text-center"><h5>Contrôle</h5><select id="miner-wallet" class="form-select mb-3">{% for w in wallets %}<option value="{{ w }}">{{ w }}</option>{% endfor %}</select><button id="start-btn" class="btn btn-success w-100 mb-2" onclick="startMining()"><i class="fas fa-play"></i> Démarrer</button><button id="stop-btn" class="btn btn-danger w-100" onclick="stopMining()"><i class="fas fa-stop"></i> Arrêter</button><div id="mining-status" class="mt-3"><div class="alert alert-secondary">⚪ Arrêté</div></div></div></div></div>
-        <div class="col-md-8 mb-3"><div class="card bg-dark"><div class="card-body"><h5>Statistiques</h5><div class="row"><div class="col-md-4 text-center"><h3 id="hashrate" class="text-primary">0</h3><small>H/s</small></div><div class="col-md-4 text-center"><h3 id="blocks-found" class="text-success">0</h3><small>Blocs</small></div><div class="col-md-4 text-center"><h3 id="shares" class="text-info">0</h3><small>Shares</small></div></div><canvas id="minerChart" height="200"></canvas></div></div></div>
+        <div class="col-md-4 mb-3">
+            <div class="card bg-dark">
+                <div class="card-body text-center">
+                    <h5>Contrôle du mineur</h5>
+                    <div class="mb-3">
+                        <label>Wallet mineur</label>
+                        <select id="miner-wallet" class="form-select">
+                            {% for w in wallets %}
+                            <option value="{{ w }}">{{ w }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button id="start-btn" class="btn btn-success w-100 mb-2" onclick="startMining()">
+                        <i class="fas fa-play"></i> Démarrer le minage
+                    </button>
+                    <button id="stop-btn" class="btn btn-danger w-100" onclick="stopMining()">
+                        <i class="fas fa-stop"></i> Arrêter le minage
+                    </button>
+                    <div id="mining-status" class="mt-3">
+                        <div class="alert alert-secondary">⚪ Mineur arrêté</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8 mb-3">
+            <div class="card bg-dark">
+                <div class="card-body">
+                    <h5>Statistiques en temps réel</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-3 text-center">
+                            <h3 id="hashrate" class="text-primary">0</h3>
+                            <small>Hashrate (H/s)</small>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h3 id="blocks-found" class="text-success">0</h3>
+                            <small>Blocs trouvés</small>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h3 id="shares" class="text-info">0</h3>
+                            <small>Shares</small>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h3 id="difficulty" class="text-warning">2</h3>
+                            <small>Difficulté</small>
+                        </div>
+                    </div>
+                    <canvas id="minerChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
 {% block extra_scripts %}
 <script>
-const socket=io();
-const ctx=document.getElementById('minerChart').getContext('2d');
-const chart=new Chart(ctx,{type:'line',data:{labels:[],datasets:[{label:'H/s',data:[],borderColor:'#ffc107',tension:0.4}]},options:{responsive:true,scales:{y:{ticks:{color:'#fff'}},x:{ticks:{color:'#fff'}}}}});
-async function startMining(){const w=document.getElementById('miner-wallet').value;await fetch('/api/miner/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wallet:w})});document.getElementById('start-btn').disabled=true;document.getElementById('stop-btn').disabled=false;document.getElementById('mining-status').innerHTML='<div class="alert alert-success">⛏️ Minage en cours...</div>'}
-async function stopMining(){await fetch('/api/miner/stop');document.getElementById('start-btn').disabled=false;document.getElementById('stop-btn').disabled=true;document.getElementById('mining-status').innerHTML='<div class="alert alert-secondary">⚪ Arrêté</div>'}
-socket.on('miner_stats',s=>{document.getElementById('hashrate').textContent=Math.round(s.hashrate);document.getElementById('blocks-found').textContent=s.blocks_mined;document.getElementById('shares').textContent=s.accepted_shares;const now=new Date().toLocaleTimeString();chart.data.labels.push(now);chart.data.datasets[0].data.push(s.hashrate);if(chart.data.labels.length>30){chart.data.labels.shift();chart.data.datasets[0].data.shift()}chart.update()});
+const socket = io();
+const ctx = document.getElementById('minerChart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Hashrate (H/s)',
+            data: [],
+            borderColor: '#ffc107',
+            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#fff' } } },
+        scales: {
+            y: { ticks: { color: '#fff' }, beginAtZero: true },
+            x: { ticks: { color: '#fff' } }
+        }
+    }
+});
+
+async function startMining() {
+    const wallet = document.getElementById('miner-wallet').value;
+    if (!wallet) return alert('Sélectionnez un wallet');
+    
+    const res = await fetch('/api/miner/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({wallet: wallet})
+    });
+    
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById('start-btn').disabled = true;
+        document.getElementById('stop-btn').disabled = false;
+        document.getElementById('mining-status').innerHTML = '<div class="alert alert-success">⛏️ Minage en cours...</div>';
+    }
+}
+
+async function stopMining() {
+    const res = await fetch('/api/miner/stop');
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById('start-btn').disabled = false;
+        document.getElementById('stop-btn').disabled = true;
+        document.getElementById('mining-status').innerHTML = '<div class="alert alert-secondary">⚪ Mineur arrêté</div>';
+    }
+}
+
+// Mise à jour temps réel des stats
+socket.on('miner_stats', function(stats) {
+    document.getElementById('hashrate').textContent = Math.round(stats.hashrate);
+    document.getElementById('blocks-found').textContent = stats.blocks_mined;
+    document.getElementById('shares').textContent = stats.accepted_shares;
+    document.getElementById('difficulty').textContent = stats.current_difficulty;
+    
+    const now = new Date().toLocaleTimeString();
+    chart.data.labels.push(now);
+    chart.data.datasets[0].data.push(stats.hashrate);
+    
+    if (chart.data.labels.length > 30) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+    }
+    chart.update();
+});
 </script>
 {% endblock %}
