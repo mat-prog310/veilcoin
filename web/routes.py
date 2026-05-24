@@ -144,3 +144,26 @@ def api_treasury():
         'can_pay_server': bill['can_pay'],
         'months_covered': bill.get('months_covered', 0)
     })
+
+@app.route('/api/admin/reset', methods=['POST'])
+def api_admin_reset():
+    d = request.get_json()
+    if d.get('seed') != ADMIN_SEED:
+        return jsonify({'error': 'Non autorisé'}), 403
+    if d.get('confirm') != 'yes':
+        return jsonify({'error': 'Tape confirm=yes pour confirmer'}), 400
+    
+    import shutil
+    data_dir = Config.DATA_DIR
+    
+    files = ['blockchain.json', 'mempool.json', 'market.json', 'pool.json', 'payments.json', 'peers.json']
+    for f in files:
+        path = os.path.join(data_dir, f)
+        if os.path.exists(path):
+            os.remove(path)
+    
+    wallets_dir = os.path.join(data_dir, 'wallets')
+    if os.path.exists(wallets_dir):
+        shutil.rmtree(wallets_dir)
+    
+    return jsonify({'success': True, 'message': 'Cache vidé. Redémarrage nécessaire.'})
