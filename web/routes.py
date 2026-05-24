@@ -77,7 +77,6 @@ def api_start_miner():
     d = request.get_json(silent=True) or {}
     name = d.get('wallet', '')
     
-    # Vérifier si wallet connecté
     if name not in active_wallets:
         return jsonify({'success': False, 'error': f'Wallet {name} non connecté. Créez/connectez votre wallet d\'abord.'})
     
@@ -86,7 +85,7 @@ def api_start_miner():
         miner = RandomXMiner(blockchain)
         
         def cb(block):
-            r = blockchain.reward()
+            r = blockchain.calculate_block_reward()
             wallet.balance += r
             wallet.save()
         
@@ -99,14 +98,12 @@ def api_start_miner():
 @app.route('/api/miner/stop')
 def api_stop_miner():
     global miner
-    if miner:
-        miner.stop_mining()
+    if miner: miner.stop_mining()
     return jsonify({'success': True})
 
 @app.route('/api/miner/stats')
 def api_miner_stats():
-    if miner:
-        return jsonify(miner.get_stats())
+    if miner: return jsonify(miner.get_stats())
     return jsonify({'hashrate': 0, 'blocks_mined': 0})
 
 # ==================== MARCHÉ ====================
@@ -115,6 +112,23 @@ def api_miner_stats():
 def api_price():
     return jsonify({'current_price': pool.get_veil_price()})
 
+@app.route('/api/market/create-offer', methods=['POST'])
+def api_create_offer():
+    d = request.get_json()
+    return jsonify(pool.create_sell_offer(d.get('wallet'), float(d.get('amount', 0)),
+           float(d.get('price_per_veil', 0.0001)), d.get('paypal_email', '')))
+
+@app.route('/api/market/create-buy-offer', methods=['POST'])
+def api_create_buy_offer():
+    d = request.get_json()
+    return jsonify(pool.create_buy_offer(d.get('wallet'), float(d.get('amount', 0)),
+           float(d.get('price_per_veil', 0.0001)), d.get('paypal_email', '')))
+
+@app.route('/api/market/sell-offers')
+def api_sell_offers(): return jsonify(pool.get_open_sell_offers())
+
+@app.route('/api/market/buy-offers')
+def api_buy_offers(): return jsonify(pool.get_open_buy_offers())
+
 @app.route('/api/pool/info')
-def api_pool_info():
-    return jsonify(pool.get_pool_info())
+def api_pool_info(): return jsonify(pool.get_pool_info())
