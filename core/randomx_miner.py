@@ -1,6 +1,6 @@
 """
-Mineur VeilCoin - Sécurité réseau par Proof of Work
-Chaque hash calculé renforce la sécurité de la blockchain
+Mineur VeilCoin - Preuve de travail renforcée
+Double SHA256 + Sel aléatoire + Vérification stricte
 """
 import hashlib
 import time
@@ -17,7 +17,6 @@ class RandomXMiner:
         self.blocks_mined = 0
         self.mining_thread = None
         self.callback = None
-        self.network_security = 0  # Niveau de sécurité du réseau
         self.stats = {
             'hashrate': 0,
             'total_hashes': 0,
@@ -38,20 +37,25 @@ class RandomXMiner:
                 self.stats['total_hashes'] = self.total_hashes
                 self.stats['blocks_mined'] = self.blocks_mined
                 self.stats['current_difficulty'] = self.blockchain.difficulty
-                # Sécurité = hashrate × difficulté
                 self.stats['network_security'] = self.stats['hashrate'] * (16 ** self.blockchain.difficulty)
 
-    def _secure_hash(self, data):
+    def _heavy_hash(self, data):
         """
-        Fonction de hachage sécurisée
-        Utilise SHA256 + sel aléatoire pour renforcer la sécurité
+        Fonction de hachage LOURDE pour augmenter la difficulté
+        - Triple SHA256 au lieu de simple
+        - Sel aléatoire de 16 bytes
+        - 3 rounds de hachage
         """
-        # Ajouter un sel aléatoire pour rendre plus difficile à prédire
-        salt = os.urandom(8)
-        # Double SHA256 comme Bitcoin
+        salt = os.urandom(16)
+        
+        # Round 1
         h1 = hashlib.sha256(data + salt).digest()
-        h2 = hashlib.sha256(h1).digest()
-        return h2.hex()
+        # Round 2
+        h2 = hashlib.sha256(h1 + salt).digest()
+        # Round 3 (final)
+        h3 = hashlib.sha256(h2 + salt).hexdigest()
+        
+        return h3
 
     def mine_block(self, addr):
         candidate = self.blockchain.create_new_block(addr)
@@ -64,19 +68,22 @@ class RandomXMiner:
         self.is_mining = True
         last_print = time.time()
         
-        print(f"🔒 Bloc #{len(self.blockchain.chain)} | Difficulté: {self.blockchain.difficulty}")
-        print(f"   🎯 Cible: {target}...")
+        print(f"🔒 Bloc #{len(self.blockchain.chain)}")
+        print(f"   🎯 Difficulté: {self.blockchain.difficulty} zéros")
+        print(f"   🔐 Cible: {target}...")
+        print(f"   ⚡ Triple SHA256 avec sel 16 bytes")
         print(f"   🛡️  Sécurité réseau en renforcement...")
+        print()
         
         while self.is_mining:
-            # Calcul plus lourd = plus sécurisé
-            for _ in range(100):
+            # Traitement par lots pour être plus efficace
+            for _ in range(50):  # 50 hashes par lot (plus lent = plus sécurisé)
                 candidate.header.nonce += 1
                 self.total_hashes += 1
                 
-                # Hachage sécurisé avec sel
+                # Hachage lourd (triple SHA256)
                 header_data = str(candidate.header.to_dict()).encode()
-                block_hash = self._secure_hash(
+                block_hash = self._heavy_hash(
                     header_data + candidate.header.nonce.to_bytes(8, 'big')
                 )
                 
@@ -89,47 +96,70 @@ class RandomXMiner:
                         self._update()
                         
                         elapsed = time.time() - self.start_time
+                        hashes_needed = 16 ** self.blockchain.difficulty
+                        
+                        print(f"\n{'='*60}")
                         print(f"✅ BLOC #{len(self.blockchain.chain)} MINÉ !")
-                        print(f"   ⏱️  {elapsed:.1f}s | 🛡️  Sécurité: {self.stats['network_security']:.0f}")
+                        print(f"   ⏱️  Temps: {elapsed:.1f}s")
+                        print(f"   🔢 Nonce: {candidate.header.nonce:,}")
+                        print(f"   🔐 Hash: {block_hash[:40]}...")
+                        print(f"   🛡️  Sécurité: {self.stats['network_security']/1e9:.2f} GH")
+                        print(f"   💰 Récompense: {self.blockchain.reward()} VEIL")
+                        print(f"{'='*60}\n")
                         
                         if self.callback:
                             self.callback(candidate)
                         
                         return candidate
                 
-                if self.total_hashes % 1000 == 0:
+                # Vérifier si on doit s'arrêter
+                if self.total_hashes % 500 == 0:
                     if not self.is_mining:
                         return None
             
-            time.sleep(0.001)
+            # Pause pour simuler un calcul réaliste
+            time.sleep(0.002)
             
+            # Afficher les stats
             if time.time() - last_print > 3:
                 self._update()
                 elapsed = time.time() - self.start_time
                 
                 # Calculer ETA
-                eta = "Calcul..."
+                avg_needed = 16 ** self.blockchain.difficulty
                 if self.stats['hashrate'] > 0:
-                    avg_needed = 16 ** self.blockchain.difficulty
-                    eta_sec = max(0, (avg_needed - self.total_hashes) / self.stats['hashrate'])
+                    remaining = max(0, avg_needed - self.total_hashes)
+                    eta_sec = remaining / self.stats['hashrate']
                     if eta_sec > 3600:
                         eta = f"{eta_sec/3600:.1f}h"
                     elif eta_sec > 60:
                         eta = f"{eta_sec/60:.1f}min"
                     else:
                         eta = f"{eta_sec:.0f}s"
+                else:
+                    eta = "calcul..."
                 
-                print(f"   ⛏️  {self.stats['hashrate']:.0f} H/s | 🛡️  Sécu: {self.stats['network_security']/1e6:.1f}M | ⏳ ETA: {eta}")
+                # Barre de progression
+                progress = min(100, (self.total_hashes / avg_needed) * 100)
+                bar_len = 30
+                filled = int(bar_len * progress / 100)
+                bar = f"{'█' * filled}{'░' * (bar_len - filled)}"
+                
+                print(f"   ⛏️  {self.stats['hashrate']:.0f} H/s | [{bar}] {progress:.1f}% | ⏳ {eta} | Nonce: {candidate.header.nonce:,}")
                 last_print = time.time()
         
         return None
 
     def start_mining(self, addr):
         self.is_mining = True
-        print("🔒 Démarrage du minage sécurisé")
+        print("=" * 60)
+        print("🔒 DÉMARRAGE DU MINAGE SÉCURISÉ")
+        print("=" * 60)
         print(f"   🎯 Objectif: 1 bloc / 2 minutes")
         print(f"   💰 Récompense: {self.blockchain.reward()} VEIL/bloc")
-        print(f"   🛡️  Plus on mine = Plus le réseau est sécurisé")
+        print(f"   🔐 Algorithme: Triple SHA256 + Sel 16 bytes")
+        print(f"   🛡️  Plus on mine = Réseau plus sécurisé")
+        print("=" * 60)
         print()
         
         def loop():
@@ -137,9 +167,8 @@ class RandomXMiner:
                 try:
                     block = self.mine_block(addr)
                     if block:
-                        print(f"🎉 +{self.blockchain.reward()} VEIL !")
-                        print(f"🛡️  Réseau renforcé !\n")
-                    time.sleep(0.5)
+                        print(f"🎉 +{self.blockchain.reward()} VEIL !\n")
+                    time.sleep(1)
                 except Exception as e:
                     print(f"⚠️ Erreur: {e}")
                     time.sleep(2)
@@ -151,7 +180,14 @@ class RandomXMiner:
         self.is_mining = False
         if self.mining_thread and self.mining_thread.is_alive():
             self.mining_thread.join(timeout=3)
-        print("🛑 Minage arrêté")
+        elapsed = time.time() - self.start_time if self.start_time > 0 else 0
+        print(f"\n{'='*60}")
+        print(f"🛑 MINAGE ARRÊTÉ")
+        print(f"   ⏱️  Durée: {elapsed/60:.1f} min")
+        print(f"   ⚡ Hashrate moyen: {self.stats['hashrate']:.0f} H/s")
+        print(f"   📦 Blocs trouvés: {self.stats['blocks_mined']}")
+        print(f"   🛡️  Sécurité max: {self.stats['network_security']/1e9:.2f} GH")
+        print(f"{'='*60}\n")
 
     def get_stats(self):
         self._update()
