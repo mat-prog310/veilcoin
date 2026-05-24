@@ -1,6 +1,3 @@
-import eventlet
-eventlet.monkey_patch()
-
 from flask import Flask
 from flask_socketio import SocketIO
 import os, sys
@@ -12,8 +9,6 @@ app = Flask(__name__, template_folder='../templates', static_folder='../static')
 app.config['SECRET_KEY'] = Config.SECRET_KEY
 app.config['DEBUG'] = False
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-# Importer à la fin pour éviter l'import circulaire
-import web.routes as routes
-import web.socket_events as socket_events
+from web import routes, socket_events
