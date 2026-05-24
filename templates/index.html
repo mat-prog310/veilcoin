@@ -113,16 +113,29 @@ function updatePrice() {
     fetch('/api/market/price')
         .then(r => r.json())
         .then(d => {
-            const n = new Date().toLocaleTimeString();
-            priceChart.data.labels.push(n);
-            priceChart.data.datasets[0].data.push(d.current_price || 0.001);
+            const price = d.current_price || d.veil_price || 0.001;
+            const now = new Date().toLocaleTimeString();
+            
+            priceChart.data.labels.push(now);
+            priceChart.data.datasets[0].data.push(price);
+            
             if (priceChart.data.labels.length > 30) {
                 priceChart.data.labels.shift();
                 priceChart.data.datasets[0].data.shift();
             }
             priceChart.update();
-        });
+            
+            // Mettre à jour le prix affiché
+            const priceEl = document.getElementById('market-price');
+            if (priceEl) priceEl.textContent = '€' + price.toFixed(8);
+        })
+        .catch(err => console.log('Erreur prix:', err));
 }
+
+// Lancer immédiatement
+updatePrice();
+// Puis toutes les 30 secondes
+setInterval(updatePrice, 30000);
 
 // Stats temps réel
 socket.on('blockchain_stats', s => {
