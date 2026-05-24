@@ -1,12 +1,19 @@
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from web.app import app, socketio
+import eventlet
+eventlet.monkey_patch()
+
+from flask import Flask
+from flask_socketio import SocketIO
+import os, sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import Config
 
-# Pour Render
-application = app
+app = Flask(__name__, template_folder='../templates', static_folder='../static')
+app.config['SECRET_KEY'] = Config.SECRET_KEY
+app.config['DEBUG'] = False
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', Config.API_PORT))
-    print(f"VeilCoin demarre sur le port {port}")
-    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+
+# Importer à la fin pour éviter l'import circulaire
+import web.routes as routes
+import web.socket_events as socket_events
