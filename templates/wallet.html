@@ -1,214 +1,30 @@
 {% extends "base.html" %}
-
 {% block title %}VeilCoin - Wallet{% endblock %}
-
 {% block content %}
 <div class="container">
     <h1 class="mb-4"><i class="fas fa-wallet text-success"></i> Wallet</h1>
-    
     <div class="row">
-        <!-- Créer/Charger Wallet -->
-        <div class="col-md-4 mb-3">
-            <div class="card bg-dark">
-                <div class="card-body">
-                    <h5 class="card-title">Wallet</h5>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Nom du wallet</label>
-                        <input type="text" id="wallet-name" class="form-control" placeholder="mon_wallet">
-                    </div>
-                    
-                    <button class="btn btn-success w-100 mb-2" onclick="createWallet()">
-                        <i class="fas fa-plus"></i> Créer
-                    </button>
-                    <button class="btn btn-primary w-100" onclick="loadWallet()">
-                        <i class="fas fa-folder-open"></i> Charger
-                    </button>
-                    
-                    <hr class="text-muted">
-                    
-                    <div id="wallet-info" class="d-none">
-                        <p><strong>Adresse :</strong> <code id="wallet-address"></code></p>
-                        <p><strong>Solde :</strong> <span id="wallet-balance" class="text-success fw-bold"></span> VEIL</p>
-                        <p><strong>Transactions :</strong> <span id="wallet-tx-count"></span></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Envoyer des VEIL -->
-        <div class="col-md-8 mb-3">
-            <div class="card bg-dark">
-                <div class="card-body">
-                    <h5 class="card-title">Envoyer des VEIL</h5>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Adresse destinataire</label>
-                        <input type="text" id="send-to" class="form-control" placeholder="V1...">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Montant</label>
-                        <div class="input-group">
-                            <input type="number" id="send-amount" class="form-control" 
-                                   placeholder="0.00" step="0.01" min="0">
-                            <span class="input-group-text bg-dark text-light">VEIL</span>
-                        </div>
-                    </div>
-                    
-                    <button class="btn btn-primary w-100" onclick="sendTransaction()">
-                        <i class="fas fa-paper-plane"></i> Envoyer
-                    </button>
-                    
-                    <div id="send-status" class="mt-3"></div>
-                </div>
-            </div>
-        </div>
+        <div class="col-md-6 mb-3"><div class="card bg-dark"><div class="card-body"><h5><i class="fas fa-plus-circle"></i> Créer un wallet</h5><div class="mb-3"><label>Nom</label><input type="text" id="create-name" class="form-control" placeholder="mon_wallet"></div><button class="btn btn-success w-100" onclick="createWallet()"><i class="fas fa-plus"></i> Créer</button><div id="create-result" class="mt-3"></div></div></div></div>
+        <div class="col-md-6 mb-3"><div class="card bg-dark"><div class="card-body"><h5><i class="fas fa-sign-in-alt"></i> Se connecter</h5><div class="mb-3"><label>Nom</label><input type="text" id="login-name" class="form-control"></div><div class="mb-3"><label>Seed Phrase</label><textarea id="login-seed" class="form-control" rows="2"></textarea></div><button class="btn btn-primary w-100" onclick="loginWallet()"><i class="fas fa-unlock"></i> Se connecter</button><div id="login-result" class="mt-3"></div></div></div></div>
     </div>
-    
-    <!-- Historique des transactions -->
-    <div class="card bg-dark">
-        <div class="card-body">
-            <h5 class="card-title">Historique des transactions</h5>
-            <div class="table-responsive">
-                <table class="table table-dark table-hover">
-                    <thead>
-                        <tr>
-                            <th>ID Transaction</th>
-                            <th>Type</th>
-                            <th>Montant</th>
-                            <th>Confirmations</th>
-                            <th>Temps</th>
-                        </tr>
-                    </thead>
-                    <tbody id="transaction-history">
-                        <tr>
-                            <td colspan="5" class="text-center">
-                                Chargez un wallet pour voir l'historique
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+    <div id="wallet-connected" class="d-none">
+        <div class="row">
+            <div class="col-md-4 mb-3"><div class="card bg-dark border-success"><div class="card-body text-center"><h5>Adresse</h5><code id="wallet-address" class="text-success"></code></div></div></div>
+            <div class="col-md-4 mb-3"><div class="card bg-dark border-info"><div class="card-body text-center"><h5>Solde VEIL</h5><h2 id="wallet-balance" class="text-info">0</h2></div></div></div>
+            <div class="col-md-4 mb-3"><div class="card bg-dark border-warning"><div class="card-body text-center"><h5>Valeur en €</h5><h2 id="wallet-eur" class="text-warning">€0</h2></div></div></div>
         </div>
+        <button class="btn btn-outline-danger mb-3" onclick="logoutWallet()"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
+        <div class="card bg-dark"><div class="card-body"><h5>Historique</h5><table class="table table-dark table-hover"><thead><tr><th>ID</th><th>Type</th><th>Montant</th><th>Date</th></tr></thead><tbody id="tx-history"><tr><td colspan="4">Aucune</td></tr></tbody></table></div></div>
     </div>
 </div>
 {% endblock %}
-
 {% block extra_scripts %}
 <script>
-let currentWallet = null;
-
-async function createWallet() {
-    const name = document.getElementById('wallet-name').value || 'default';
-    
-    const response = await fetch('/api/wallet/create', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name: name})
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-        alert('Erreur: ' + data.error);
-    } else {
-        currentWallet = name;
-        displayWalletInfo(data);
-        loadTransactions();
-    }
-}
-
-async function loadWallet() {
-    const name = document.getElementById('wallet-name').value || 'default';
-    
-    const response = await fetch('/api/wallet/load', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name: name})
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-        alert('Erreur: ' + data.error);
-    } else {
-        currentWallet = name;
-        displayWalletInfo(data);
-        loadTransactions();
-    }
-}
-
-function displayWalletInfo(info) {
-    document.getElementById('wallet-info').classList.remove('d-none');
-    document.getElementById('wallet-address').textContent = info.address;
-    document.getElementById('wallet-balance').textContent = info.balance.toFixed(4);
-    document.getElementById('wallet-tx-count').textContent = info.transaction_count;
-}
-
-async function sendTransaction() {
-    if (!currentWallet) {
-        alert('Chargez un wallet d\'abord !');
-        return;
-    }
-    
-    const to = document.getElementById('send-to').value;
-    const amount = parseFloat(document.getElementById('send-amount').value);
-    
-    if (!to || amount <= 0) {
-        alert('Adresse et montant requis');
-        return;
-    }
-    
-    const response = await fetch(`/api/wallet/${currentWallet}/send`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({to: to, amount: amount})
-    });
-    
-    const data = await response.json();
-    
-    const statusDiv = document.getElementById('send-status');
-    
-    if (data.success) {
-        statusDiv.innerHTML = `
-            <div class="alert alert-success">
-                ✅ Transaction envoyée !<br>
-                <small>ID: ${data.tx_id.substring(0, 20)}...</small>
-            </div>
-        `;
-        loadTransactions();
-    } else {
-        statusDiv.innerHTML = `
-            <div class="alert alert-danger">
-                ❌ ${data.error}
-            </div>
-        `;
-    }
-}
-
-async function loadTransactions() {
-    if (!currentWallet) return;
-    
-    const response = await fetch(`/api/wallet/${currentWallet}/transactions`);
-    const txs = await response.json();
-    
-    const tbody = document.getElementById('transaction-history');
-    tbody.innerHTML = '';
-    
-    txs.forEach(tx => {
-        const row = tbody.insertRow();
-        const typeClass = tx.type === 'receive' ? 'text-success' : 'text-danger';
-        const typeIcon = tx.type === 'receive' ? '↓' : '↑';
-        
-        row.innerHTML = `
-            <td><code>${tx.tx_id ? tx.tx_id.substring(0, 16) + '...' : 'N/A'}</code></td>
-            <td class="${typeClass}">${typeIcon} ${tx.type}</td>
-            <td>${tx.amount ? tx.amount.toFixed(4) : '0'} VEIL</td>
-            <td>${tx.confirmations || 0}</td>
-            <td><small>${new Date(tx.timestamp).toLocaleString()}</small></td>
-        `;
-    });
-}
+let currentWallet=null;
+async function createWallet(){const n=document.getElementById('create-name').value.trim();if(!n)return alert('Nom requis');const r=await fetch('/api/wallet/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n})});const d=await r.json();if(d.success){document.getElementById('create-result').innerHTML=`<div class="alert alert-success"><strong>✅ Wallet créé!</strong><br><small>${d.address.substring(0,20)}...</small><br><br><strong>🔐 SEED:</strong><br><code>${d.seed_phrase}</code><br><small class="text-danger">⚠️ Sauvegardez-la!</small></div>`;document.getElementById('login-name').value=n;document.getElementById('login-seed').value=d.seed_phrase}}
+async function loginWallet(){const n=document.getElementById('login-name').value.trim();const s=document.getElementById('login-seed').value.trim();if(!n||!s)return alert('Nom et seed requis');const r=await fetch('/api/wallet/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,seed_phrase:s})});const d=await r.json();if(d.success){currentWallet=d.name;document.getElementById('wallet-connected').classList.remove('d-none');document.getElementById('wallet-address').textContent=d.address.substring(0,20)+'...';loadBalance();loadTx()}}
+async function loadBalance(){if(!currentWallet)return;const r=await fetch(`/api/wallet/${currentWallet}/balance`);const d=await r.json();document.getElementById('wallet-balance').textContent=d.balance_veil.toFixed(4);document.getElementById('wallet-eur').textContent='€'+d.balance_eur.toFixed(6)}
+async function loadTx(){if(!currentWallet)return;const r=await fetch(`/api/wallet/${currentWallet}/transactions`);const txs=await r.json();const t=document.getElementById('tx-history');t.innerHTML='';if(!txs.length){t.innerHTML='<tr><td colspan="4">Aucune</td></tr>';return}txs.forEach(tx=>{const row=t.insertRow();row.innerHTML=`<td><code>${(tx.tx_id||'').substring(0,12)}...</code></td><td class="${tx.type==='receive'?'text-success':'text-danger'}">${tx.type==='receive'?'↓':'↑'} ${tx.type}</td><td>${(tx.amount||0).toFixed(4)} VEIL</td><td><small>${new Date(tx.timestamp).toLocaleString()}</small></td>`})}
+async function logoutWallet(){await fetch('/api/wallet/logout',{method:'POST'});currentWallet=null;document.getElementById('wallet-connected').classList.add('d-none')}
 </script>
 {% endblock %}
