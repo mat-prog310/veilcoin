@@ -1,86 +1,185 @@
-import hashlib
-import os
-import json
-import secrets
-from typing import List, Dict, Optional
-from datetime import datetime
-from .transaction import VeilTransaction, TransactionInput, TransactionOutput
+{% extends "base.html" %}
+{% block title %}VeilCoin - Wallet{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4"><i class="fas fa-wallet text-success"></i> Wallet</h1>
 
-WORD_LIST = ["abandon","ability","able","about","above","absent","absorb","abstract","absurd","abuse","access","accident","account","accuse","achieve","acid","acoustic","acquire","across","act","action","actor","actress","actual","adapt","add","addict","address","adjust","admit","adult","advance","advice","aerobic","affair","afford","afraid","africa","after","again","age","agent","agree","ahead","aim","air","airport","aisle","alarm","album","alcohol","alert","alien","all","alley","allow","almost","alone","alpha","already","also","alter","always","amateur","amazing","among","amount","amused","analyst","anchor","ancient","anger","angle","angry","animal","ankle","announce","annual","another","answer","antenna","antique","anxiety","any","apart","apology","appear","apple","approve","april","arch","arctic","area","arena","argue","arm","armed","armor","army","around","arrange","arrest","arrive","arrow","art","artist","artwork","ask","aspect","assault","asset","assist","assume","asthma","athlete","atom","attack","attend","attitude","attract","auction","audit","august","aunt","author","auto","autumn","average","avocado","avoid","awake","aware","away","awesome","awful","awkward","axis","baby","bachelor","bacon","badge","bag","balance","balcony","ball","bamboo","banana","banner","bar","barely","bargain","barrel","base","basic","basket","battle","beach","bean","beauty","because","become","beef","before","begin","behave","behind","believe","below","belt","bench","benefit","best","betray","better","between","beyond","bicycle","bid","bike","bind","biology","bird","birth","bitter","black","blade","blame","blanket","blast","bleak","bless","blind","blood","blossom","blouse","blue","blur","blush","board","boat","body","boil","bomb","bone","bonus","book","boost","border","boring","borrow","boss","bottom","bounce","box","boy","bracket","brain","brand","brass","brave","bread","breeze","brick","bridge","brief","bright","bring","brisk","broccoli","broken","bronze","broom","brother","brown","brush","bubble","buddy","budget","buffalo","build","bulb","bulk","bullet","bundle","bunker","burden","burger","burst","bus","business","busy","butter","buyer","buzz","cabbage","cabin","cable","cactus","cage","cake","call","calm","camera","camp","can","canal","cancel","candy","cannon","canoe","canvas","canyon","capable","capital","captain","car","carbon","card","cargo","carpet","carry","cart","case","cash","casino","castle","casual","cat","catalog","catch","category","cattle","caught","cause","caution","cave","ceiling","celery","cement","census","century","cereal","certain","chair","chalk","champion","change","chaos","chapter","charge","chase","chat","cheap","check","cheese","chef","cherry","chest","chicken","chief","child","chimney","choice","choose","chronic","chuckle","chunk","churn","cigar","cinnamon","circle","citizen","city","civil","claim","clap","clarify","claw","clay","clean","clerk","clever","click","client","cliff","climb","clinic","clip","clock","clog","close","cloth","cloud","clown","club","clump","cluster","clutch","coach","coast","coconut","code","coffee","coil","coin","collect","color","column","combine","come","comfort","comic","common","company","concert","conduct","confirm","congress","connect","consider","control","convince","cook","cool","copper","copy","coral","core","corn","correct","cost","cotton","couch","country","couple","course","cousin","cover","coyote","crack","cradle","craft","cram","crane","crash","crater","crawl","crazy","cream","credit","creek","crew","cricket","crime","crisp","critic","crop","cross","crouch","crowd","crucial","cruel","cruise","crumble","crunch","crush","cry","crystal","cube","culture","cup","cupboard","curious","current","curtain","curve","cushion","custom","cute","cycle","dad","damage","damp","dance","danger","daring","dash","daughter","dawn","day","deal","debate","debris","decade","december","decide","decline","decorate","decrease","deer","defense","define","defy","degree","delay","deliver","demand","demise","denial","dentist","deny","depart","depend","deposit","depth","deputy","derive","describe","desert","design","desk","despair","destroy","detail","detect","develop","device","devote","diagram","dial","diamond","diary","dice","diesel","diet","differ","digital","dignity","dilemma","dinner","dinosaur","direct","dirt","disagree","discover","disease","dish","dismiss","disorder","display","distance","divert","divide","divorce","dizzy","doctor","document","dog","doll","dolphin","domain","donate","donkey","donor","door","dose","double","dove","draft","dragon","drama","drastic","draw","dream","dress","drift","drill","drink","drip","drive","drop","drum","dry","duck","dumb","dune","during","dust","dutch","duty","dwarf","dynamic","eager","eagle","early","earn","earth","easily","east","easy","echo","ecology","economy","edge","edit","educate","effort","egg","eight","either","elbow","elder","electric","elegant","element","elephant","elevator","elite","else","embark","embody","embrace","emerge","emotion","employ","empower","empty","enable","enact","end","endless","endorse","enemy","energy","enforce","engage","engine","enhance","enjoy","enlist","enough","enrich","enroll","ensure","enter","entire","entry","envelope","episode","equal","equip","era","erase","erode","erosion","error","erupt","escape","essay","essence","estate","eternal","ethics","evidence","evil","evoke","evolve","exact","example","excess","exchange","excite","exclude","excuse","execute","exercise","exhaust","exhibit","exile","exist","exit","exotic","expand","expect","expire","explain","expose","express","extend","extra","eye","eyebrow","fabric","face","faculty","fade","faint","faith","fall","false","fame","family","famous","fan","fancy","fantasy","farm","fashion","fat","fatal","father","fatigue","fault","favorite","feature","february","federal","fee","feed","feel","female","fence","festival","fetch","fever","few","fiber","fiction","field","figure","file","film","filter","final","find","fine","finger","finish","fire","firm","first","fiscal","fish","fit","fitness","fix","flag","flame","flash","flat","flavor","flee","flight","flip","float","flock","floor","flower","fluid","flush","fly","foam","focus","fog","foil","fold","follow","food","foot","force","forest","forget","fork","fortune","forum","forward","fossil","foster","found","fox","fragile","frame","frequent","fresh","friend","fringe","frog","front","frost","frown","frozen","fruit","fuel","fun","funny","furnace","fury","future","gadget","gain","galaxy","gallery","game","gap","garage","garbage","garden","garlic","garment","gas","gasp","gate","gather","gauge","gaze","general","genius","genre","gentle","genuine","gesture","ghost","giant","gift","giggle","ginger","giraffe","girl","give","glad","glance","glare","glass","glide","glimpse","globe","gloom","glory","glove","glow","glue","goat","goddess","gold","good","goose","gorilla","gospel","gossip","govern","gown","grab","grace","grain","grant","grape","grass","gravity","great","green","grid","grief","grit","grocery","group","grow","grunt","guard","guess","guide","guilt","guitar","gun","gym","habit","hair","half","hammer","hamster","hand","happy","harbor","hard","harsh","harvest","hat","have","hawk","hazard","head","health","heart","heavy","hedgehog","height","hello","helmet","help","hen","hero","hidden","high","hill","hint","hip","hire","history","hobby","hockey","hold","hole","holiday","hollow","home","honey","hood","hope","horn","horror","horse","hospital","host","hotel","hour","hover","hub","huge","human","humble","humor","hundred","hungry","hunt","hurdle","hurry","hurt","husband","hybrid","ice","icon","idea","identify","idle","ignore","ill","illegal","illness","image","imitate","immense","immune","impact","impose","improve","impulse","inch","include","income","increase","index","indicate","indoor","industry","infant","inflict","inform","inhale","inherit","initial","inject","injury","inmate","inner","innocent","input","inquiry","insane","insect","inside","inspire","install","intact","interest","into","invest","invite","involve","iron","island","isolate","issue","item","ivory","jacket","jaguar","jar","jazz","jealous","jeans","jelly","jewel","job","join","joke","journey","joy","judge","juice","jump","jungle","junior","junk","just","kangaroo","keen","keep","ketchup","key","kick","kid","kidney","kind","kingdom","kiss","kit","kitchen","kite","kitten","kiwi","knee","knife","knock","know","lab","label","labor","ladder","lady","lake","lamp","language","laptop","large","later","latin","laugh","laundry","lava","law","lawn","lawsuit","layer","lazy","leader","leaf","learn","leave","lecture","left","leg","legal","legend","leisure","lemon","lend","length","lens","leopard","lesson","letter","level","liar","liberty","library","license","life","lift","light","like","limb","limit","link","lion","liquid","list","little","live","lizard","load","loan","lobster","local","lock","logic","lonely","long","loop","lottery","loud","lounge","love","loyal","lucky","luggage","lumber","lunar","lunch","luxury","lyrics","machine","mad","magic","magnet","maid","mail","main","major","make","mammal","man","manage","mandate","mango","mansion","manual","maple","marble","march","margin","marine","market","marriage","mask","mass","master","match","material","math","matrix","matter","maximum","maze","meadow","mean","measure","meat","mechanic","medal","media","melody","melt","member","memory","mention","menu","mercy","merge","merit","merry","mesh","message","metal","method","middle","midnight","milk","million","mimic","mind","minimum","minor","minute","miracle","mirror","misery","miss","mistake","mix","mixed","mixture","mobile","model","modify","mom","moment","monitor","monkey","monster","month","moon","moral","more","morning","mosquito","mother","motion","motor","mountain","mouse","move","movie","much","muffin","mule","multiply","muscle","museum","mushroom","music","must","mutual","myself","mystery","myth","naive","name","napkin","narrow","nasty","nation","nature","near","neck","need","negative","neglect","neither","nephew","nerve","nest","net","network","neutral","never","news","next","nice","night","noble","noise","nominee","noodle","normal","north","nose","notable","note","nothing","notice","novel","now","nuclear","number","nurse","nut","oak","obey","object","oblige","obscure","observe","obtain","obvious","occur","ocean","october","odor","off","offer","office","often","oil","okay","old","olive","olympic","omit","once","one","onion","online","only","open","opera","opinion","oppose","option","orange","orbit","orchard","order","ordinary","organ","orient","original","orphan","ostrich","other","outdoor","outer","output","outside","oval","oven","over","own","owner","oxygen","oyster","ozone","pact","paddle","page","pair","palace","palm","panda","panel","panic","panther","paper","parade","parent","park","parrot","party","pass","patch","path","patient","patrol","pattern","pause","pave","payment","peace","peanut","pear","peasant","pelican","pen","penalty","pencil","people","pepper","perfect","permit","person","pet","phone","photo","phrase","physical","piano","picnic","picture","piece","pig","pigeon","pill","pilot","pink","pioneer","pipe","pistol","pitch","pizza","place","planet","plastic","plate","play","please","pledge","pluck","plug","plunge","poem","poet","point","polar","pole","police","pond","pony","pool","popular","portion","position","possible","post","potato","pottery","poverty","powder","power","practice","praise","predict","prefer","prepare","present","pretty","prevent","price","pride","primary","print","priority","prison","private","prize","problem","process","produce","profit","program","project","promote","proof","property","prosper","protect","proud","provide","public","pudding","pull","pulp","pulse","pumpkin","punch","pupil","puppy","purchase","purity","purpose","purse","push","put","puzzle","pyramid","quality","quantum","quarter","question","quick","quit","quiz","quote","rabbit","raccoon","race","rack","radar","radio","rail","rain","raise","rally","ramp","ranch","random","range","rapid","rare","rate","rather","raven","raw","razor","ready","real","reason","rebel","rebuild","recall","receive","recipe","record","recycle","reduce","reflect","reform","refuse","region","regret","regular","reject","relax","release","relief","rely","remain","remember","remind","remove","render","renew","rent","reopen","repair","repeat","replace","report","require","rescue","resemble","resist","resource","response","result","retire","retreat","return","reunion","reveal","review","reward","rhythm","rib","ribbon","rice","rich","ride","ridge","rifle","right","rigid","ring","riot","ripple","risk","ritual","rival","river","road","roast","robot","robust","rocket","romance","roof","rookie","room","rose","rotate","rough","round","route","royal","rubber","rude","rug","rule","run","runway","rural","sad","saddle","sadness","safe","sail","salad","salmon","salon","salt","salute","same","sample","sand","satisfy","satoshi","sauce","sausage","save","say","scale","scan","scare","scatter","scene","scheme","school","science","scissors","scorpion","scout","scrap","screen","script","scrub","sea","search","season","seat","second","secret","section","security","seed","seek","segment","select","sell","seminar","senior","sense","sentence","series","service","session","settle","setup","seven","shadow","shaft","shallow","share","shed","shell","sheriff","shield","shift","shine","ship","shiver","shock","shoe","shoot","shop","short","shoulder","shove","shrimp","shrug","shuffle","shy","sibling","sick","side","siege","sight","sign","silent","silk","silly","silver","similar","simple","since","sing","siren","sister","situate","six","size","skate","sketch","ski","skill","skin","skirt","skull","slab","slam","sleep","slender","slice","slide","slight","slim","slogan","slot","slow","slush","small","smart","smile","smoke","smooth","snack","snake","snap","sniff","snow","soap","soccer","social","sock","soda","soft","solar","soldier","solid","solution","solve","someone","song","soon","sorry","sort","soul","sound","soup","source","south","space","spare","spatial","spawn","speak","special","speed","spell","spend","sphere","spice","spider","spike","spin","spirit","split","spoil","sponsor","spoon","sport","spot","spray","spread","spring","spy","square","squeeze","squirrel","stable","stadium","staff","stage","stairs","stamp","stand","start","state","stay","steak","steel","stem","step","stereo","stick","still","sting","stock","stomach","stone","stool","story","stove","strategy","street","strike","strong","struggle","student","stuff","stumble","style","subject","submit","subway","success","such","sudden","suffer","sugar","suggest","suit","summer","sun","sunny","sunset","super","supply","supreme","sure","surface","surge","surprise","surround","survey","suspect","sustain","swallow","swamp","swap","swarm","swear","sweet","swift","swim","swing","switch","sword","symbol","symptom","syrup","system","table","tackle","tag","tail","talent","talk","tank","tape","target","task","taste","tattoo","taxi","teach","team","tell","ten","tenant","tennis","tent","term","test","text","thank","that","theme","then","theory","there","they","thing","this","thought","three","thrive","throw","thumb","thunder","ticket","tide","tiger","tilt","timber","time","tiny","tip","tired","tissue","title","toast","tobacco","today","toddler","toe","together","toilet","token","tomato","tomorrow","tone","tongue","tonight","tool","tooth","top","topic","topple","torch","tornado","tortoise","toss","total","tourist","toward","tower","town","toy","track","trade","traffic","tragic","train","transfer","trap","trash","travel","tray","treat","tree","trend","trial","tribe","trick","trigger","trim","trip","trophy","trouble","truck","true","truly","trumpet","trust","truth","try","tube","tuition","tumble","tuna","tunnel","turkey","turn","turtle","twelve","twenty","twice","twin","twist","two","type","typical","ugly","umbrella","unable","unaware","uncle","uncover","under","undo","unfair","unfold","unhappy","uniform","unique","unit","universe","unknown","unlock","until","unusual","unveil","update","upgrade","uphold","upon","upper","upset","urban","urge","usage","use","used","useful","useless","usual","utility","vacant","vacuum","vague","valid","valley","valve","van","vanish","vapor","various","vast","vault","vehicle","velvet","vendor","venture","venue","verb","verify","version","very","vessel","veteran","viable","vibrant","vicious","victory","video","view","village","vintage","violin","virtual","virus","visa","visit","visual","vital","vivid","vocal","voice","void","volcano","volume","vote","voyage","wage","wagon","wait","walk","wall","walnut","want","warfare","warm","warrior","wash","wasp","waste","water","wave","way","wealth","weapon","wear","weasel","weather","web","wedding","weekend","weird","welcome","west","wet","whale","what","wheat","wheel","when","where","whip","whisper","wide","width","wife","wild","will","win","window","wine","wing","wink","winner","winter","wire","wisdom","wise","wish","witness","wolf","woman","wonder","wood","wool","word","work","world","worry","worth","wrap","wreck","wrestle","wrist","write","wrong","yard","year","yellow","you","young","youth","zebra","zero","zone","zoo"]
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <div class="card bg-dark">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-plus-circle"></i> Créer un wallet</h5>
+                    <div class="mb-3">
+                        <label class="form-label">Nom du wallet</label>
+                        <input type="text" id="create-name" class="form-control" placeholder="mon_wallet">
+                    </div>
+                    <button class="btn btn-success w-100" onclick="createWallet()">
+                        <i class="fas fa-plus"></i> Créer
+                    </button>
+                    <div id="create-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
 
-class VeilWallet:
-    def __init__(self, wallet_name="default"):
-        self.wallet_name = wallet_name
-        self.address = ""
-        self.public_key = ""
-        self.private_key = ""
-        self.seed_phrase = ""
-        self.seed_hash = ""
-        self.balance = 0.0
-        self.transactions = []
-        self.created_at = ""
-        self.wallet_path = os.path.join("data", "wallets", f"{wallet_name}.json")
+        <div class="col-md-6 mb-3">
+            <div class="card bg-dark">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-sign-in-alt"></i> Se connecter</h5>
+                    <div class="mb-3">
+                        <label class="form-label">Nom du wallet</label>
+                        <input type="text" id="login-name" class="form-control" placeholder="mon_wallet">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Seed Phrase (12 mots)</label>
+                        <textarea id="login-seed" class="form-control" rows="2" placeholder="entrez vos 12 mots secrets..."></textarea>
+                    </div>
+                    <button class="btn btn-primary w-100" onclick="loginWallet()">
+                        <i class="fas fa-unlock"></i> Se connecter
+                    </button>
+                    <div id="login-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    def create_new(self):
-        words = [secrets.choice(WORD_LIST) for _ in range(12)]
-        self.seed_phrase = " ".join(words)
-        self.seed_hash = hashlib.sha256(self.seed_phrase.encode()).hexdigest()
-        self.private_key = hashlib.sha256(self.seed_phrase.encode()).hexdigest()
-        self.public_key = hashlib.sha256(self.private_key.encode()).hexdigest()
-        self.address = f"V1{hashlib.sha256(hashlib.sha256(self.public_key.encode()).digest()).hexdigest()[:40]}"
-        self.balance = 0.0
-        self.created_at = datetime.now().isoformat()
-        self.save()
-        return {'address': self.address, 'seed_phrase': self.seed_phrase, 'balance': self.balance}
+    <div id="wallet-connected" class="d-none">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <div class="card bg-dark border-success">
+                    <div class="card-body text-center">
+                        <h5>Adresse</h5>
+                        <code id="wallet-address" class="text-success"></code>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card bg-dark border-info">
+                    <div class="card-body text-center">
+                        <h5>Solde VEIL</h5>
+                        <h2 id="wallet-balance" class="text-info">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card bg-dark border-warning">
+                    <div class="card-body text-center">
+                        <h5>Valeur en €</h5>
+                        <h2 id="wallet-eur" class="text-warning">€0</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-outline-danger mb-3" onclick="logoutWallet()">
+            <i class="fas fa-sign-out-alt"></i> Déconnexion
+        </button>
+    </div>
+</div>
+{% endblock %}
 
-    def load_or_create(self):
-        os.makedirs(os.path.dirname(self.wallet_path), exist_ok=True)
-        if os.path.exists(self.wallet_path):
-            with open(self.wallet_path, 'r') as f:
-                d = json.load(f)
-                self.__dict__.update({k: d.get(k, v) for k, v in self.__dict__.items() if k != 'wallet_path'})
-            return True
-        return False
+{% block extra_scripts %}
+<script>
+let currentWallet = null;
 
-    def verify_seed(self, seed):
-        return hashlib.sha256(seed.encode()).hexdigest() == self.seed_hash
+async function createWallet() {
+    const name = document.getElementById('create-name').value.trim();
+    if (!name) {
+        alert('Nom requis');
+        return;
+    }
 
-    def save(self):
-        os.makedirs(os.path.dirname(self.wallet_path), exist_ok=True)
-        d = {k: v for k, v in self.__dict__.items() if k != 'wallet_path'}
-        with open(self.wallet_path, 'w') as f:
-            json.dump(d, f, indent=2)
+    console.log('Création wallet:', name);
 
-    def get_info(self):
-        return {'name': self.wallet_name, 'address': self.address, 'balance': self.balance, 'transaction_count': len(self.transactions), 'created_at': self.created_at}
+    try {
+        const res = await fetch('/api/wallet/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: name})
+        });
 
-    def get_recent_transactions(self, limit=10):
-        return sorted(self.transactions, key=lambda x: x.get('timestamp', ''), reverse=True)[:limit]
+        const data = await res.json();
+        console.log('Réponse:', data);
 
-    def create_transaction(self, to_address, amount):
-        if amount <= 0 or self.balance < amount + 0.001:
-            return None
-        ki = hashlib.sha256(f"{self.private_key}{to_address}{amount}".encode()).hexdigest()
-        ti = TransactionInput([self.public_key] + [os.urandom(16).hex() for _ in range(10)], ki, "SIG", amount)
-        to = TransactionOutput(to_address, amount)
-        outputs = [to]
-        change = self.balance - amount - 0.001
-        if change > 0:
-            outputs.append(TransactionOutput(self.address, change))
-        tx = VeilTransaction([ti], outputs, 0.001)
-        self.transactions.append({'tx_id': tx.tx_id, 'type': 'send', 'to': to_address[:16]+'...', 'amount': amount, 'fee': 0.001, 'timestamp': datetime.now().isoformat()})
-        self.save()
-        return tx
+        if (data.success) {
+            document.getElementById('create-result').innerHTML = `
+                <div class="alert alert-success">
+                    <strong>✅ Wallet créé !</strong><br>
+                    <small>Adresse : ${(data.address || '').substring(0, 20)}...</small><br><br>
+                    <strong>🔐 SEED PHRASE :</strong><br>
+                    <code class="bg-dark p-2 rounded d-block mt-1">${data.seed_phrase}</code><br>
+                    <small class="text-danger">⚠️ Sauvegardez-la précieusement !</small>
+                </div>
+            `;
+            document.getElementById('login-name').value = name;
+            document.getElementById('login-seed').value = data.seed_phrase;
+        } else {
+            document.getElementById('create-result').innerHTML = `
+                <div class="alert alert-danger">❌ ${data.error || 'Erreur inconnue'}</div>
+            `;
+        }
+    } catch (e) {
+        console.error('Erreur:', e);
+        document.getElementById('create-result').innerHTML = `
+            <div class="alert alert-danger">❌ Erreur de connexion au serveur</div>
+        `;
+    }
+}
 
-    def create_new(self):
-        words = [secrets.choice(WORDS) for _ in range(12)]
-        self.seed_phrase = " ".join(words)
-        self.seed_hash = hashlib.sha256(self.seed_phrase.encode()).hexdigest()
-        self.private_key = hashlib.sha256(self.seed_phrase.encode()).hexdigest()
-        self.public_key = hashlib.sha256(self.private_key.encode()).hexdigest()
-        self.address = f"V1{hashlib.sha256(hashlib.sha256(self.public_key.encode()).digest()).hexdigest()[:40]}"
-        self.balance = 0.0
-        self.created_at = datetime.now().isoformat()
-        self.save()
-        print(f"✅ Wallet '{self.wallet_name}' sauvegardé: {self.address[:20]}...")
-        return {'address': self.address, 'seed_phrase': self.seed_phrase, 'balance': self.balance}
+async function loginWallet() {
+    const name = document.getElementById('login-name').value.trim();
+    const seed = document.getElementById('login-seed').value.trim();
+
+    if (!name || !seed) {
+        alert('Nom et seed phrase requis');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/wallet/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: name, seed_phrase: seed})
+        });
+
+        const data = await res.json();
+        console.log('Login:', data);
+
+        if (data.success) {
+            currentWallet = data.name;
+            document.getElementById('wallet-connected').classList.remove('d-none');
+            document.getElementById('wallet-address').textContent = (data.address || '').substring(0, 20) + '...';
+            loadBalance();
+            document.getElementById('login-result').innerHTML = '';
+        } else {
+            document.getElementById('login-result').innerHTML = `
+                <div class="alert alert-danger">❌ ${data.error || 'Erreur'}</div>
+            `;
+        }
+    } catch (e) {
+        document.getElementById('login-result').innerHTML = `
+            <div class="alert alert-danger">❌ Erreur de connexion</div>
+        `;
+    }
+}
+
+async function loadBalance() {
+    if (!currentWallet) return;
+
+    try {
+        const res = await fetch(`/api/wallet/${currentWallet}/balance`);
+        const data = await res.json();
+        document.getElementById('wallet-balance').textContent = (data.balance_veil || 0).toFixed(4);
+        document.getElementById('wallet-eur').textContent = '€' + (data.balance_eur || 0).toFixed(6);
+    } catch (e) {
+        console.error('Erreur balance:', e);
+    }
+}
+
+async function logoutWallet() {
+    try {
+        await fetch('/api/wallet/logout', {method: 'POST'});
+    } catch (e) {}
+    currentWallet = null;
+    document.getElementById('wallet-connected').classList.add('d-none');
+}
+</script>
+{% endblock %}
