@@ -23,9 +23,10 @@ Toute reproduction ou distribution non autorisée est strictement interdite.
 
 - 🔒 **Confidentialité maximale** : Transactions intraçables grâce aux **Ring Signatures** et **Stealth Addresses**
 - 🛡️ **Sécurité renforcée** : Algorithme **SHA256 Proof of Work** avec mécanisme de **Double Hash**
-- ⛏️ **Minage équitable** : **ASIC-resistant**, minable sur n'importe quel PC (même ancien)
-- 💰 **Supply limitée** : **25 000 000 VEIL** maximum (comme Bitcoin avec ses 21M)
+- ⛏️ **Minage équitable** : **ASIC-resistant**, minable sur n'importe quel PC (même ancien)50%pool 50% récompense.
+- 💰 **Supply limitée** : **1 Md VEIL** maximum (comme Bitcoin avec ses 21M)
 - 🤝 **100% P2P** : Échanges directs entre utilisateurs via **PayPal**, sans intermédiaire
+
 
 ---
 
