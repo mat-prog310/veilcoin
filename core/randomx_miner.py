@@ -1,6 +1,6 @@
 """
-Mineur VeilCoin - EXTRÊMEMENT difficile
-Quadruple SHA256 + Sel 64 bytes
+Mineur VeilCoin - SHA256 simple + Difficulté 5
+Temps estimé : 5-30 minutes par bloc
 """
 import hashlib
 import time
@@ -39,13 +39,9 @@ class RandomXMiner:
                 self.stats['current_difficulty'] = self.blockchain.difficulty
                 self.stats['network_security'] = self.stats['hashrate'] * (16 ** self.blockchain.difficulty)
 
-    def _heavy_hash(self, data):
-        """SHA256 x5 avec sel 64 bytes = IMPOSSIBLE à miner vite"""
-        salt = os.urandom(64)
-        h = data + salt
-        for _ in range(5):
-            h = hashlib.sha256(h).digest()
-        return h.hex()
+    def _hash(self, data):
+        """SHA256 simple = plus rapide"""
+        return hashlib.sha256(data).hexdigest()
 
     def mine_block(self, addr):
         candidate = self.blockchain.create_new_block(addr)
@@ -58,14 +54,16 @@ class RandomXMiner:
         self.is_mining = True
         last_print = time.time()
         
+        print(f"⛏️  Bloc #{len(self.blockchain.chain)} | Difficulté: {self.blockchain.difficulty}")
+        
         while self.is_mining:
-            # Seulement 5 hashes par itération
-            for _ in range(5):
+            # 1000 hashes par lot = plus rapide
+            for _ in range(1000):
                 candidate.header.nonce += 1
                 self.total_hashes += 1
                 
                 header_data = str(candidate.header.to_dict()).encode()
-                block_hash = self._heavy_hash(
+                block_hash = self._hash(
                     header_data + candidate.header.nonce.to_bytes(8, 'big')
                 )
                 
@@ -84,9 +82,6 @@ class RandomXMiner:
                         
                         return candidate
             
-            # Pause pour ralentir
-            time.sleep(0.01)
-            
             if time.time() - last_print > 5:
                 self._update()
                 elapsed = time.time() - self.start_time
@@ -95,20 +90,25 @@ class RandomXMiner:
                 if self.stats['hashrate'] > 0:
                     remaining = max(0, avg_needed - self.total_hashes)
                     eta_sec = remaining / self.stats['hashrate']
-                    eta = f"{eta_sec/60:.1f}min" if eta_sec > 60 else f"{eta_sec:.0f}s"
+                    if eta_sec > 3600:
+                        eta = f"{eta_sec/3600:.1f}h"
+                    elif eta_sec > 60:
+                        eta = f"{eta_sec/60:.1f}min"
+                    else:
+                        eta = f"{eta_sec:.0f}s"
                 else:
                     eta = "..."
                 
                 progress = min(100, (self.total_hashes / avg_needed) * 100)
-                print(f"   ⛏️  {self.stats['hashrate']:.0f} H/s | {progress:.4f}% | ⏳ {eta}")
+                print(f"   ⛏️  {self.stats['hashrate']:.0f} H/s | {progress:.2f}% | ⏳ {eta}")
                 last_print = time.time()
         
         return None
 
     def start_mining(self, addr):
         self.is_mining = True
-        print(f"🔒 Minage démarré - Difficulté: {self.blockchain.difficulty}")
-        print(f"   ~10-60 min par bloc")
+        print(f"⚡ Minage démarré - Difficulté: {self.blockchain.difficulty}")
+        print(f"   💰 25 VEIL/bloc | ⏱️  ~5-30 min")
         
         def loop():
             while self.is_mining:
@@ -116,7 +116,7 @@ class RandomXMiner:
                     block = self.mine_block(addr)
                     if block:
                         print(f"🎉 +25 VEIL !\n")
-                    time.sleep(1)
+                    time.sleep(0.5)
                 except Exception as e:
                     print(f"⚠️ {e}")
                     time.sleep(2)
