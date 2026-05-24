@@ -2,54 +2,52 @@
 {% block title %}VeilCoin - Mineur{% endblock %}
 {% block content %}
 <div class="container">
-    <h1 class="mb-4"><i class="fas fa-microchip text-warning"></i> Mineur VeilCoin</h1>
+    <h1 class="mb-4" style="color: #ffc107;"><i class="fas fa-microchip"></i> Mineur VeilCoin</h1>
     
     <div class="row">
         <div class="col-md-4 mb-3">
-            <div class="card bg-dark">
+            <div class="card" style="background: #1a1a2e; border: 2px solid #ffc107; border-radius: 15px;">
                 <div class="card-body text-center">
-                    <h5>Contrôle du mineur</h5>
+                    <h5 style="color: #ffc107;">🎮 Contrôle du mineur</h5>
                     <div class="mb-3">
-                        <label>Wallet mineur</label>
-                        <select id="miner-wallet" class="form-select">
+                        <label style="color: #fff;">Wallet mineur</label>
+                        <select id="miner-wallet" class="form-select" style="background: #0d0d1a; color: #fff; border: 1px solid #ffc107;">
                             {% for w in wallets %}
                             <option value="{{ w }}">{{ w }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <button id="start-btn" class="btn btn-success w-100 mb-2" onclick="startMining()">
-                        <i class="fas fa-play"></i> Démarrer le minage
+                    <button id="start-btn" class="btn w-100 mb-2" style="background: #198754; color: #fff; font-size: 1.1em;" onclick="startMining()">
+                        ▶ Démarrer le minage
                     </button>
-                    <button id="stop-btn" class="btn btn-danger w-100" onclick="stopMining()">
-                        <i class="fas fa-stop"></i> Arrêter le minage
+                    <button id="stop-btn" class="btn w-100" style="background: #dc3545; color: #fff; font-size: 1.1em;" onclick="stopMining()">
+                        ⏹ Arrêter le minage
                     </button>
-                    <div id="mining-status" class="mt-3">
-                        <div class="alert alert-secondary">⚪ Mineur arrêté</div>
-                    </div>
+                    <div id="mining-status" class="mt-3" style="color: #fff; font-weight: bold;">⚪ Mineur arrêté</div>
                 </div>
             </div>
         </div>
         
         <div class="col-md-8 mb-3">
-            <div class="card bg-dark">
+            <div class="card" style="background: #1a1a2e; border: 2px solid #6f42c1; border-radius: 15px;">
                 <div class="card-body">
-                    <h5>Statistiques en temps réel</h5>
+                    <h5 style="color: #6f42c1;">📊 Statistiques en temps réel</h5>
                     <div class="row mb-3">
                         <div class="col-md-3 text-center">
-                            <h3 id="hashrate" class="text-primary">0</h3>
-                            <small>Hashrate (H/s)</small>
+                            <h3 id="hashrate" style="color: #0dcaf0;">0</h3>
+                            <small style="color: #aaa;">Hashrate (H/s)</small>
                         </div>
                         <div class="col-md-3 text-center">
-                            <h3 id="blocks-found" class="text-success">0</h3>
-                            <small>Blocs trouvés</small>
+                            <h3 id="blocks-found" style="color: #198754;">0</h3>
+                            <small style="color: #aaa;">Blocs trouvés</small>
                         </div>
                         <div class="col-md-3 text-center">
-                            <h3 id="shares" class="text-info">0</h3>
-                            <small>Shares</small>
+                            <h3 id="shares" style="color: #ffc107;">0</h3>
+                            <small style="color: #aaa;">Shares</small>
                         </div>
                         <div class="col-md-3 text-center">
-                            <h3 id="difficulty" class="text-warning">2</h3>
-                            <small>Difficulté</small>
+                            <h3 id="difficulty" style="color: #e94560;">2</h3>
+                            <small style="color: #aaa;">Difficulté</small>
                         </div>
                     </div>
                     <canvas id="minerChart" height="250"></canvas>
@@ -71,59 +69,76 @@ const chart = new Chart(ctx, {
             label: 'Hashrate (H/s)',
             data: [],
             borderColor: '#ffc107',
-            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+            backgroundColor: 'rgba(255, 193, 7, 0.2)',
             tension: 0.4,
-            fill: true
+            fill: true,
+            borderWidth: 2
         }]
     },
     options: {
         responsive: true,
         plugins: { legend: { labels: { color: '#fff' } } },
         scales: {
-            y: { ticks: { color: '#fff' }, beginAtZero: true },
-            x: { ticks: { color: '#fff' } }
+            y: { ticks: { color: '#fff' }, beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } },
+            x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
         }
     }
 });
 
 async function startMining() {
     const wallet = document.getElementById('miner-wallet').value;
-    if (!wallet) return alert('Sélectionnez un wallet');
+    if (!wallet) { alert('Sélectionne un wallet !'); return; }
     
-    const res = await fetch('/api/miner/start', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({wallet: wallet})
-    });
+    console.log('Démarrage minage pour', wallet);
     
-    const data = await res.json();
-    if (data.success) {
-        document.getElementById('start-btn').disabled = true;
-        document.getElementById('stop-btn').disabled = false;
-        document.getElementById('mining-status').innerHTML = '<div class="alert alert-success">⛏️ Minage en cours...</div>';
+    try {
+        const res = await fetch('/api/miner/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({wallet: wallet})
+        });
+        
+        const data = await res.json();
+        console.log('Réponse:', data);
+        
+        if (data.success) {
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('stop-btn').disabled = false;
+            document.getElementById('mining-status').innerHTML = '<span style="color: #198754;">⛏️ Minage en cours...</span>';
+        } else {
+            alert('Erreur: ' + (data.error || 'Inconnue'));
+        }
+    } catch (e) {
+        console.error('Erreur:', e);
+        alert('Erreur de connexion au serveur');
     }
 }
 
 async function stopMining() {
-    const res = await fetch('/api/miner/stop');
-    const data = await res.json();
-    if (data.success) {
+    try {
+        const res = await fetch('/api/miner/stop');
+        const data = await res.json();
+        console.log('Stop:', data);
+        
         document.getElementById('start-btn').disabled = false;
         document.getElementById('stop-btn').disabled = true;
-        document.getElementById('mining-status').innerHTML = '<div class="alert alert-secondary">⚪ Mineur arrêté</div>';
+        document.getElementById('mining-status').innerHTML = '<span style="color: #aaa;">⚪ Mineur arrêté</span>';
+    } catch (e) {
+        console.error('Erreur:', e);
     }
 }
 
-// Mise à jour temps réel des stats
+// Temps réel
 socket.on('miner_stats', function(stats) {
-    document.getElementById('hashrate').textContent = Math.round(stats.hashrate);
-    document.getElementById('blocks-found').textContent = stats.blocks_mined;
-    document.getElementById('shares').textContent = stats.accepted_shares;
-    document.getElementById('difficulty').textContent = stats.current_difficulty;
+    console.log('Stats reçues:', stats);
+    document.getElementById('hashrate').textContent = Math.round(stats.hashrate || 0);
+    document.getElementById('blocks-found').textContent = stats.blocks_mined || 0;
+    document.getElementById('shares').textContent = stats.accepted_shares || 0;
+    document.getElementById('difficulty').textContent = stats.current_difficulty || 2;
     
     const now = new Date().toLocaleTimeString();
     chart.data.labels.push(now);
-    chart.data.datasets[0].data.push(stats.hashrate);
+    chart.data.datasets[0].data.push(stats.hashrate || 0);
     
     if (chart.data.labels.length > 30) {
         chart.data.labels.shift();
@@ -131,5 +146,8 @@ socket.on('miner_stats', function(stats) {
     }
     chart.update();
 });
+
+socket.on('connect', () => console.log('✅ Connecté au serveur'));
+socket.on('disconnect', () => console.log('❌ Déconnecté'));
 </script>
 {% endblock %}
