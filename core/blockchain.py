@@ -22,9 +22,12 @@ class Blockchain:
                     d = json.load(f)
                     self.chain = [Block.from_dict(b) for b in d.get('blocks', [])]
                     self.difficulty = d.get('current_difficulty', Config.INITIAL_DIFFICULTY)
-            except:
+                print(f"📦 Blockchain chargée: {len(self.chain)} blocs, difficulté: {self.difficulty}")
+            except Exception as e:
+                print(f"⚠️ Erreur chargement: {e}")
                 self.genesis()
         else:
+            print("🌱 Aucune blockchain trouvée, création du genesis...")
             self.genesis()
 
     def genesis(self):
@@ -37,13 +40,17 @@ class Blockchain:
         b.block_hash = hashlib.sha256(json.dumps(b.header.to_dict()).encode()).hexdigest()
         self.chain.append(b)
         self.save()
+        print("✅ Bloc genesis créé et sauvegardé")
 
     def add_block(self, b):
-        if self.chain and b.header.previous_hash != self.chain[-1].block_hash: return False
-        if not b.is_valid(): return False
+        if self.chain and b.header.previous_hash != self.chain[-1].block_hash: 
+            return False
+        if not b.is_valid(): 
+            return False
         self.chain.append(b)
         self.last_block_time = time.time()
-        if len(self.chain) % Config.DIFFICULTY_ADJUSTMENT_INTERVAL == 0: self.adjust()
+        if len(self.chain) % Config.DIFFICULTY_ADJUSTMENT_INTERVAL == 0: 
+            self.adjust()
         self.save()
         return True
 
@@ -66,10 +73,20 @@ class Blockchain:
         e = Config.BLOCK_TIME * Config.DIFFICULTY_ADJUSTMENT_INTERVAL
         if t < e / 2: self.difficulty += 1
         elif t > e * 2: self.difficulty = max(1, self.difficulty - 1)
+        self.save()
 
     def save(self):
-        with open(os.path.join(self.data_dir, Config.BLOCKCHAIN_FILE), 'w') as f:
-            json.dump({'blocks': [b.to_dict() for b in self.chain], 'current_difficulty': self.difficulty}, f, indent=2)
+        filepath = os.path.join(self.data_dir, Config.BLOCKCHAIN_FILE)
+        try:
+            with open(filepath, 'w') as f:
+                json.dump({
+                    'blocks': [b.to_dict() for b in self.chain],
+                    'current_difficulty': self.difficulty,
+                    'height': len(self.chain),
+                    'last_updated': datetime.now().isoformat()
+                }, f, indent=2)
+        except Exception as e:
+            print(f"⚠️ Erreur sauvegarde blockchain: {e}")
 
     def get_stats(self):
         return {
@@ -77,7 +94,8 @@ class Blockchain:
             'difficulty': self.difficulty,
             'total_supply': sum(b.transactions[0].outputs[0].amount for b in self.chain),
             'mempool_size': len(self.mempool),
-            'current_reward': self.calculate_block_reward()
+            'current_reward': self.calculate_block_reward(),
+            'total_hashes': sum(b.header.nonce for b in self.chain)
         }
 
     def get_recent_blocks(self, n=10):
