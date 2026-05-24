@@ -8,6 +8,15 @@
         <div class="col-md-3 mb-3"><div class="card bg-dark border-success h-100"><div class="card-body text-center"><h5 class="text-success">Offre</h5><h2 id="supply">{{ "%.0f"|format(stats.total_supply) }}</h2><small>VEIL</small></div></div></div>
         <div class="col-md-3 mb-3"><div class="card bg-dark border-warning h-100"><div class="card-body text-center"><h5 class="text-warning">Difficulté</h5><h2 id="difficulty">{{ stats.difficulty }}</h2></div></div></div>
         <div class="col-md-3 mb-3"><div class="card bg-dark border-info h-100"><div class="card-body text-center"><h5 class="text-info">Récompense</h5><h2 id="reward">{{ stats.current_reward }}</h2><small>VEIL/bloc</small></div></div></div>
+    <div class="col-md-3 mb-3">
+    <div class="card bg-dark border-danger h-100">
+        <div class="card-body text-center">
+            <h5 class="text-danger">🔥 Total Brûlé</h5>
+            <h2 id="burned" class="text-danger">0</h2>
+            <small>VEIL</small>
+        </div>
+    </div>
+</div>
     </div>
     <div class="row mb-4">
         <div class="col-md-6 mb-3"><div class="card bg-dark"><div class="card-body"><h5>Prix VEIL (€)</h5><canvas id="priceChart"></canvas></div></div></div>
