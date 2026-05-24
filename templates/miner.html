@@ -17,10 +17,10 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <button id="start-btn" class="btn w-100 mb-2" style="background: #198754; color: #fff; font-size: 1.1em;" onclick="startMining()">
+                    <button id="start-btn" class="btn w-100 mb-2" style="background: #198754; color: #fff; font-size: 1.1em;">
                         ▶ Démarrer le minage
                     </button>
-                    <button id="stop-btn" class="btn w-100" style="background: #dc3545; color: #fff; font-size: 1.1em;" onclick="stopMining()">
+                    <button id="stop-btn" class="btn w-100" style="background: #dc3545; color: #fff; font-size: 1.1em;">
                         ⏹ Arrêter le minage
                     </button>
                     <div id="mining-status" class="mt-3" style="color: #fff; font-weight: bold;">⚪ Mineur arrêté</div>
@@ -59,95 +59,98 @@
 {% endblock %}
 {% block extra_scripts %}
 <script>
-const socket = io();
-const ctx = document.getElementById('minerChart').getContext('2d');
-const chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: [],
-        datasets: [{
-            label: 'Hashrate (H/s)',
-            data: [],
-            borderColor: '#ffc107',
-            backgroundColor: 'rgba(255, 193, 7, 0.2)',
-            tension: 0.4,
-            fill: true,
-            borderWidth: 2
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: { legend: { labels: { color: '#fff' } } },
-        scales: {
-            y: { ticks: { color: '#fff' }, beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } },
-            x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Initialiser Socket.IO
+    var socket = io();
+    
+    // Graphique
+    var ctx = document.getElementById('minerChart').getContext('2d');
+    var chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Hashrate (H/s)',
+                data: [],
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.2)',
+                tension: 0.4,
+                fill: true,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: '#fff' } } },
+            scales: {
+                y: { ticks: { color: '#fff' }, beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } },
+                x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+            }
         }
-    }
-});
-
-async function startMining() {
-    const wallet = document.getElementById('miner-wallet').value;
-    if (!wallet) { alert('Sélectionne un wallet !'); return; }
+    });
     
-    console.log('Démarrage minage pour', wallet);
-    
-    try {
-        const res = await fetch('/api/miner/start', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({wallet: wallet})
-        });
+    // Fonction démarrer
+    window.startMining = async function() {
+        var wallet = document.getElementById('miner-wallet').value;
+        if (!wallet) { alert('Sélectionne un wallet !'); return; }
         
-        const data = await res.json();
-        console.log('Réponse:', data);
-        
-        if (data.success) {
-            document.getElementById('start-btn').disabled = true;
-            document.getElementById('stop-btn').disabled = false;
-            document.getElementById('mining-status').innerHTML = '<span style="color: #198754;">⛏️ Minage en cours...</span>';
-        } else {
-            alert('Erreur: ' + (data.error || 'Inconnue'));
+        try {
+            var res = await fetch('/api/miner/start', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({wallet: wallet})
+            });
+            var data = await res.json();
+            
+            if (data.success) {
+                document.getElementById('start-btn').disabled = true;
+                document.getElementById('stop-btn').disabled = false;
+                document.getElementById('mining-status').innerHTML = '<span style="color: #198754;">⛏️ Minage en cours...</span>';
+            } else {
+                alert('Erreur: ' + (data.error || 'Inconnue'));
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Erreur de connexion');
         }
-    } catch (e) {
-        console.error('Erreur:', e);
-        alert('Erreur de connexion au serveur');
-    }
-}
-
-async function stopMining() {
-    try {
-        const res = await fetch('/api/miner/stop');
-        const data = await res.json();
-        console.log('Stop:', data);
+    };
+    
+    // Fonction arrêter
+    window.stopMining = async function() {
+        try {
+            var res = await fetch('/api/miner/stop');
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('stop-btn').disabled = true;
+            document.getElementById('mining-status').innerHTML = '<span style="color: #aaa;">⚪ Mineur arrêté</span>';
+        } catch (e) {
+            console.error(e);
+        }
+    };
+    
+    // Attacher les événements
+    document.getElementById('start-btn').addEventListener('click', window.startMining);
+    document.getElementById('stop-btn').addEventListener('click', window.stopMining);
+    
+    // Temps réel
+    socket.on('miner_stats', function(stats) {
+        document.getElementById('hashrate').textContent = Math.round(stats.hashrate || 0);
+        document.getElementById('blocks-found').textContent = stats.blocks_mined || 0;
+        document.getElementById('shares').textContent = stats.accepted_shares || 0;
+        document.getElementById('difficulty').textContent = stats.current_difficulty || 2;
         
-        document.getElementById('start-btn').disabled = false;
-        document.getElementById('stop-btn').disabled = true;
-        document.getElementById('mining-status').innerHTML = '<span style="color: #aaa;">⚪ Mineur arrêté</span>';
-    } catch (e) {
-        console.error('Erreur:', e);
-    }
-}
-
-// Temps réel
-socket.on('miner_stats', function(stats) {
-    console.log('Stats reçues:', stats);
-    document.getElementById('hashrate').textContent = Math.round(stats.hashrate || 0);
-    document.getElementById('blocks-found').textContent = stats.blocks_mined || 0;
-    document.getElementById('shares').textContent = stats.accepted_shares || 0;
-    document.getElementById('difficulty').textContent = stats.current_difficulty || 2;
+        var now = new Date().toLocaleTimeString();
+        chart.data.labels.push(now);
+        chart.data.datasets[0].data.push(stats.hashrate || 0);
+        
+        if (chart.data.labels.length > 30) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+        chart.update();
+    });
     
-    const now = new Date().toLocaleTimeString();
-    chart.data.labels.push(now);
-    chart.data.datasets[0].data.push(stats.hashrate || 0);
-    
-    if (chart.data.labels.length > 30) {
-        chart.data.labels.shift();
-        chart.data.datasets[0].data.shift();
-    }
-    chart.update();
+    console.log('✅ Mineur prêt');
 });
-
-socket.on('connect', () => console.log('✅ Connecté au serveur'));
-socket.on('disconnect', () => console.log('❌ Déconnecté'));
 </script>
 {% endblock %}
