@@ -1,3 +1,3 @@
-// Fichier principal - Socket partagé
+// Connexion Socket.IO globale
 var socket = io();
 console.log('✅ VeilCoin connecté');
