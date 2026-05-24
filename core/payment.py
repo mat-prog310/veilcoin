@@ -24,14 +24,20 @@ class LiquidityPool:
         self.data_path = "data/market.json"
         self.load()
     
-    def load(self):
+      def load(self):
         if os.path.exists(self.data_path):
-            with open(self.data_path) as f:
-                d = json.load(f)
-                self.sell_offers = d.get('sell_offers', {})
-                self.buy_offers = d.get('buy_offers', {})
-                self.swaps = d.get('swaps', [])
-                self.price_history = d.get('price_history', [])
+            try:
+                with open(self.data_path) as f:
+                    d = json.load(f)
+                    self.sell_offers = d.get('sell_offers', {})
+                    self.buy_offers = d.get('buy_offers', {})
+                    self.swaps = d.get('swaps', [])
+                    self.price_history = d.get('price_history', [])
+                print(f"📊 Marché chargé: {len(self.sell_offers)} offres vente, {len(self.buy_offers)} offres achat, {len(self.swaps)} swaps")
+            except Exception as e:
+                print(f"⚠️ Erreur chargement marché: {e}")
+        else:
+            print("📊 Nouveau marché créé")
 
     def save(self):
         os.makedirs('data', exist_ok=True)
