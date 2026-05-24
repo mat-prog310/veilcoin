@@ -1,25 +1,21 @@
-import time
-import threading
+import time, threading
 from web.app import socketio
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from web.routes import blockchain, miner
 
 update_running = False
 
 def updater():
+    global update_running
     while update_running:
         try:
-            stats = blockchain.get_stats()
-            socketio.emit('blockchain_stats', stats)
-            
+            from web.routes import blockchain, miner
+            socketio.emit('blockchain_stats', blockchain.get_stats())
             if miner and miner.is_mining:
                 socketio.emit('miner_stats', miner.get_stats())
-            
-            recent_blocks = blockchain.get_recent_blocks(5)
-            socketio.emit('recent_blocks', recent_blocks)
+            socketio.emit('recent_blocks', blockchain.get_recent_blocks(5))
         except Exception as e:
-            print(f"Erreur socket: {e}")
+            print(f"Socket error: {e}")
         time.sleep(2)
 
 @socketio.on('connect')
@@ -28,8 +24,3 @@ def connect():
     if not update_running:
         update_running = True
         threading.Thread(target=updater, daemon=True).start()
-        print("✅ Client connecté - Stats en temps réel activées")
-
-@socketio.on('disconnect')
-def disconnect():
-    print("Client déconnecté")
