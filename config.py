@@ -4,10 +4,10 @@ class Config:
     COIN_NAME = "VeilCoin"
     SYMBOL = "VEIL"
     VERSION = "1.0.0"
-    BLOCK_TIME = 120  # 2 minutes cible
+    BLOCK_TIME = 120
     DIFFICULTY_ADJUSTMENT_INTERVAL = 10
-    INITIAL_DIFFICULTY = 4  # 4 zéros = 0000... (beaucoup plus dur !)
-    MAX_SUPPLY = 25_000_000
+    INITIAL_DIFFICULTY = 4
+    MAX_SUPPLY = 1_000_000_000  # 1 Milliard
     BASE_REWARD = 50
     HALVING_INTERVAL = 210_000
     P2P_PORT = 18444
