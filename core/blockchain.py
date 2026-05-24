@@ -22,12 +22,9 @@ class Blockchain:
                     d = json.load(f)
                     self.chain = [Block.from_dict(b) for b in d.get('blocks', [])]
                     self.difficulty = d.get('current_difficulty', Config.INITIAL_DIFFICULTY)
-                print(f"📦 Blockchain chargée: {len(self.chain)} blocs, difficulté: {self.difficulty}")
-            except Exception as e:
-                print(f"⚠️ Erreur chargement: {e}")
+            except:
                 self.genesis()
         else:
-            print("🌱 Aucune blockchain trouvée, création du genesis...")
             self.genesis()
 
     def genesis(self):
@@ -40,25 +37,30 @@ class Blockchain:
         b.block_hash = hashlib.sha256(json.dumps(b.header.to_dict()).encode()).hexdigest()
         self.chain.append(b)
         self.save()
-        print("✅ Bloc genesis créé et sauvegardé")
 
     def add_block(self, b):
-        if self.chain and b.header.previous_hash != self.chain[-1].block_hash: 
-            return False
-        if not b.is_valid(): 
-            return False
+        if self.chain and b.header.previous_hash != self.chain[-1].block_hash: return False
+        if not b.is_valid(): return False
         self.chain.append(b)
         self.last_block_time = time.time()
-        if len(self.chain) % Config.DIFFICULTY_ADJUSTMENT_INTERVAL == 0: 
-            self.adjust()
+        if len(self.chain) % Config.DIFFICULTY_ADJUSTMENT_INTERVAL == 0: self.adjust()
         self.save()
         return True
 
     def create_new_block(self, addr):
-        ci = TransactionInput(["COINBASE"], f"CB_{len(self.chain)}_{time.time()}", "CB_SIG", 0)
-        co = TransactionOutput(addr, self.calculate_block_reward())
-        ctx = VeilTransaction([ci], [co], 0)
-        return Block(1, self.chain[-1].block_hash if self.chain else "0" * 64, [ctx] + self.mempool[:20], self.difficulty)
+        # 50% mineur, 50% pool
+        miner_reward = self.calculate_block_reward() / 2
+        pool_reward = self.calculate_block_reward() / 2
+        
+        ci1 = TransactionInput(["COINBASE"], f"CB_MINER_{len(self.chain)}_{time.time()}", "CB_SIG", 0)
+        co1 = TransactionOutput(addr, miner_reward)
+        tx1 = VeilTransaction([ci1], [co1], 0)
+        
+        ci2 = TransactionInput(["COINBASE"], f"CB_POOL_{len(self.chain)}_{time.time()}", "CB_SIG", 0)
+        co2 = TransactionOutput("POOL_ADDRESS", pool_reward)
+        tx2 = VeilTransaction([ci2], [co2], 0)
+        
+        return Block(1, self.chain[-1].block_hash if self.chain else "0" * 64, [tx1, tx2] + self.mempool[:20], self.difficulty)
 
     def calculate_block_reward(self):
         return Config.BASE_REWARD / (2 ** (len(self.chain) // Config.HALVING_INTERVAL))
@@ -76,26 +78,22 @@ class Blockchain:
         self.save()
 
     def save(self):
-        filepath = os.path.join(self.data_dir, Config.BLOCKCHAIN_FILE)
-        try:
-            with open(filepath, 'w') as f:
-                json.dump({
-                    'blocks': [b.to_dict() for b in self.chain],
-                    'current_difficulty': self.difficulty,
-                    'height': len(self.chain),
-                    'last_updated': datetime.now().isoformat()
-                }, f, indent=2)
-        except Exception as e:
-            print(f"⚠️ Erreur sauvegarde blockchain: {e}")
+        with open(os.path.join(self.data_dir, Config.BLOCKCHAIN_FILE), 'w') as f:
+            json.dump({'blocks': [b.to_dict() for b in self.chain], 'current_difficulty': self.difficulty}, f, indent=2)
 
     def get_stats(self):
+        total_burned = sum(out.amount for b in self.chain for tx in b.transactions 
+                          for out in tx.outputs if "BURN" in out.stealth_address)
+        supply = sum(b.transactions[0].outputs[0].amount for b in self.chain)
         return {
             'height': len(self.chain),
             'difficulty': self.difficulty,
-            'total_supply': sum(b.transactions[0].outputs[0].amount for b in self.chain),
+            'total_supply': supply,
+            'total_burned': total_burned,
+            'burn_percent': round((total_burned / max(1, supply)) * 100, 2),
             'mempool_size': len(self.mempool),
             'current_reward': self.calculate_block_reward(),
-            'total_hashes': sum(b.header.nonce for b in self.chain)
+            'max_supply': Config.MAX_SUPPLY
         }
 
     def get_recent_blocks(self, n=10):
