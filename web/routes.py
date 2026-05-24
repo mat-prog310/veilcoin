@@ -76,23 +76,41 @@ def api_logout(): session.pop('wallet_name', None); return jsonify({'success': T
 @app.route('/api/miner/start', methods=['POST'])
 def api_start_miner():
     global miner
-    d = request.get_json(); name = d.get('wallet')
-    if name not in active_wallets: return jsonify({'error': 'Non connecté'}), 404
-    miner = RandomXMiner(blockchain); w = active_wallets[name]
+    d = request.get_json()
+    name = d.get('wallet')
+    print(f"🔥 Demande minage reçue pour {name}")  # DEBUG
+    
+    if name not in active_wallets:
+        return jsonify({'error': 'Wallet non connecté'}), 404
+    
+    miner = RandomXMiner(blockchain)
+    w = active_wallets[name]
+    
     def cb(block):
-        r = blockchain.reward(); w.balance += r; w.save()
-    miner.set_callback(cb); miner.start_mining(w.address)
-    return jsonify({'success': True})
+        r = blockchain.reward()
+        w.balance += r
+        w.save()
+        print(f"✅ Bloc miné ! +{r} VEIL → {name}")  # DEBUG
+    
+    miner.set_callback(cb)
+    miner.start_mining(w.address)
+    print(f"⚡ Mineur démarré pour {w.address[:20]}...")  # DEBUG
+    
+    return jsonify({'success': True, 'message': 'Minage démarré'})
 
 @app.route('/api/miner/stop')
 def api_stop_miner():
     global miner
-    if miner: miner.stop_mining()
+    print("🛑 Arrêt mineur demandé")  # DEBUG
+    if miner:
+        miner.stop_mining()
     return jsonify({'success': True})
 
 @app.route('/api/miner/stats')
 def api_miner_stats():
-    return jsonify(miner.get_stats() if miner else {'hashrate': 0, 'blocks_mined': 0})
+    if miner:
+        return jsonify(miner.get_stats())
+    return jsonify({'hashrate': 0, 'blocks_mined': 0, 'accepted_shares': 0, 'current_difficulty': blockchain.difficulty})
 
 # API Marché P2P
 @app.route('/api/market/price')
