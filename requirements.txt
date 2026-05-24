@@ -1,16 +1,8 @@
-# Cryptographie
-ecdsa==0.19.0
-pysha3==1.0.2
-cryptography==41.0.7
-
-# Web Framework
 Flask==3.0.0
 flask-socketio==5.3.6
 eventlet==0.35.2
-
-# Utilitaires
+cryptography==41.0.7
+ecdsa==0.19.0
 requests==2.31.0
+gunicorn==21.2.0
 python-dotenv==1.0.0
-
-# Tests
-pytest==7.4.3
