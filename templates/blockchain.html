@@ -1,14 +1,109 @@
 {% extends "base.html" %}
-{% block title %}VeilCoin - Blockchain{% endblock %}
+{% block title %}VeilCoin - Blockchain Explorer{% endblock %}
 {% block content %}
 <div class="container">
-    <h1 class="mb-4"><i class="fas fa-cubes text-info"></i> Blockchain</h1>
+    <h1 class="mb-4" style="color: #20c997;"><i class="fas fa-cubes"></i> Blockchain Explorer</h1>
+
     <div class="row mb-4">
-        <div class="col-md-3"><div class="card bg-dark border-info"><div class="card-body text-center"><h5>Hauteur</h5><h2 class="text-info">{{ stats.height }}</h2></div></div></div>
-        <div class="col-md-3"><div class="card bg-dark border-success"><div class="card-body text-center"><h5>Transactions</h5><h2 class="text-success">{{ stats.total_transactions }}</h2></div></div></div>
-        <div class="col-md-3"><div class="card bg-dark border-warning"><div class="card-body text-center"><h5>Récompense</h5><h2 class="text-warning">{{ stats.current_reward }} VEIL</h2></div></div></div>
-        <div class="col-md-3"><div class="card bg-dark border-primary"><div class="card-body text-center"><h5>Difficulté</h5><h2 class="text-primary">{{ stats.difficulty }}</h2></div></div></div>
+        <div class="col-md-3 mb-3">
+            <div class="card" style="background: #1a1a2e; border: 1px solid #333; border-radius: 15px;">
+                <div class="card-body text-center">
+                    <h5 style="color: #fff;">Hauteur</h5>
+                    <h2 style="color: #6f42c1;" id="explorer-height">{{ stats.height }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card" style="background: #1a1a2e; border: 1px solid #333; border-radius: 15px;">
+                <div class="card-body text-center">
+                    <h5 style="color: #fff;">Offre totale</h5>
+                    <h2 style="color: #20c997;" id="explorer-supply">{{ "%.0f"|format(stats.total_supply) }}</h2>
+                    <small style="color: #aaa;">VEIL</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card" style="background: #1a1a2e; border: 1px solid #333; border-radius: 15px;">
+                <div class="card-body text-center">
+                    <h5 style="color: #fff;">Difficulté</h5>
+                    <h2 style="color: #ffc107;" id="explorer-diff">{{ stats.difficulty }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card" style="background: #1a1a2e; border: 1px solid #333; border-radius: 15px;">
+                <div class="card-body text-center">
+                    <h5 style="color: #fff;">🔥 Total Brûlé</h5>
+                    <h2 style="color: #e94560;" id="explorer-burned">{{ "%.2f"|format(stats.total_burned) }}</h2>
+                    <small style="color: #aaa;">VEIL</small>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="card bg-dark"><div class="card-body"><h5>Derniers blocs</h5><table class="table table-dark table-hover"><thead><tr><th>#</th><th>Hash</th><th>Transactions</th><th>Récompense</th></tr></thead><tbody id="blocks-table">{% for b in blocks %}<tr><td>{{ loop.index }}</td><td><code>{{ b.block_hash[:20] if b.block_hash else 'N/A' }}...</code></td><td>{{ b.transactions|length }}</td><td class="text-success">{{ b.transactions[0].outputs[0].amount if b.transactions else 0 }} VEIL</td></tr>{% endfor %}</tbody></table></div></div>
+
+    <div class="card" style="background: #1a1a2e; border: 1px solid #333; border-radius: 15px;">
+        <div class="card-body">
+            <h5 style="color: #20c997;">📦 Derniers blocs minés</h5>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead>
+                        <tr>
+                            <th>Bloc #</th>
+                            <th>Hash</th>
+                            <th>Mineur (25 VEIL)</th>
+                            <th>Pool (25 VEIL)</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="blocks-table">
+                        {% for b in blocks %}
+                        <tr>
+                            <td>#{{ loop.index }}</td>
+                            <td><code>{{ b.block_hash[:20] if b.block_hash else 'N/A' }}...</code></td>
+                            <td style="color: #20c997;">+25 VEIL</td>
+                            <td style="color: #6f42c1;">+25 VEIL</td>
+                            <td style="color: #ffc107;">50 VEIL</td>
+                        </tr>
+                        {% endfor %}
+                        {% if not blocks %}
+                        <tr><td colspan="5" style="color: #aaa;">Aucun bloc miné pour le moment. Lancez le mineur !</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const socket = io();
+
+socket.on('blockchain_stats', function(s) {
+    document.getElementById('explorer-height').textContent = s.height || 0;
+    document.getElementById('explorer-supply').textContent = (s.total_supply || 0).toFixed(0);
+    document.getElementById('explorer-diff').textContent = s.difficulty || 5;
+    document.getElementById('explorer-burned').textContent = (s.total_burned || 0).toFixed(2);
+});
+
+socket.on('recent_blocks', function(blocks) {
+    const t = document.getElementById('blocks-table');
+    t.innerHTML = '';
+    if (!blocks || !blocks.length) {
+        t.innerHTML = '<tr><td colspan="5" style="color: #aaa;">En attente de blocs...</td></tr>';
+        return;
+    }
+    blocks.reverse().forEach(function(b, i) {
+        const r = t.insertRow();
+        r.innerHTML = `
+            <td>#${i + 1}</td>
+            <td><code>${(b.block_hash || '').substring(0, 20)}...</code></td>
+            <td style="color: #20c997;">+25 VEIL</td>
+            <td style="color: #6f42c1;">+25 VEIL</td>
+            <td style="color: #ffc107;">50 VEIL</td>
+        `;
+    });
+});
+</script>
 {% endblock %}
