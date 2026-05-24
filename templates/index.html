@@ -17,7 +17,7 @@
         <div class="col-md-3 mb-3">
             <div class="card bg-dark border-success h-100">
                 <div class="card-body text-center">
-                    <h5 class="text-success">Offre en circulation</h5>
+                    <h5 class="text-success">Offre</h5>
                     <h2 id="supply">{{ "%.0f"|format(stats.total_supply) }}</h2>
                     <small>VEIL</small>
                 </div>
@@ -34,18 +34,8 @@
         <div class="col-md-3 mb-3">
             <div class="card bg-dark border-info h-100">
                 <div class="card-body text-center">
-                    <h5 class="text-info">Récompense</h5>
-                    <h2 id="reward">{{ stats.current_reward }}</h2>
-                    <small>VEIL/bloc</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3 mt-3">
-            <div class="card bg-dark border-danger h-100">
-                <div class="card-body text-center">
-                    <h5 class="text-danger">🔥 Total Brûlé</h5>
-                    <h2 id="burned" class="text-danger">{{ "%.2f"|format(stats.total_burned) }}</h2>
-                    <small>VEIL</small>
+                    <h5 class="text-info">Prix VEIL</h5>
+                    <h2 id="live-price" class="text-info">€0.001</h2>
                 </div>
             </div>
         </div>
@@ -55,7 +45,7 @@
         <div class="col-md-6 mb-3">
             <div class="card bg-dark">
                 <div class="card-body">
-                    <h5 class="card-title">Prix VEIL (€)</h5>
+                    <h5 class="card-title">📈 Prix VEIL (€) - Temps réel</h5>
                     <canvas id="priceChart"></canvas>
                 </div>
             </div>
@@ -63,7 +53,7 @@
         <div class="col-md-6 mb-3">
             <div class="card bg-dark">
                 <div class="card-body">
-                    <h5 class="card-title">Hashrate (H/s)</h5>
+                    <h5 class="card-title">⚡ Hashrate (H/s)</h5>
                     <canvas id="hashrateChart"></canvas>
                 </div>
             </div>
@@ -72,14 +62,14 @@
 
     <div class="card bg-dark">
         <div class="card-body">
-            <h5 class="card-title">Derniers blocs</h5>
+            <h5 class="card-title">📦 Derniers blocs minés</h5>
             <div class="table-responsive">
                 <table class="table table-dark table-hover">
                     <thead>
-                        <tr><th>#</th><th>Hash</th><th>Transactions</th></tr>
+                        <tr><th>Hauteur</th><th>Hash</th><th>Transactions</th><th>Récompense</th></tr>
                     </thead>
                     <tbody id="recent-blocks">
-                        <tr><td colspan="3">Chargement...</td></tr>
+                        <tr><td colspan="4">Chargement...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -96,59 +86,49 @@ const socket = io();
 const pCtx = document.getElementById('priceChart').getContext('2d');
 const priceChart = new Chart(pCtx, {
     type: 'line',
-    data: { labels: [], datasets: [{ label: 'Prix (€)', data: [], borderColor: '#20c997', tension: 0.4 }] },
-    options: { responsive: true, scales: { y: { ticks: { color: '#fff' } }, x: { ticks: { color: '#fff' } } } }
+    data: { labels: [], datasets: [{ label: 'Prix (€)', data: [], borderColor: '#20c997', backgroundColor: 'rgba(32,201,151,0.1)', tension: 0.4, fill: true, borderWidth: 2 }] },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { ticks: { color: '#fff' } }, x: { ticks: { color: '#fff' } } } }
 });
 
 // Graphique hashrate
 const hCtx = document.getElementById('hashrateChart').getContext('2d');
 const hrChart = new Chart(hCtx, {
     type: 'line',
-    data: { labels: [], datasets: [{ label: 'H/s', data: [], borderColor: '#6f42c1', tension: 0.4 }] },
-    options: { responsive: true, scales: { y: { ticks: { color: '#fff' } }, x: { ticks: { color: '#fff' } } } }
+    data: { labels: [], datasets: [{ label: 'H/s', data: [], borderColor: '#6f42c1', backgroundColor: 'rgba(111,66,193,0.1)', tension: 0.4, fill: true, borderWidth: 2 }] },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { ticks: { color: '#fff' } }, x: { ticks: { color: '#fff' } } } }
 });
 
-// Mise à jour prix
+// Prix en direct
 function updatePrice() {
     fetch('/api/market/price')
         .then(r => r.json())
         .then(d => {
             const price = d.current_price || d.veil_price || 0.001;
-            const now = new Date().toLocaleTimeString();
+            document.getElementById('live-price').textContent = '€' + price.toFixed(8);
             
+            const now = new Date().toLocaleTimeString();
             priceChart.data.labels.push(now);
             priceChart.data.datasets[0].data.push(price);
-            
             if (priceChart.data.labels.length > 30) {
                 priceChart.data.labels.shift();
                 priceChart.data.datasets[0].data.shift();
             }
             priceChart.update();
-            
-            // Mettre à jour le prix affiché
-            const priceEl = document.getElementById('market-price');
-            if (priceEl) priceEl.textContent = '€' + price.toFixed(8);
         })
         .catch(err => console.log('Erreur prix:', err));
 }
 
-// Lancer immédiatement
-updatePrice();
-// Puis toutes les 30 secondes
-setInterval(updatePrice, 30000);
-
-// Stats temps réel
-socket.on('blockchain_stats', s => {
+// Stats blockchain
+socket.on('blockchain_stats', function(s) {
     document.getElementById('height').textContent = s.height || 0;
     document.getElementById('supply').textContent = (s.total_supply || 0).toFixed(0);
-    document.getElementById('difficulty').textContent = s.difficulty || 4;
-    document.getElementById('reward').textContent = s.current_reward || 50;
-    document.getElementById('burned').textContent = (s.total_burned || 0).toFixed(2);
+    document.getElementById('difficulty').textContent = s.difficulty || 5;
 });
 
-socket.on('miner_stats', s => {
-    const n = new Date().toLocaleTimeString();
-    hrChart.data.labels.push(n);
+// Hashrate
+socket.on('miner_stats', function(s) {
+    const now = new Date().toLocaleTimeString();
+    hrChart.data.labels.push(now);
     hrChart.data.datasets[0].data.push(s.hashrate || 0);
     if (hrChart.data.labels.length > 30) {
         hrChart.data.labels.shift();
@@ -157,16 +137,28 @@ socket.on('miner_stats', s => {
     hrChart.update();
 });
 
-socket.on('recent_blocks', blocks => {
+// Derniers blocs
+socket.on('recent_blocks', function(blocks) {
     const t = document.getElementById('recent-blocks');
     t.innerHTML = '';
-    blocks.reverse().forEach((b, i) => {
+    if (!blocks || !blocks.length) {
+        t.innerHTML = '<tr><td colspan="4">Aucun bloc</td></tr>';
+        return;
+    }
+    blocks.reverse().forEach(function(b) {
         const r = t.insertRow();
-        r.innerHTML = `<td>${i+1}</td><td><code>${(b.block_hash||'').substring(0,20)}...</code></td><td>${b.transactions?b.transactions.length:0}</td>`;
+        const reward = b.transactions && b.transactions[0] ? b.transactions[0].outputs[0].amount : 0;
+        r.innerHTML = `
+            <td>#${b.header ? b.header.nonce : '?'}</td>
+            <td><code>${(b.block_hash || '').substring(0, 20)}...</code></td>
+            <td>${b.transactions ? b.transactions.length : 0}</td>
+            <td class="text-success">${reward} VEIL</td>
+        `;
     });
 });
 
-setInterval(updatePrice, 5000);
+// Lancer
 updatePrice();
+setInterval(updatePrice, 30000);
 </script>
 {% endblock %}
