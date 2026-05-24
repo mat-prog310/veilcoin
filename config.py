@@ -4,9 +4,9 @@ class Config:
     COIN_NAME = "VeilCoin"
     SYMBOL = "VEIL"
     VERSION = "1.0.0"
-    BLOCK_TIME = 120
+    BLOCK_TIME = 120  # 2 minutes cible
     DIFFICULTY_ADJUSTMENT_INTERVAL = 10
-    INITIAL_DIFFICULTY = 2
+    INITIAL_DIFFICULTY = 4  # 4 zéros = 0000... (beaucoup plus dur !)
     MAX_SUPPLY = 25_000_000
     BASE_REWARD = 50
     HALVING_INTERVAL = 210_000
