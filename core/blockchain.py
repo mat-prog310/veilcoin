@@ -1,5 +1,4 @@
 import hashlib, json, os, time
-from datetime import datetime
 from config import Config
 from .block import Block
 from .transaction import VeilTransaction, TransactionInput, TransactionOutput
@@ -42,15 +41,13 @@ class Blockchain:
         if self.chain and b.header.previous_hash != self.chain[-1].block_hash: return False
         if not b.is_valid(): return False
         self.chain.append(b)
-        self.last_block_time = time.time()
         if len(self.chain) % Config.DIFFICULTY_ADJUSTMENT_INTERVAL == 0: self.adjust()
         self.save()
         return True
 
     def create_new_block(self, addr):
-        # 50% mineur, 50% pool
-        miner_reward = self.calculate_block_reward() / 2
-        pool_reward = self.calculate_block_reward() / 2
+        miner_reward = 25
+        pool_reward = 25
         
         ci1 = TransactionInput(["COINBASE"], f"CB_MINER_{len(self.chain)}_{time.time()}", "CB_SIG", 0)
         co1 = TransactionOutput(addr, miner_reward)
@@ -62,11 +59,7 @@ class Blockchain:
         
         return Block(1, self.chain[-1].block_hash if self.chain else "0" * 64, [tx1, tx2] + self.mempool[:20], self.difficulty)
 
-    def calculate_block_reward(self):
-        return Config.BASE_REWARD / (2 ** (len(self.chain) // Config.HALVING_INTERVAL))
-
-    def reward(self):
-        return self.calculate_block_reward()
+    def reward(self): return 50
 
     def adjust(self):
         if len(self.chain) < Config.DIFFICULTY_ADJUSTMENT_INTERVAL: return
@@ -82,18 +75,15 @@ class Blockchain:
             json.dump({'blocks': [b.to_dict() for b in self.chain], 'current_difficulty': self.difficulty}, f, indent=2)
 
     def get_stats(self):
-        total_burned = sum(out.amount for b in self.chain for tx in b.transactions 
-                          for out in tx.outputs if "BURN" in out.stealth_address)
         supply = sum(b.transactions[0].outputs[0].amount for b in self.chain)
+        burned = sum(out.amount for b in self.chain for tx in b.transactions for out in tx.outputs if "BURN" in out.stealth_address)
         return {
             'height': len(self.chain),
             'difficulty': self.difficulty,
             'total_supply': supply,
-            'total_burned': total_burned,
-            'burn_percent': round((total_burned / max(1, supply)) * 100, 2),
+            'total_burned': burned,
             'mempool_size': len(self.mempool),
-            'current_reward': self.calculate_block_reward(),
-            'max_supply': Config.MAX_SUPPLY
+            'current_reward': 50
         }
 
     def get_recent_blocks(self, n=10):
