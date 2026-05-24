@@ -3,18 +3,109 @@
 {% block content %}
 <div class="container">
     <h1 class="mb-4"><i class="fas fa-handshake text-success"></i> Marché P2P</h1>
-    <div class="row">
-        <div class="col-md-4 mb-3"><div class="card bg-dark border-primary"><div class="card-body text-center"><h5>Prix référence</h5><h2 id="market-price" class="text-primary">€0.0001</h2></div></div></div>
-        <div class="col-md-8 mb-3"><div class="card bg-dark border-danger"><div class="card-body"><h5 class="text-danger"><i class="fab fa-paypal"></i> Vendre des VEIL</h5><div class="row"><div class="col-md-3"><label>Wallet</label><select id="sell-wallet" class="form-select">{% for w in wallets %}<option value="{{ w }}">{{ w }}</option>{% endfor %}</select></div><div class="col-md-2"><label>Quantité</label><input type="number" id="sell-amount" class="form-control" placeholder="100"></div><div class="col-md-2"><label>Prix/VEIL</label><input type="number" id="sell-price" class="form-control" value="0.0001" step="0.0001"></div><div class="col-md-3"><label>Votre PayPal</label><input type="email" id="sell-paypal" class="form-control" placeholder="vous@email.com"></div><div class="col-md-2 d-flex align-items-end"><button class="btn btn-danger w-100" onclick="createOffer()"><i class="fas fa-tag"></i> Créer</button></div></div><div id="sell-result" class="mt-2"></div></div></div></div>
+    
+    <div class="row mb-4">
+        <div class="col-md-4"><div class="card bg-dark border-primary"><div class="card-body text-center"><h5>Prix référence</h5><h2 id="market-price">€0.0001</h2></div></div></div>
+        <div class="col-md-4"><div class="card bg-dark border-info"><div class="card-body text-center"><h5>Offres vente</h5><h2 id="sell-count">0</h2></div></div></div>
+        <div class="col-md-4"><div class="card bg-dark border-success"><div class="card-body text-center"><h5>Offres achat</h5><h2 id="buy-count">0</h2></div></div></div>
     </div>
-    <div class="card bg-dark"><div class="card-body"><h5>Offres disponibles (Emails cachés 🔒)</h5><table class="table table-dark table-hover"><thead><tr><th>Vendeur</th><th>Quantité</th><th>Prix/VEIL</th><th>Total</th><th>Écart</th><th>Action</th></tr></thead><tbody id="offers-table"><tr><td colspan="6">Chargement...</td></tr></tbody></table></div></div>
+
+    <div class="row">
+        <!-- VENDRE -->
+        <div class="col-md-6 mb-3">
+            <div class="card bg-dark border-danger"><div class="card-body">
+                <h5 class="text-danger">💰 Vendre des VEIL</h5>
+                <div class="mb-2"><select id="sell-wallet" class="form-select">{% for w in wallets %}<option value="{{ w }}">{{ w }}</option>{% endfor %}</select></div>
+                <div class="mb-2"><input type="number" id="sell-amount" class="form-control" placeholder="Quantité VEIL"></div>
+                <div class="mb-2"><input type="number" id="sell-price" class="form-control" value="0.0001" step="0.0001" placeholder="Prix/VEIL (€)"></div>
+                <div class="mb-2"><input type="email" id="sell-paypal" class="form-control" placeholder="Votre PayPal"></div>
+                <button class="btn btn-danger w-100" onclick="createSellOffer()">Créer offre de vente</button>
+                <div id="sell-result" class="mt-2"></div>
+            </div></div>
+        </div>
+        <!-- ACHETER -->
+        <div class="col-md-6 mb-3">
+            <div class="card bg-dark border-success"><div class="card-body">
+                <h5 class="text-success">🛒 Acheter des VEIL</h5>
+                <div class="mb-2"><select id="buy-wallet" class="form-select">{% for w in wallets %}<option value="{{ w }}">{{ w }}</option>{% endfor %}</select></div>
+                <div class="mb-2"><input type="number" id="buy-amount" class="form-control" placeholder="Quantité VEIL souhaitée"></div>
+                <div class="mb-2"><input type="number" id="buy-price" class="form-control" value="0.0001" step="0.0001" placeholder="Prix max/VEIL (€)"></div>
+                <div class="mb-2"><input type="email" id="buy-paypal" class="form-control" placeholder="Votre PayPal"></div>
+                <button class="btn btn-success w-100" onclick="createBuyOffer()">Créer offre d'achat</button>
+                <div id="buy-result" class="mt-2"></div>
+            </div></div>
+        </div>
+    </div>
+
+    <!-- Offres de vente -->
+    <div class="card bg-dark mb-4"><div class="card-body">
+        <h5 class="text-danger">Offres de vente</h5>
+        <table class="table table-dark"><thead><tr><th>Vendeur</th><th>Qté</th><th>Prix</th><th>Total</th><th>Action</th></tr></thead>
+        <tbody id="sell-offers"></tbody></table>
+    </div></div>
+    
+    <!-- Offres d'achat -->
+    <div class="card bg-dark"><div class="card-body">
+        <h5 class="text-success">Offres d'achat</h5>
+        <table class="table table-dark"><thead><tr><th>Acheteur</th><th>Qté</th><th>Prix</th><th>Total</th><th>Action</th></tr></thead>
+        <tbody id="buy-offers"></tbody></table>
+    </div></div>
 </div>
 {% endblock %}
 {% block extra_scripts %}
 <script>
-function updateMarket(){fetch('/api/market/price').then(r=>r.json()).then(d=>{document.getElementById('market-price').textContent='€'+d.current_price.toFixed(8)});fetch('/api/market/offers').then(r=>r.json()).then(offers=>{const t=document.getElementById('offers-table');t.innerHTML='';if(!offers.length){t.innerHTML='<tr><td colspan="6">Aucune offre</td></tr>';return}offers.forEach(o=>{const row=t.insertRow();row.innerHTML=`<td><code>${o.seller}</code></td><td>${o.veil_amount} VEIL</td><td class="text-warning">€${o.price_per_veil.toFixed(6)}</td><td class="text-info">€${o.total_eur.toFixed(2)}</td><td class="${o.deviation>0?'text-success':'text-danger'}">${o.deviation>0?'+':''}${o.deviation}%</td><td>${o.status==='open'?`<button class="btn btn-success btn-sm" onclick="acceptOffer('${o.offer_id}')">Acheter</button>`:'<span class="badge bg-warning">Réservé</span>'}</td>`})})}
-async function createOffer(){const w=document.getElementById('sell-wallet').value;const a=parseFloat(document.getElementById('sell-amount').value);const p=parseFloat(document.getElementById('sell-price').value);const pp=document.getElementById('sell-paypal').value;if(!w||!a||!pp)return alert('Tous les champs requis');const r=await fetch('/api/market/create-offer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wallet:w,amount:a,price_per_veil:p,paypal_email:pp})});const d=await r.json();document.getElementById('sell-result').innerHTML=d.success?`<div class="alert alert-success">✅ Offre créée! ${d.veil_amount} VEIL pour €${d.total_eur.toFixed(2)}</div>`:`<div class="alert alert-danger">❌ ${d.error}</div>`;updateMarket()}
-async function acceptOffer(oid){const w=prompt('Votre wallet (nom):');if(!w)return;const pp=prompt('Votre email PayPal:');if(!pp)return;const r1=await fetch('/api/market/buyer-lock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({offer_id:oid,wallet:w,buyer_paypal:pp})});const d1=await r1.json();if(!d1.success)return alert(d1.error);alert(`🔒 Offre réservée! Le vendeur va accepter et vous recevrez son PayPal.`);updateMarket()}
-setInterval(updateMarket,5000);updateMarket();
+let cp = 0.0001;
+
+function updateAll() {
+    fetch('/api/market/price').then(r=>r.json()).then(d=>{cp=d.current_price||0.0001;document.getElementById('market-price').textContent='€'+cp.toFixed(8)});
+    fetch('/api/pool/info').then(r=>r.json()).then(d=>{document.getElementById('sell-count').textContent=d.open_sell_offers||0;document.getElementById('buy-count').textContent=d.open_buy_offers||0});
+    
+    fetch('/api/market/sell-offers').then(r=>r.json()).then(o=>{
+        const t=document.getElementById('sell-offers');t.innerHTML='';
+        if(!o.length){t.innerHTML='<tr><td colspan="5">Aucune</td></tr>';return}
+        o.forEach(o=>{const r=t.insertRow();r.innerHTML=`<td><code>${o.seller}</code></td><td>${o.veil_amount} VEIL</td><td>€${o.price_per_veil.toFixed(6)}</td><td>€${o.total_eur.toFixed(2)}</td><td>${o.status==='open'?`<button class="btn btn-success btn-sm" onclick="acceptSell('${o.offer_id}')">Acheter</button>`:'<span class="badge bg-warning">Réservé</span>'}</td>`})
+    });
+    
+    fetch('/api/market/buy-offers').then(r=>r.json()).then(o=>{
+        const t=document.getElementById('buy-offers');t.innerHTML='';
+        if(!o.length){t.innerHTML='<tr><td colspan="5">Aucune</td></tr>';return}
+        o.forEach(o=>{const r=t.insertRow();r.innerHTML=`<td><code>${o.buyer}</code></td><td>${o.veil_wanted} VEIL</td><td>€${o.price_per_veil.toFixed(6)}</td><td>€${o.total_eur.toFixed(2)}</td><td>${o.status==='open'?`<button class="btn btn-danger btn-sm" onclick="acceptBuy('${o.offer_id}')">Vendre</button>`:'<span class="badge bg-warning">Réservé</span>'}</td>`})
+    });
+}
+
+async function createSellOffer() {
+    const w=document.getElementById('sell-wallet').value,a=parseFloat(document.getElementById('sell-amount').value),p=parseFloat(document.getElementById('sell-price').value),pp=document.getElementById('sell-paypal').value;
+    if(!w||!a||!pp)return alert('Champs requis');
+    const r=await fetch('/api/market/create-offer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wallet:w,amount:a,price_per_veil:p,paypal_email:pp})});
+    const d=await r.json();
+    document.getElementById('sell-result').innerHTML=d.success?`<div class="alert alert-success">✅ Offre créée!</div>`:`<div class="alert alert-danger">${d.error}</div>`;
+    updateAll();
+}
+
+async function createBuyOffer() {
+    const w=document.getElementById('buy-wallet').value,a=parseFloat(document.getElementById('buy-amount').value),p=parseFloat(document.getElementById('buy-price').value),pp=document.getElementById('buy-paypal').value;
+    if(!w||!a||!pp)return alert('Champs requis');
+    const r=await fetch('/api/market/create-buy-offer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wallet:w,amount:a,price_per_veil:p,paypal_email:pp})});
+    const d=await r.json();
+    document.getElementById('buy-result').innerHTML=d.success?`<div class="alert alert-success">✅ Offre créée!</div>`:`<div class="alert alert-danger">${d.error}</div>`;
+    updateAll();
+}
+
+async function acceptSell(oid) {
+    const w=prompt('Votre wallet:');if(!w)return;
+    const pp=prompt('Votre PayPal:');if(!pp)return;
+    await fetch('/api/market/buyer-lock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({offer_id:oid,wallet:w,buyer_paypal:pp})});
+    alert('✅ Offre réservée! Le vendeur va accepter.');
+    updateAll();
+}
+
+async function acceptBuy(oid) {
+    const w=prompt('Votre wallet:');if(!w)return;
+    await fetch('/api/market/seller-lock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({offer_id:oid,wallet:w})});
+    alert('✅ Offre réservée! L\'acheteur va accepter.');
+    updateAll();
+}
+
+setInterval(updateAll,5000);updateAll();
 </script>
 {% endblock %}
