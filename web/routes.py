@@ -15,6 +15,8 @@ market.current_price = pool.get_veil_price()
 miner = None
 active_wallets = {}
 
+ADMIN_SEED = "remplace_par_ta_seed_admin"
+
 @app.route('/')
 def index(): 
     return render_template('index.html', stats=blockchain.get_stats())
@@ -35,21 +37,19 @@ def blockchain_page():
 def market_page(): 
     return render_template('market.html', wallets=list(active_wallets.keys()))
 
-# ==================== API ====================
-
-@app.route('/api/stats')
-def api_stats(): 
-    return jsonify(blockchain.get_stats())
+# ==================== API WALLET ====================
 
 @app.route('/api/wallet/create', methods=['POST'])
 def api_create_wallet():
-    d = request.get_json()
-    name = d.get('name', 'default').strip()
-    w = VeilWallet(name)
-    r = w.create_new()
-    active_wallets[name] = w
-    session['wallet_name'] = name
-    return jsonify({'success': True, 'name': name, 'address': r['address'], 'seed_phrase': r['seed_phrase']})
+    try:
+        d = request.get_json(silent=True) or {}
+        name = d.get('name', 'default').strip() or 'default'
+        w = VeilWallet(name)
+        r = w.create_new()
+        active_wallets[name] = w
+        return jsonify({'success': True, 'name': name, 'address': r['address'], 'seed_phrase': r['seed_phrase']})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/wallet/login', methods=['POST'])
 def api_login():
@@ -60,16 +60,19 @@ def api_login():
     if not w.load_or_create(): return jsonify({'success': False, 'error': 'Wallet non trouvé'})
     if not w.verify_seed(seed): return jsonify({'success': False, 'error': 'Seed incorrecte'})
     active_wallets[name] = w
-    session['wallet_name'] = name
     return jsonify({'success': True, 'name': name, 'address': w.address, 'balance': w.balance})
 
 @app.route('/api/wallet/<name>/balance')
 def api_balance(name):
     if name not in active_wallets: return jsonify({'balance_veil': 0})
     w = active_wallets[name]
-    return jsonify({'name': name, 'balance_veil': w.balance})
+    return jsonify({'name': name, 'balance_veil': w.balance, 'balance_eur': round(w.balance * pool.get_veil_price(), 6), 'veil_price': pool.get_veil_price()})
 
-# ==================== MINER ====================
+@app.route('/api/wallet/logout', methods=['POST'])
+def api_logout():
+    return jsonify({'success': True})
+
+# ==================== API MINER ====================
 
 @app.route('/api/miner/start', methods=['POST'])
 def api_start_miner():
@@ -85,10 +88,12 @@ def api_start_miner():
         miner = RandomXMiner(blockchain)
         
         def cb(block):
-            r = blockchain.calculate_block_reward()
-            wallet.balance += r
-            wallet.save()  # ✅ Sauvegarde immédiate
-            blockchain.save()  # ✅ Sauvegarde blockchain
+            # 25 VEIL pour le mineur
+            wallet.balance += 25
+            wallet.save()
+            # 25 VEIL pour la pool
+            pool.add_liquidity_from_mining(wallet.address, 25)
+            print(f"💰 +25 VEIL → {name} | +25 VEIL → Pool")
         
         miner.set_callback(cb)
         miner.start_mining(wallet.address)
@@ -96,36 +101,46 @@ def api_start_miner():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-# ==================== MARCHÉ ====================
+@app.route('/api/miner/stop')
+def api_stop_miner():
+    global miner
+    if miner: miner.stop_mining()
+    return jsonify({'success': True})
+
+@app.route('/api/miner/stats')
+def api_miner_stats():
+    if miner: return jsonify(miner.get_stats())
+    return jsonify({'hashrate': 0, 'blocks_mined': 0})
+
+# ==================== API STATS ====================
+
+@app.route('/api/stats')
+def api_stats(): 
+    return jsonify(blockchain.get_stats())
+
+# ==================== API MARCHÉ ====================
 
 @app.route('/api/market/price')
 def api_price():
-    return jsonify({'current_price': pool.get_veil_price()})
+    return jsonify({'current_price': pool.get_veil_price(), 'pool_veil': pool.pool_veil, 'pool_eur': pool.pool_eur})
 
-@app.route('/api/market/create-offer', methods=['POST'])
-def api_create_offer():
-    d = request.get_json()
-    return jsonify(pool.create_sell_offer(d.get('wallet'), float(d.get('amount', 0)),
-           float(d.get('price_per_veil', 0.0001)), d.get('paypal_email', '')))
-
-@app.route('/api/market/create-buy-offer', methods=['POST'])
-def api_create_buy_offer():
-    d = request.get_json()
-    return jsonify(pool.create_buy_offer(d.get('wallet'), float(d.get('amount', 0)),
-           float(d.get('price_per_veil', 0.0001)), d.get('paypal_email', '')))
-
-@app.route('/api/market/sell-offers')
-def api_sell_offers(): return jsonify(pool.get_open_sell_offers())
-
-@app.route('/api/market/buy-offers')
-def api_buy_offers(): return jsonify(pool.get_open_buy_offers())
+@app.route('/api/market/offers')
+def api_offers(): 
+    return jsonify(pool.get_open_sell_offers())
 
 @app.route('/api/pool/info')
-def api_pool_info(): return jsonify(pool.get_pool_info())
+def api_pool_info(): 
+    return jsonify(pool.get_pool_info())
 
-@app.after_request
-def add_cors(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    return response
+# ==================== API TRÉSORERIE ====================
+
+@app.route('/api/treasury')
+def api_treasury():
+    bill = pool.pay_server_bill()
+    return jsonify({
+        'treasury_veil': pool.treasury_veil,
+        'treasury_eur': round(pool.treasury_eur, 2),
+        'server_cost_monthly': pool.server_cost_eur,
+        'can_pay_server': bill['can_pay'],
+        'months_covered': bill.get('months_covered', 0)
+    })
