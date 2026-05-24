@@ -1,224 +1,148 @@
-"""
-Routes de l'API VeilCoin
-"""
 from flask import jsonify, request, render_template, session
 from web.app import app
-import sys
-import os
-
+import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from core.blockchain import Blockchain
 from core.wallet import VeilWallet
 from core.randomx_miner import RandomXMiner
+from core.market import VeilMarket
+from core.payment import LiquidityPool
 from config import Config
 
-# Instances globales
 blockchain = Blockchain()
+market = VeilMarket(blockchain)
+pool = LiquidityPool(market, blockchain)
+market.current_price = pool.get_veil_price()
 miner = None
 active_wallets = {}
 
-# ==================== Pages HTML ====================
-
 @app.route('/')
 def index():
-    """Dashboard principal"""
-    stats = blockchain.get_stats()
-    return render_template('index.html', stats=stats)
+    return render_template('index.html', stats=blockchain.get_stats())
 
 @app.route('/wallet')
 def wallet_page():
-    """Page wallet"""
-    wallets = list(active_wallets.keys())
-    return render_template('wallet.html', wallets=wallets)
+    return render_template('wallet.html', wallets=list(active_wallets.keys()))
 
 @app.route('/miner')
 def miner_page():
-    """Page du mineur"""
-    wallets = list(active_wallets.keys())
-    miner_stats = miner.get_stats() if miner else None
-    is_mining = miner.is_mining if miner else False
-    return render_template('miner.html', 
-                         wallets=wallets,
-                         miner_stats=miner_stats,
-                         is_mining=is_mining)
+    return render_template('miner.html', wallets=list(active_wallets.keys()), miner_stats=miner.get_stats() if miner else None, is_mining=miner.is_mining if miner else False)
 
 @app.route('/blockchain')
 def blockchain_page():
-    """Explorateur de blocs"""
-    stats = blockchain.get_stats()
-    blocks = blockchain.get_recent_blocks(20)
-    return render_template('blockchain.html', stats=stats, blocks=blocks)
+    return render_template('blockchain.html', stats=blockchain.get_stats(), blocks=blockchain.get_recent_blocks(20))
 
-@app.route('/explorer')
-def explorer_page():
-    """Explorateur de transactions"""
-    return render_template('explorer.html')
+@app.route('/market')
+def market_page():
+    return render_template('market.html', wallets=list(active_wallets.keys()))
 
-# ==================== API REST ====================
-
+# API
 @app.route('/api/stats')
 def api_stats():
-    """Statistiques blockchain"""
     return jsonify(blockchain.get_stats())
-
-@app.route('/api/blocks')
-def api_blocks():
-    """Liste des blocs récents"""
-    limit = request.args.get('limit', 10, type=int)
-    blocks = blockchain.get_recent_blocks(limit)
-    return jsonify(blocks)
-
-@app.route('/api/block/<int:height>')
-def api_block(height):
-    """Bloc par hauteur"""
-    block = blockchain.get_block(height=height)
-    if block:
-        return jsonify(block)
-    return jsonify({'error': 'Bloc non trouvé'}), 404
-
-@app.route('/api/transaction/<tx_id>')
-def api_transaction(tx_id):
-    """Transaction par ID"""
-    tx = blockchain.get_transaction(tx_id)
-    if tx:
-        return jsonify(tx)
-    return jsonify({'error': 'Transaction non trouvée'}), 404
-
-@app.route('/api/mempool')
-def api_mempool():
-    """Transactions en attente"""
-    txs = [tx.to_dict() for tx in blockchain.mempool]
-    return jsonify(txs)
-
-# ==================== API Wallet ====================
 
 @app.route('/api/wallet/create', methods=['POST'])
 def api_create_wallet():
-    """Créer un wallet"""
-    data = request.get_json()
-    name = data.get('name', 'default')
-    
+    d = request.get_json()
+    name = d.get('name', 'default').strip()
     if name in active_wallets:
         return jsonify({'error': 'Wallet déjà chargé'}), 400
-    
-    wallet = VeilWallet(name)
-    active_wallets[name] = wallet
-    return jsonify(wallet.get_info())
+    w = VeilWallet(name)
+    r = w.create_new()
+    active_wallets[name] = w
+    return jsonify({'success': True, 'name': name, 'address': r['address'], 'seed_phrase': r['seed_phrase']})
 
-@app.route('/api/wallet/load', methods=['POST'])
-def api_load_wallet():
-    """Charger un wallet existant"""
-    data = request.get_json()
-    name = data.get('name', 'default')
-    
-    try:
-        wallet = VeilWallet(name)
-        active_wallets[name] = wallet
-        return jsonify(wallet.get_info())
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
+@app.route('/api/wallet/login', methods=['POST'])
+def api_login():
+    d = request.get_json()
+    name = d.get('name', '').strip()
+    seed = d.get('seed_phrase', '').strip()
+    w = VeilWallet(name)
+    if not w.load_or_create():
+        return jsonify({'error': 'Wallet non trouvé'}), 404
+    if not w.verify_seed(seed):
+        return jsonify({'error': 'Seed incorrecte'}), 403
+    active_wallets[name] = w
+    session['wallet_name'] = name
+    return jsonify({'success': True, 'name': name, 'address': w.address, 'balance': w.balance})
 
 @app.route('/api/wallet/<name>/balance')
-def api_wallet_balance(name):
-    """Solde du wallet"""
+def api_balance(name):
     if name not in active_wallets:
-        return jsonify({'error': 'Wallet non trouvé'}), 404
-    
-    wallet = active_wallets[name]
-    balance = blockchain.get_balance(wallet.address)
-    wallet.balance = balance
-    wallet.save()
-    
-    return jsonify({
-        'name': name,
-        'address': wallet.address,
-        'balance': balance
-    })
-
-@app.route('/api/wallet/<name>/send', methods=['POST'])
-def api_send_transaction(name):
-    """Envoyer des VEIL"""
-    if name not in active_wallets:
-        return jsonify({'error': 'Wallet non trouvé'}), 404
-    
-    data = request.get_json()
-    to_address = data.get('to')
-    amount = float(data.get('amount', 0))
-    
-    wallet = active_wallets[name]
-    tx = wallet.create_transaction(to_address, amount)
-    
-    if tx:
-        blockchain.add_transaction(tx)
-        return jsonify({
-            'success': True,
-            'tx_id': tx.tx_id,
-            'message': f'Transaction {tx.tx_id[:16]}... créée'
-        })
-    
-    return jsonify({'error': 'Échec de la transaction'}), 400
+        return jsonify({'error': 'Non connecté'}), 404
+    w = active_wallets[name]
+    w.balance = blockchain.get_balance(w.address)
+    w.save()
+    return jsonify({'name': name, 'address': w.address, 'balance_veil': w.balance, 'balance_eur': round(w.balance * pool.get_veil_price(), 6), 'veil_price': pool.get_veil_price()})
 
 @app.route('/api/wallet/<name>/transactions')
-def api_wallet_transactions(name):
-    """Transactions du wallet"""
+def api_tx(name):
     if name not in active_wallets:
-        return jsonify({'error': 'Wallet non trouvé'}), 404
-    
-    wallet = active_wallets[name]
-    txs = wallet.get_recent_transactions(20)
-    return jsonify(txs)
-
-# ==================== API Mineur ====================
+        return jsonify([])
+    return jsonify(active_wallets[name].get_recent_transactions(20))
 
 @app.route('/api/miner/start', methods=['POST'])
 def api_start_miner():
-    """Démarrer le minage"""
     global miner
-    
-    data = request.get_json()
-    wallet_name = data.get('wallet')
-    
-    if wallet_name not in active_wallets:
-        return jsonify({'error': 'Wallet non trouvé'}), 404
-    
+    d = request.get_json()
+    name = d.get('wallet')
+    if name not in active_wallets:
+        return jsonify({'error': 'Non connecté'}), 404
     miner = RandomXMiner(blockchain)
-    wallet = active_wallets[wallet_name]
-    miner.start_mining(wallet.address)
-    
-    return jsonify({
-        'success': True,
-        'message': 'Minage démarré',
-        'address': wallet.address[:20] + '...'
-    })
+    w = active_wallets[name]
+    def cb(block):
+        r = blockchain.calculate_block_reward()
+        pool.add_liquidity_from_mining(w.address, r)
+        w.balance += r
+        w.save()
+    miner.set_callback(cb)
+    miner.start_mining(w.address)
+    return jsonify({'success': True})
 
 @app.route('/api/miner/stop')
 def api_stop_miner():
-    """Arrêter le minage"""
     global miner
-    
     if miner:
         miner.stop_mining()
-        return jsonify({'success': True, 'message': 'Minage arrêté'})
-    
-    return jsonify({'error': 'Mineur non actif'}), 400
+    return jsonify({'success': True})
 
 @app.route('/api/miner/stats')
 def api_miner_stats():
-    """Statistiques du mineur"""
-    if miner:
-        return jsonify(miner.get_stats())
-    return jsonify({'error': 'Mineur non actif'}), 400
+    return jsonify(miner.get_stats() if miner else {'hashrate': 0, 'blocks_mined': 0})
 
-# ==================== API Réseau ====================
+@app.route('/api/market/price')
+def api_price():
+    return jsonify({'current_price': pool.get_veil_price(), 'reference_price': pool.get_reference_price(), 'pool_info': pool.get_pool_info()})
 
-@app.route('/api/network/nodes')
-def api_network_nodes():
-    """Noeuds du réseau"""
-    # Simulation pour le moment
-    nodes = [
-        {'id': 1, 'ip': '127.0.0.1', 'port': 18444, 'status': 'connected'},
-        {'id': 2, 'ip': '192.168.1.10', 'port': 18444, 'status': 'connected'},
-        {'id': 3, 'ip': '10.0.0.5', 'port': 18444, 'status': 'syncing'}
-    ]
-    return jsonify(nodes)
+@app.route('/api/market/create-offer', methods=['POST'])
+def api_create_offer():
+    d = request.get_json()
+    return jsonify(pool.create_sell_offer(d.get('wallet'), float(d.get('amount', 0)), float(d.get('price_per_veil', 0.0001)), d.get('paypal_email', '')))
+
+@app.route('/api/market/buyer-lock', methods=['POST'])
+def api_buyer_lock():
+    d = request.get_json()
+    return jsonify(pool.buyer_lock_funds(d.get('offer_id'), d.get('wallet'), d.get('buyer_paypal', '')))
+
+@app.route('/api/market/seller-accept', methods=['POST'])
+def api_seller_accept():
+    d = request.get_json()
+    return jsonify(pool.seller_accept_buyer(d.get('offer_id'), d.get('wallet')))
+
+@app.route('/api/market/confirm', methods=['POST'])
+def api_confirm():
+    d = request.get_json()
+    return jsonify(pool.confirm_payment(d.get('offer_id'), d.get('wallet')))
+
+@app.route('/api/market/cancel', methods=['POST'])
+def api_cancel():
+    d = request.get_json()
+    return jsonify(pool.cancel_offer(d.get('offer_id'), d.get('wallet')))
+
+@app.route('/api/market/offers')
+def api_offers():
+    return jsonify(pool.get_open_offers())
+
+@app.route('/api/pool/info')
+def api_pool():
+    return jsonify(pool.get_pool_info())
