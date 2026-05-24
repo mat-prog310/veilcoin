@@ -78,7 +78,7 @@ def api_start_miner():
     name = d.get('wallet', '')
     
     if name not in active_wallets:
-        return jsonify({'success': False, 'error': f'Wallet {name} non connecté. Créez/connectez votre wallet d\'abord.'})
+        return jsonify({'success': False, 'error': f'Wallet {name} non connecté.'})
     
     try:
         wallet = active_wallets[name]
@@ -87,24 +87,14 @@ def api_start_miner():
         def cb(block):
             r = blockchain.calculate_block_reward()
             wallet.balance += r
-            wallet.save()
+            wallet.save()  # ✅ Sauvegarde immédiate
+            blockchain.save()  # ✅ Sauvegarde blockchain
         
         miner.set_callback(cb)
         miner.start_mining(wallet.address)
         return jsonify({'success': True, 'message': 'Minage démarré'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/miner/stop')
-def api_stop_miner():
-    global miner
-    if miner: miner.stop_mining()
-    return jsonify({'success': True})
-
-@app.route('/api/miner/stats')
-def api_miner_stats():
-    if miner: return jsonify(miner.get_stats())
-    return jsonify({'hashrate': 0, 'blocks_mined': 0})
 
 # ==================== MARCHÉ ====================
 
