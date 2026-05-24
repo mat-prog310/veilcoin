@@ -1,73 +1,45 @@
 import hashlib
 import json
 import time
-from typing import List, Optional
+from typing import List, Dict, Any
 
 class TransactionInput:
-    """Entrée de transaction avec signature en anneau (ring signature)"""
-    def __init__(self, ring_members: List[str], key_image: str, signature: str):
-        self.ring_members = ring_members  # Liste des clés publiques dans l'anneau
-        self.key_image = key_image  # Empêche la double dépense sans révéler l'expéditeur
-        self.signature = signature  # Preuve que le signataire est dans l'anneau
-
+    def __init__(self, ring_members, key_image, signature, amount=0):
+        self.ring_members = ring_members
+        self.key_image = key_image
+        self.signature = signature
+        self.amount = amount
     def to_dict(self):
-        return {
-            'ring_members': self.ring_members,
-            'key_image': self.key_image,
-            'signature': self.signature
-        }
+        return {'ring_members': self.ring_members, 'key_image': self.key_image, 'signature': self.signature, 'amount': self.amount}
 
 class TransactionOutput:
-    """Sortie de transaction avec adresse furtive (stealth address)"""
-    def __init__(self, stealth_address: str, amount: float, encrypted_amount: str):
-        self.stealth_address = stealth_address  # Adresse furtive unique pour cette transaction
-        self.amount = amount  # Montant en clair (sera chiffré en production)
-        self.encrypted_amount = encrypted_amount  # Montant chiffré (Range Proof simplifiée)
-
+    def __init__(self, stealth_address, amount, encrypted_amount=None):
+        self.stealth_address = stealth_address
+        self.amount = amount
+        self.encrypted_amount = encrypted_amount or hashlib.sha256(f"veil_{amount}".encode()).hexdigest()
+        self.index = 0
     def to_dict(self):
-        return {
-            'stealth_address': self.stealth_address,
-            'amount': self.amount,
-            'encrypted_amount': self.encrypted_amount
-        }
+        return {'stealth_address': self.stealth_address, 'amount': self.amount, 'encrypted_amount': self.encrypted_amount, 'index': self.index}
 
 class VeilTransaction:
-    """Transaction confidentielle VeilCoin"""
-    def __init__(self, inputs: List[TransactionInput], outputs: List[TransactionOutput], 
-                 extra: Optional[bytes] = None):
+    def __init__(self, inputs, outputs, fee=0.001, extra=None):
         self.version = 1
         self.inputs = inputs
         self.outputs = outputs
-        self.extra = extra or b''  # Données supplémentaires (messages chiffrés, etc.)
+        self.fee = fee
+        self.extra = extra or b''
         self.timestamp = time.time()
-        self.tx_id = self.compute_txid()
+        self.tx_id = self._txid()
+        self.confirmations = 0
 
-    def compute_txid(self) -> str:
-        """Calcule l'identifiant unique de la transaction"""
-        tx_data = {
-            'version': self.version,
-            'inputs': [inp.to_dict() for inp in self.inputs],
-            'outputs': [out.to_dict() for out in self.outputs],
-            'extra': self.extra.hex(),
-            'timestamp': self.timestamp
-        }
-        tx_string = json.dumps(tx_data, sort_keys=True)
-        return hashlib.sha3_256(tx_string.encode()).hexdigest()
+    def _txid(self):
+        return hashlib.sha256(json.dumps({'version': self.version, 'inputs': [i.to_dict() for i in self.inputs], 'outputs': [o.to_dict() for o in self.outputs], 'fee': self.fee, 'timestamp': self.timestamp}, sort_keys=True).encode()).hexdigest()
 
     def to_dict(self):
-        return {
-            'version': self.version,
-            'tx_id': self.tx_id,
-            'inputs': [inp.to_dict() for inp in self.inputs],
-            'outputs': [out.to_dict() for out in self.outputs],
-            'extra': self.extra.hex(),
-            'timestamp': self.timestamp
-        }
+        return {'version': self.version, 'tx_id': self.tx_id, 'inputs': [i.to_dict() for i in self.inputs], 'outputs': [o.to_dict() for o in self.outputs], 'fee': self.fee, 'timestamp': self.timestamp, 'confirmations': self.confirmations}
 
-    def is_valid(self) -> bool:
-        """Vérifie la validité basique de la transaction"""
-        if not self.inputs or not self.outputs:
-            return False
-        if len(self.tx_id) != 64:  # SHA3-256 produit 64 caractères hex
-            return False
-        return True
+    def is_valid(self):
+        return bool(self.inputs and self.outputs)
+
+    def get_total_output(self):
+        return sum(o.amount for o in self.outputs)
