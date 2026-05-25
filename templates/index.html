@@ -1,69 +1,42 @@
 {% extends "base.html" %}
-{% block title %}VeilCoin - Dashboard{% endblock %}
-{% block extra_head %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js" defer></script>
-{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1 class="mb-4"><i class="fas fa-chart-line text-primary"></i> Dashboard</h1>
-
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3"><div class="card bg-dark border-primary h-100"><div class="card-body text-center"><h5 class="text-primary">Hauteur</h5><h2 id="height">{{ stats.height }}</h2></div></div></div>
-        <div class="col-md-3 mb-3"><div class="card bg-dark border-success h-100"><div class="card-body text-center"><h5 class="text-success">Offre</h5><h2 id="supply">{{ "%.0f"|format(stats.total_supply) }}</h2></div></div></div>
-        <div class="col-md-3 mb-3"><div class="card bg-dark border-warning h-100"><div class="card-body text-center"><h5 class="text-warning">Difficulté</h5><h2 id="difficulty">{{ stats.difficulty }}</h2></div></div></div>
-        <div class="col-md-3 mb-3"><div class="card bg-dark border-info h-100"><div class="card-body text-center"><h5 class="text-info">Prix</h5><h2 id="live-price">€0.001</h2></div></div></div>
-    </div>
-
-    <div class="row mb-4">
-        <div class="col-md-6 mb-3"><div class="card bg-dark"><div class="card-body"><h5>📈 Prix (€)</h5><canvas id="priceChart"></canvas></div></div></div>
-        <div class="col-md-6 mb-3"><div class="card bg-dark"><div class="card-body"><h5>📦 Derniers blocs</h5><table class="table table-dark table-hover"><thead><tr><th>#</th><th>Hash</th></tr></thead><tbody id="recent-blocks"><tr><td colspan="2">Chargement...</td></tr></tbody></table></div></div></div>
+<div class="container mt-4">
+    <h1 class="text-center mb-4">🏠 VeilCoin Dashboard</h1>
+    
+    <div class="row">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-primary h-100">
+                <div class="card-body text-center">
+                    <h5 class="text-primary">Hauteur</h5>
+                    <h2>{{ stats.height }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-success h-100">
+                <div class="card-body text-center">
+                    <h5 class="text-success">Difficulté</h5>
+                    <h2>{{ stats.difficulty }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-warning h-100">
+                <div class="card-body text-center">
+                    <h5 class="text-warning">Brûlé</h5>
+                    <h2>{{ "%.2f"|format(stats.total_burned) }} VEIL</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark border-info h-100">
+                <div class="card-body text-center">
+                    <h5 class="text-info">Mempool</h5>
+                    <h2>{{ stats.mempool_size }}</h2>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-{% endblock %}
-{% block extra_scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const socket = io();
-    
-    const ctx = document.getElementById('priceChart').getContext('2d');
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: { labels: [], datasets: [{ label: 'Prix (€)', data: [], borderColor: '#20c997', tension: 0.4 }] },
-        options: { responsive: true, scales: { y: { ticks: { color: '#fff' } }, x: { ticks: { color: '#fff' } } } }
-    });
-
-    function updatePrice() {
-        fetch('/api/market/price')
-            .then(r => r.json())
-            .then(d => {
-                const p = d.current_price || 0.001;
-                document.getElementById('live-price').textContent = '€' + p.toFixed(8);
-                const n = new Date().toLocaleTimeString();
-                chart.data.labels.push(n);
-                chart.data.datasets[0].data.push(p);
-                if (chart.data.labels.length > 30) { chart.data.labels.shift(); chart.data.datasets[0].data.shift(); }
-                chart.update();
-            });
-    }
-
-    socket.on('blockchain_stats', s => {
-        document.getElementById('height').textContent = s.height || 0;
-        document.getElementById('supply').textContent = (s.total_supply || 0).toFixed(0);
-        document.getElementById('difficulty').textContent = s.difficulty || 5;
-    });
-
-    socket.on('recent_blocks', blocks => {
-        const t = document.getElementById('recent-blocks');
-        t.innerHTML = '';
-        if (!blocks || !blocks.length) { t.innerHTML = '<tr><td colspan="2">Aucun</td></tr>'; return; }
-        blocks.reverse().forEach(b => {
-            t.insertRow().innerHTML = `<td>#${b.header?.nonce||'?'}</td><td><code>${(b.block_hash||'').substring(0,20)}...</code></td>`;
-        });
-    });
-
-    updatePrice();
-    setInterval(updatePrice, 60000);
-});
-</script>
 {% endblock %}
