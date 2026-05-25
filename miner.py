@@ -150,3 +150,24 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Quand un bloc est trouvé (dans mine())
+if h.startswith(tgt):
+    self.blocks += 1
+    
+    # 🔥 AJOUTEZ CECI : Envoyer le bloc au serveur
+    submit_data = {
+        "wallet": self.wallet,
+        "nonce": nonce,
+        "hash": h,
+        "base": base,
+        "timestamp": time.time()
+    }
+    
+    result = self.api("/api/miner/submit_block", submit_data)
+    
+    if result and result.get("success"):
+        print(f"\n{G}✅ Bloc soumis au réseau !{X}")
+        self.bal += 25
+    else:
+        print(f"\n{R}❌ Échec de soumission{X}")
