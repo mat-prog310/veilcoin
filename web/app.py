@@ -11,7 +11,6 @@ def create_app():
     app = Flask(__name__)
     CORS(app)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'veilcoin-secret-key')
-    # Enregistrer le blueprint
     app.register_blueprint(web_bp)
     return app
 
