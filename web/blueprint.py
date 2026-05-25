@@ -13,14 +13,16 @@ from core.market import VeilMarket
 from core.payment import LiquidityPool
 from config import Config
 
-# Création du Blueprint
 web_bp = Blueprint('web', __name__, template_folder='../templates')
 
-# ==================== ANTI-DUMP & ANTI-PUMP ====================
+# ==================== P2P ESCROW ====================
+p2p_orders = {}
+p2p_counter = 0
+
+# ==================== ANTI-DUMP ====================
 MAX_TRADE_PERCENT = 5
 MIN_TRADE_INTERVAL = 60
 COOLDOWN_BLOCKS = 10
-
 user_last_trade = {}
 user_trade_count = {}
 
@@ -38,8 +40,6 @@ pool = LiquidityPool(market, blockchain) if market else None
 if pool:
     pool.pool_veil = 1000000
     pool.pool_eur = 10000
-    print(f"✅ Pool: {pool.pool_veil} VEIL / {pool.pool_eur} EUR")
-    print(f"💰 Prix: {pool.get_veil_price():.4f} EUR/VEIL")
 else:
     class DummyPool:
         def __init__(self):
@@ -49,7 +49,6 @@ else:
         def get_veil_price(self):
             return self.pool_eur / self.pool_veil if self.pool_veil > 0 else 0.01
     pool = DummyPool()
-    print("✅ Pool créée manuellement")
 
 active_wallets = {}
 mempool = []
@@ -65,20 +64,12 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 if not os.path.exists(MINED_BLOCKS_FILE):
     genesis_block = {
-        'index': 0,
-        'timestamp': time.time(),
-        'transactions': [],
-        'nonce': 0,
-        'previous_hash': '0' * 64,
-        'hash': hashlib.sha256(b'VEILCOIN_GENESIS').hexdigest(),
-        'miner': 'system',
-        'reward_miner': 0,
-        'reward_pool': 0,
-        'difficulty': 5
+        'index': 0, 'timestamp': time.time(), 'transactions': [], 'nonce': 0,
+        'previous_hash': '0' * 64, 'hash': hashlib.sha256(b'VEILCOIN_GENESIS').hexdigest(),
+        'miner': 'system', 'reward_miner': 0, 'reward_pool': 0, 'difficulty': 5
     }
     with open(MINED_BLOCKS_FILE, 'w') as f:
         json.dump([genesis_block], f, indent=2)
-    print("✅ Bloc genesis créé")
 
 if os.path.exists(BURN_STATS_FILE):
     try:
@@ -111,16 +102,13 @@ def apply_burn(fee):
     total_fees_collected += fee
     save_burn_stats()
     return {
-        'fee': fee,
-        'burned': burn_amount,
-        'treasury': treasury_amount,
+        'fee': fee, 'burned': burn_amount, 'treasury': treasury_amount,
         'total_burned_since_start': total_burned,
         'remaining_supply': MAX_SUPPLY - total_burned,
         'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0
     }
 
-def check_anti_manipulation(wallet, amount_veil, is_buy):
-    global user_last_trade, user_trade_count
+def check_anti_manipulation(wallet, amount_veil):
     now = time.time()
     if wallet in user_last_trade:
         elapsed = now - user_last_trade[wallet]
@@ -128,32 +116,23 @@ def check_anti_manipulation(wallet, amount_veil, is_buy):
             return False, f"Attendez {MIN_TRADE_INTERVAL - elapsed:.0f} secondes"
     max_trade = pool.pool_veil * (MAX_TRADE_PERCENT / 100)
     if amount_veil > max_trade:
-        return False, f"Maximum {MAX_TRADE_PERCENT}% de la pool ({max_trade:.0f} VEIL)"
-    if wallet in user_trade_count:
-        if user_trade_count[wallet] >= COOLDOWN_BLOCKS:
-            return False, f"Trop de trades. Attendez {COOLDOWN_BLOCKS} blocs"
+        return False, f"Maximum {MAX_TRADE_PERCENT}% de la pool"
+    if wallet in user_trade_count and user_trade_count[wallet] >= COOLDOWN_BLOCKS:
+        return False, f"Trop de trades. Attendez {COOLDOWN_BLOCKS} blocs"
     return True, "OK"
 
 def update_trade_record(wallet):
-    global user_last_trade, user_trade_count
     user_last_trade[wallet] = time.time()
     user_trade_count[wallet] = user_trade_count.get(wallet, 0) + 1
 
 def get_blockchain_stats():
-    stats = {
-        'height': 0,
-        'difficulty': 5,
-        'total_supply': 0,
-        'total_burned': total_burned,
-        'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0,
-        'remaining_supply': MAX_SUPPLY - total_burned,
-        'mempool_size': len(mempool)
-    }
+    stats = {'height': 0, 'difficulty': 5, 'total_supply': 0, 'total_burned': total_burned,
+             'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0,
+             'remaining_supply': MAX_SUPPLY - total_burned, 'mempool_size': len(mempool)}
     if os.path.exists(MINED_BLOCKS_FILE):
         try:
             with open(MINED_BLOCKS_FILE, 'r') as f:
-                blocks = json.load(f)
-                stats['height'] = len(blocks)
+                stats['height'] = len(json.load(f))
         except:
             pass
     return stats
@@ -168,12 +147,10 @@ def get_recent_blocks(n=20):
                     blocks.append({
                         'index': b.get('index', 0),
                         'hash': b.get('hash', '')[:20],
-                        'full_hash': b.get('hash', ''),
+                        'miner': b.get('miner', 'unknown')[:15],
                         'tx_count': len(b.get('transactions', [])),
                         'nonce': b.get('nonce', 0),
-                        'difficulty': b.get('difficulty', 5),
-                        'timestamp': b.get('timestamp', time.time()),
-                        'miner': b.get('miner', 'unknown')[:15]
+                        'timestamp': b.get('timestamp', time.time())
                     })
         except:
             pass
@@ -185,12 +162,13 @@ def format_datetime(timestamp):
         return "N/A"
     return datetime.fromtimestamp(timestamp).strftime("%d/%m/%Y %H:%M:%S")
 
-# ==================== PAGES WEB ====================
+# ==================== PAGES ====================
 
 @web_bp.route('/')
 def index():
     stats = get_blockchain_stats()
-    return render_template('index.html', stats=stats)
+    blocks = get_recent_blocks(10)
+    return render_template('index.html', stats=stats, blocks=blocks)
 
 @web_bp.route('/wallet')
 def wallet_page():
@@ -205,12 +183,11 @@ def blockchain_page():
 @web_bp.route('/market')
 def market_page():
     price = pool.get_veil_price() if pool else 0.01
-    return render_template('market.html', 
-                         price=round(price, 4),
-                         pool_veil=pool.pool_veil if pool else 0,
-                         pool_eur=pool.pool_eur if pool else 0,
-                         max_trade_percent=MAX_TRADE_PERCENT,
-                         cooldown_seconds=MIN_TRADE_INTERVAL)
+    return render_template('market.html', price=round(price, 4))
+
+@web_bp.route('/p2p')
+def p2p_page():
+    return render_template('p2p.html')
 
 # ==================== API WALLET ====================
 
@@ -218,17 +195,12 @@ def market_page():
 def api_create_wallet():
     try:
         d = request.get_json(silent=True) or {}
-        name = d.get('name', 'default').strip() or 'default'
+        name = d.get('name', 'default').strip()
         w = VeilWallet(name)
         r = w.create_new()
         active_wallets[name] = w
-        return jsonify({
-            'success': True, 
-            'name': name, 
-            'address': r['address'], 
-            'seed_phrase': r['seed_phrase'],
-            'balance': r.get('balance', 0)
-        })
+        return jsonify({'success': True, 'name': name, 'address': r['address'], 
+                       'seed_phrase': r['seed_phrase'], 'balance': r.get('balance', 0)})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -244,12 +216,7 @@ def api_login():
         if not w.verify_seed(seed):
             return jsonify({'success': False, 'error': 'Seed incorrecte'})
         active_wallets[name] = w
-        return jsonify({
-            'success': True, 
-            'name': name, 
-            'address': w.address, 
-            'balance': w.balance
-        })
+        return jsonify({'success': True, 'name': name, 'address': w.address, 'balance': w.balance})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -264,12 +231,8 @@ def api_balance(name):
                 return jsonify({'balance_veil': 0})
             active_wallets[name] = w
         price = pool.get_veil_price() if pool else 0.01
-        return jsonify({
-            'name': name, 
-            'balance_veil': w.balance, 
-            'balance_eur': round(w.balance * price, 6), 
-            'veil_price': price
-        })
+        return jsonify({'name': name, 'balance_veil': w.balance, 
+                       'balance_eur': round(w.balance * price, 6), 'veil_price': price})
     except:
         return jsonify({'balance_veil': 0})
 
@@ -280,9 +243,8 @@ def api_send(name):
         to = d.get('to')
         amount = float(d.get('amount', 0))
         
-        if name in active_wallets:
-            w = active_wallets[name]
-        else:
+        w = active_wallets.get(name)
+        if not w:
             w = VeilWallet(name)
             if not w.load_or_create():
                 return jsonify({'success': False, 'error': 'Wallet non trouvé'})
@@ -292,32 +254,16 @@ def api_send(name):
         total = amount + fee
         
         if w.balance < total:
-            return jsonify({'success': False, 'error': f'Solde insuffisant'})
+            return jsonify({'success': False, 'error': 'Solde insuffisant'})
         
         burn_result = apply_burn(fee)
         w.balance -= total
         w.save()
+        mempool.append({'from': w.address, 'to': to, 'amount': amount, 'fee': fee})
         
-        mempool.append({
-            'from': w.address, 
-            'to': to, 
-            'amount': amount, 
-            'fee': fee,
-            'burned': burn_result['burned']
-        })
-        
-        return jsonify({
-            'success': True, 
-            'new_balance': w.balance, 
-            'fee': fee, 
-            'burned': burn_result['burned']
-        })
+        return jsonify({'success': True, 'new_balance': w.balance, 'fee': fee, 'burned': burn_result['burned']})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
-
-@web_bp.route('/api/wallet/logout', methods=['POST'])
-def api_logout():
-    return jsonify({'success': True})
 
 # ==================== API MARCHÉ ====================
 
@@ -335,13 +281,10 @@ def market_buy():
                 return jsonify({'success': False, 'error': 'Wallet non trouvé'})
             active_wallets[wallet_name] = w
         
-        if not pool:
-            return jsonify({'success': False, 'error': 'Pool non disponible'})
-        
         current_price = pool.get_veil_price()
         veil_amount = eur_amount / current_price
         
-        allowed, msg = check_anti_manipulation(wallet_name, veil_amount, True)
+        allowed, msg = check_anti_manipulation(wallet_name, veil_amount)
         if not allowed:
             return jsonify({'success': False, 'error': msg})
         
@@ -356,14 +299,9 @@ def market_buy():
         update_trade_record(wallet_name)
         new_price = pool.get_veil_price()
         
-        return jsonify({
-            'success': True,
-            'veil_received': veil_amount,
-            'eur_spent': eur_amount,
-            'new_balance': w.balance,
-            'new_price': new_price,
-            'price_change': round(((new_price - current_price) / current_price) * 100, 2)
-        })
+        return jsonify({'success': True, 'veil_received': veil_amount, 'eur_spent': eur_amount,
+                       'new_balance': w.balance, 'new_price': new_price,
+                       'price_change': round(((new_price - current_price) / current_price) * 100, 2)})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -381,16 +319,13 @@ def market_sell():
                 return jsonify({'success': False, 'error': 'Wallet non trouvé'})
             active_wallets[wallet_name] = w
         
-        if not pool:
-            return jsonify({'success': False, 'error': 'Pool non disponible'})
-        
         if w.balance < veil_amount:
             return jsonify({'success': False, 'error': 'Solde insuffisant'})
         
         current_price = pool.get_veil_price()
         eur_amount = veil_amount * current_price
         
-        allowed, msg = check_anti_manipulation(wallet_name, veil_amount, False)
+        allowed, msg = check_anti_manipulation(wallet_name, veil_amount)
         if not allowed:
             return jsonify({'success': False, 'error': msg})
         
@@ -405,58 +340,15 @@ def market_sell():
         update_trade_record(wallet_name)
         new_price = pool.get_veil_price()
         
-        return jsonify({
-            'success': True,
-            'eur_received': eur_amount,
-            'veil_sold': veil_amount,
-            'new_balance': w.balance,
-            'new_price': new_price,
-            'price_change': round(((new_price - current_price) / current_price) * 100, 2)
-        })
+        return jsonify({'success': True, 'eur_received': eur_amount, 'veil_sold': veil_amount,
+                       'new_balance': w.balance, 'new_price': new_price,
+                       'price_change': round(((new_price - current_price) / current_price) * 100, 2)})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-# ==================== API PRIX HISTORIQUE ====================
-
-# Stockage de l'historique des prix
-price_history_file = os.path.join(DATA_DIR, "price_history.json")
-if not os.path.exists(price_history_file):
-    with open(price_history_file, 'w') as f:
-        json.dump([], f)
-
-@web_bp.route('/api/market/price/history', methods=['GET'])
-def get_price_history():
-    try:
-        with open(price_history_file, 'r') as f:
-            history = json.load(f)
-        return jsonify({'history': history[-50:]})  # 50 derniers points
-    except:
-        return jsonify({'history': []})
-
-@web_bp.route('/api/market/price/record', methods=['POST'])
-def record_price():
-    try:
-        d = request.get_json()
-        price = d.get('price', 0.01)
-        
-        with open(price_history_file, 'r') as f:
-            history = json.load(f)
-        
-        history.append({
-            'price': price,
-            'time': datetime.now().strftime('%H:%M:%S')
-        })
-        
-        # Garder seulement les 100 derniers points
-        if len(history) > 100:
-            history = history[-100:]
-        
-        with open(price_history_file, 'w') as f:
-            json.dump(history, f, indent=2)
-        
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+@web_bp.route('/api/market/price')
+def api_price():
+    return jsonify({'current_price': pool.get_veil_price() if pool else 0.01})
 
 # ==================== API MINER ====================
 
@@ -496,30 +388,184 @@ def submit_block():
         with open(MINED_BLOCKS_FILE, 'w') as f:
             json.dump(existing_blocks[-100:], f, indent=2)
         
+        # Récompense mineur
         w = VeilWallet(wallet)
         w.load_or_create()
         w.balance += 25
         w.save()
         active_wallets[wallet] = w
         
+        # Alimenter la pool avec 25 VEIL
         if pool:
             pool.pool_veil = getattr(pool, 'pool_veil', 0) + 25
         
-        global user_trade_count
-        for wallet_key in list(user_trade_count.keys()):
-            user_trade_count[wallet_key] = max(0, user_trade_count[wallet_key] - 1)
+        # Reset anti-dump
+        for wk in list(user_trade_count.keys()):
+            user_trade_count[wk] = max(0, user_trade_count[wk] - 1)
         
         return jsonify({'success': True, 'reward_miner': 25, 'new_balance': w.balance})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-@web_bp.route('/api/miner/stats', methods=['GET'])
-def miner_stats():
-    return jsonify({'difficulty': 5, 'reward': 25, 'required_zeros': 5, 'estimated_hashes': 1048576})
-
 @web_bp.route('/api/miner/mempool', methods=['GET'])
 def get_mempool():
     return jsonify({'transactions': mempool, 'count': len(mempool)})
+
+# ==================== API P2P ====================
+
+@web_bp.route('/api/p2p/create', methods=['POST'])
+def p2p_create_order():
+    global p2p_counter
+    try:
+        d = request.get_json()
+        wallet_name = d.get('wallet')
+        amount_veil = float(d.get('amount_veil', 0))
+        price_eur = float(d.get('price_eur', 0))
+        
+        w = active_wallets.get(wallet_name)
+        if not w:
+            w = VeilWallet(wallet_name)
+            if not w.load_or_create():
+                return jsonify({'success': False, 'error': 'Wallet non trouvé'})
+            active_wallets[wallet_name] = w
+        
+        if w.balance < amount_veil:
+            return jsonify({'success': False, 'error': 'Solde insuffisant'})
+        
+        w.balance -= amount_veil
+        w.save()
+        
+        p2p_counter += 1
+        order_id = f"P2P_{p2p_counter}"
+        
+        p2p_orders[order_id] = {
+            'id': order_id, 'seller': wallet_name, 'amount_veil': amount_veil,
+            'price_eur': price_eur, 'total_eur': amount_veil * price_eur,
+            'status': 'open', 'buyer': None, 'buyer_email': None,
+            'seller_confirmed': False, 'buyer_confirmed': False, 'created_at': time.time()
+        }
+        
+        return jsonify({'success': True, 'order_id': order_id, 'order': p2p_orders[order_id]})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/p2p/orders', methods=['GET'])
+def p2p_list_orders():
+    open_orders = [o for o in p2p_orders.values() if o['status'] == 'open']
+    return jsonify({'orders': open_orders, 'count': len(open_orders)})
+
+@web_bp.route('/api/p2p/my-orders', methods=['GET'])
+def p2p_my_orders():
+    wallet = request.args.get('wallet')
+    my_orders = [o for o in p2p_orders.values() if o.get('seller') == wallet]
+    return jsonify({'orders': my_orders})
+
+@web_bp.route('/api/p2p/match', methods=['POST'])
+def p2p_match_order():
+    try:
+        d = request.get_json()
+        order_id = d.get('order_id')
+        buyer_name = d.get('buyer')
+        buyer_email = d.get('email')
+        
+        if order_id not in p2p_orders:
+            return jsonify({'success': False, 'error': 'Offre introuvable'})
+        
+        order = p2p_orders[order_id]
+        if order['status'] != 'open':
+            return jsonify({'success': False, 'error': 'Offre déjà prise'})
+        
+        order['buyer'] = buyer_name
+        order['buyer_email'] = buyer_email
+        order['status'] = 'matched'
+        
+        return jsonify({'success': True, 'order_id': order_id, 
+                       'seller_email': "Email révélé après paiement",
+                       'amount_eur': order['total_eur']})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/p2p/pay', methods=['POST'])
+def p2p_confirm_payment():
+    try:
+        d = request.get_json()
+        order_id = d.get('order_id')
+        buyer_name = d.get('buyer')
+        
+        if order_id not in p2p_orders:
+            return jsonify({'success': False, 'error': 'Offre introuvable'})
+        
+        order = p2p_orders[order_id]
+        if order['status'] != 'matched' or order['buyer'] != buyer_name:
+            return jsonify({'success': False, 'error': 'Non autorisé'})
+        
+        order['status'] = 'paid'
+        seller_wallet = active_wallets.get(order['seller'])
+        seller_email = getattr(seller_wallet, 'email', 'vendeur@veilcoin.com')
+        
+        return jsonify({'success': True, 'seller_email': seller_email, 'amount_eur': order['total_eur']})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/p2p/confirm', methods=['POST'])
+def p2p_confirm_receipt():
+    try:
+        d = request.get_json()
+        order_id = d.get('order_id')
+        wallet_name = d.get('wallet')
+        confirm_type = d.get('confirm_type')
+        
+        if order_id not in p2p_orders:
+            return jsonify({'success': False, 'error': 'Offre introuvable'})
+        
+        order = p2p_orders[order_id]
+        
+        if order['status'] != 'paid':
+            return jsonify({'success': False, 'error': 'Status invalide'})
+        
+        if confirm_type == 'seller':
+            order['seller_confirmed'] = True
+        elif confirm_type == 'buyer':
+            order['buyer_confirmed'] = True
+        
+        if order['seller_confirmed'] and order['buyer_confirmed']:
+            order['status'] = 'completed'
+            buyer_wallet = active_wallets.get(order['buyer'])
+            if buyer_wallet:
+                buyer_wallet.balance += order['amount_veil']
+                buyer_wallet.save()
+            return jsonify({'success': True, 'status': 'completed',
+                           'message': f'Transaction complétée ! {order["amount_veil"]:.4f} VEIL transférés'})
+        
+        return jsonify({'success': True, 'status': 'waiting', 'message': 'En attente de l\'autre confirmation'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/p2p/cancel', methods=['POST'])
+def p2p_cancel_order():
+    try:
+        d = request.get_json()
+        order_id = d.get('order_id')
+        wallet = d.get('wallet')
+        
+        if order_id not in p2p_orders:
+            return jsonify({'success': False, 'error': 'Offre introuvable'})
+        
+        order = p2p_orders[order_id]
+        if order['seller'] != wallet:
+            return jsonify({'success': False, 'error': 'Non autorisé'})
+        if order['status'] != 'open':
+            return jsonify({'success': False, 'error': 'Impossible d\'annuler'})
+        
+        seller_wallet = active_wallets.get(wallet)
+        if seller_wallet:
+            seller_wallet.balance += order['amount_veil']
+            seller_wallet.save()
+        
+        del p2p_orders[order_id]
+        return jsonify({'success': True, 'message': 'Offre annulée'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 # ==================== API STATS ====================
 
@@ -535,33 +581,10 @@ def api_blocks():
         return jsonify({'blocks': blocks[-20:], 'total': len(blocks)})
     return jsonify({'blocks': [], 'total': 0})
 
-@web_bp.route('/api/market/price')
-def api_price():
-    price = pool.get_veil_price() if pool else 0.01
-    return jsonify({'current_price': price, 'pool_veil': pool.pool_veil if pool else 0, 'pool_eur': pool.pool_eur if pool else 0})
-
-@web_bp.route('/api/burn/stats')
-def api_burn_stats():
-    return jsonify({
-        'total_burned': total_burned,
-        'total_fees_collected': total_fees_collected,
-        'max_supply': MAX_SUPPLY,
-        'remaining_supply': MAX_SUPPLY - total_burned,
-        'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0
-    })
-
-# ==================== PING & HEALTH ====================
-
 @web_bp.route('/ping')
 def ping():
     return 'pong', 200
 
 @web_bp.route('/health')
 def health():
-    return jsonify({
-        'status': 'ok',
-        'pool': pool is not None,
-        'wallets_count': len(active_wallets),
-        'mempool_size': len(mempool),
-        'total_burned': total_burned
-    })
+    return jsonify({'status': 'ok', 'wallets_count': len(active_wallets), 'mempool_size': len(mempool)})
