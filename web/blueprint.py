@@ -240,3 +240,30 @@ def ping():
 @web_bp.route('/health')
 def health():
     return jsonify({'status': 'ok', 'mempool_size': len(mempool), 'total_burned': total_burned})
+
+# Ajoutez ceci dans web/blueprint.py, après les imports
+
+def init_blockchain():
+    """Initialise la blockchain si elle n'existe pas"""
+    blockchain_file = os.path.join(Config.DATA_DIR, 'blockchain.json')
+    if not os.path.exists(blockchain_file):
+        genesis_block = {
+            'index': 0,
+            'timestamp': time.time(),
+            'transactions': [],
+            'nonce': 0,
+            'previous_hash': '0' * 64,
+            'hash': hashlib.sha256(b'VEILCOIN_GENESIS').hexdigest(),
+            'miner': 'system',
+            'reward_miner': 0,
+            'reward_pool': 0,
+            'difficulty': 5
+        }
+        with open(blockchain_file, 'w') as f:
+            json.dump([genesis_block], f, indent=2)
+        print("✅ Blockchain initialisée avec bloc genesis")
+        return True
+    return False
+
+# Appeler l'initialisation
+init_blockchain()
