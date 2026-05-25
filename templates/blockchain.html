@@ -1,45 +1,103 @@
 {% extends "base.html" %}
-{% block title %}VeilCoin - Blockchain{% endblock %}
-{% block extra_head %}
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js" defer></script>
-{% endblock %}
+
+{% block title %}Blockchain Explorer - VeilCoin{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1 class="mb-4"><i class="fas fa-cubes text-info"></i> Blockchain Explorer</h1>
-
+<div class="container mt-4">
+    <h1 class="text-center mb-4">
+        <span class="gradient-text">⛓️ Blockchain Explorer</span>
+    </h1>
+    
+    <!-- Statistiques -->
     <div class="row mb-4">
-        <div class="col-md-3 mb-3"><div class="card bg-dark border-primary"><div class="card-body text-center"><h5>Hauteur</h5><h2 id="explorer-height">{{ stats.height }}</h2></div></div></div>
-        <div class="col-md-3 mb-3"><div class="card bg-dark border-success"><div class="card-body text-center"><h5>Offre</h5><h2 id="explorer-supply">{{ "%.0f"|format(stats.total_supply) }}</h2></div></div></div>
-        <div class="col-md-3 mb-3"><div class="card bg-dark border-warning"><div class="card-body text-center"><h5>Difficulté</h5><h2 id="explorer-diff">{{ stats.difficulty }}</h2></div></div></div>
-        <div class="col-md-3 mb-3"><div class="card bg-dark border-danger"><div class="card-body text-center"><h5>🔥 Brûlé</h5><h2 id="explorer-burned">{{ "%.2f"|format(stats.total_burned) }}</h2></div></div></div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center">
+                    <h5>📦 Hauteur</h5>
+                    <h2>{{ stats.height }}</h2>
+                    <small>blocs</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center">
+                    <h5>🎯 Difficulté</h5>
+                    <h2>{{ stats.difficulty }}</h2>
+                    <small>actuelle</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center">
+                    <h5>💰 Supply total</h5>
+                    <h2>{{ "%.2f"|format(stats.total_supply) }}</h2>
+                    <small>VEIL</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center">
+                    <h5>⛏️ Récompense</h5>
+                    <h2>{{ stats.current_reward }}</h2>
+                    <small>VEIL/bloc</small>
+                </div>
+            </div>
+        </div>
     </div>
-
-    <div class="card bg-dark"><div class="card-body">
-        <h5>📦 Derniers blocs</h5>
-        <table class="table table-dark"><thead><tr><th>#</th><th>Hash</th><th>Mineur</th><th>Pool</th></tr></thead>
-        <tbody id="blocks-table">{% for b in blocks %}<tr><td>#{{ loop.index }}</td><td><code>{{ b.block_hash[:20] if b.block_hash else 'N/A' }}...</code></td><td class="text-success">+25</td><td class="text-primary">+25</td></tr>{% endfor %}</tbody></table>
-    </div></div>
+    
+    <!-- Liste des blocs -->
+    <div class="card bg-dark">
+        <div class="card-header">
+            <h4>📋 Derniers blocs</h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Hash</th>
+                            <th>Transactions</th>
+                            <th>Nonce</th>
+                            <th>Difficulté</th>
+                            <th>Temps</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for block in blocks %}
+                        <tr>
+                            <td class="text-center">
+                                <span class="badge bg-primary">{{ block.index }}</span>
+                            </td>
+                            <td>
+                                <code class="small">{{ block.hash[:20] }}...</code>
+                            </td>
+                            <td class="text-center">{{ block.tx_count }}</td>
+                            <td>{{ block.nonce }}</td>
+                            <td>{{ block.difficulty }}</td>
+                            <td class="small">{{ block.timestamp|int|datetime }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">Aucun bloc trouvé</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
-{% block extra_scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const socket = io();
-    
-    socket.on('blockchain_stats', function(s) {
-        document.getElementById('explorer-height').textContent = s.height || 0;
-        document.getElementById('explorer-supply').textContent = (s.total_supply || 0).toFixed(0);
-        document.getElementById('explorer-diff').textContent = s.difficulty || 5;
-        document.getElementById('explorer-burned').textContent = (s.total_burned || 0).toFixed(2);
-    });
 
-    socket.on('recent_blocks', function(blocks) {
-        const t = document.getElementById('blocks-table');
-        t.innerHTML = '';
-        blocks.reverse().forEach(function(b, i) {
-            t.insertRow().innerHTML = `<td>#${i+1}</td><td><code>${(b.block_hash||'').substring(0,20)}...</code></td><td class="text-success">+25</td><td class="text-primary">+25</td>`;
-        });
-    });
-});
+{% block extra_js %}
+<script>
+    // Auto-refresh toutes les 30 secondes
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
 </script>
 {% endblock %}
