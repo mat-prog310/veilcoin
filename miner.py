@@ -4,7 +4,7 @@
 ║                    ⛏️  VEILCOIN MINER  ⛏️                     ║
 ║                    Terminal v2.0.0                           ║
 ║              Mine Simply. Transact Privately.                ║
-║              Difficulté: 5 zéros                            ║
+║              Difficulté: 4 zéros                            ║
 ╚══════════════════════════════════════════════════════════════╝
 """
 import hashlib
@@ -15,7 +15,7 @@ import json
 import urllib.request
 import ssl
 
-API_URL = "https://veilcoin.xyz"
+API_URL = "https://veilcoin-fvzp.onrender.com"
 
 if os.name == 'nt':
     import ctypes
@@ -34,7 +34,7 @@ class VeilMiner:
         self.hashes = 0
         self.blocks = 0
         self.t0 = 0
-        self.diff = 5
+        self.diff = 4  # ⚠️ DIFFICULTÉ MODIFIÉE À 4 ZÉROS
         self.bal = 0.0
 
     def api(self, ep, data=None):
@@ -63,7 +63,8 @@ class VeilMiner:
 
     def stats(self):
         r = self.api("/api/stats")
-        if r: self.diff = r.get("difficulty", 5)
+        if r: 
+            self.diff = r.get("difficulty", 4)  # Valeur par défaut à 4
         return r
 
     def mine(self):
@@ -75,38 +76,81 @@ class VeilMiner:
         self.blocks = 0
         nonce = 0
         lp = time.time()
+        
+        # Base fixe pour la session
+        base = f"VEIL_{self.wallet}_{int(self.t0)}"
 
         print(f"\n{G}{'='*60}{X}")
         print(f"{G}🔒 MINAGE LANCÉ{X}")
         print(f"{G}{'='*60}{X}")
         print(f"  🎯 Difficulté: {Y}{self.diff}{X} zéros")
         print(f"  💰 Récompense: {G}25{X} VEIL/bloc")
-        print(f"  ⏱️  Temps estimé: {Y}5-30 minutes{X}")
+        print(f"  🔢 Base: {Y}{base}{X}")
+        print(f"  ⚡ Hashes nécessaires: ~{16**self.diff:,}")
         print(f"{G}{'='*60}{X}\n")
 
         while self.mining:
             for _ in range(1000):
                 nonce += 1
                 self.hashes += 1
-                h = hashlib.sha256(f"VEIL_{nonce}_{time.time()}".encode()).hexdigest()
+                
+                # Hash avec base fixe + nonce
+                h = hashlib.sha256(f"{base}_{nonce}".encode()).hexdigest()
+                
                 if h.startswith(tgt):
                     self.blocks += 1
                     e = time.time() - self.t0
-                    print(f"\n{G}🎉 BLOC TROUVÉ en {e/60:.1f} min ! +25 VEIL{X}\n")
-                    self.api("/api/miner/start", {"wallet": self.wallet})
-                    self.bal += 25
+                    print(f"\n{G}{'='*60}{X}")
+                    print(f"{G}🎉 BLOC TROUVÉ !{X}")
+                    print(f"   ⏱️  Temps: {e/60:.1f}min ({e:.0f}s)")
+                    print(f"   🔑 Nonce: {nonce}")
+                    print(f"   🔗 Hash: {h[:20]}...")
+                    print(f"   💰 +25 VEIL")
+                    print(f"{G}{'='*60}{X}")
+                    
+                    # Soumettre le bloc au serveur
+                    submit_data = {
+                        "wallet": self.wallet,
+                        "nonce": nonce,
+                        "hash": h,
+                        "base": base,
+                        "difficulty": self.diff
+                    }
+                    
+                    result = self.api("/api/miner/submit_block", submit_data)
+                    
+                    if result and result.get("success"):
+                        print(f"   ✅ Bloc validé sur le réseau !")
+                        self.bal += 25
+                    else:
+                        error = result.get('error', 'unknown') if result else 'API error'
+                        print(f"   ❌ Bloc refusé: {error}")
+                    
+                    # Reset pour le prochain bloc
                     nonce = 0
+                    base = f"VEIL_{self.wallet}_{int(time.time())}"
+                    tgt = "0" * self.diff
+            
+            # Affichage du hashrate toutes les 5 secondes
             if time.time() - lp > 5:
                 e = time.time() - self.t0
-                if e > 0: self.hr = self.hashes / e
-                avg = 16 ** self.diff
+                if e > 0: 
+                    self.hr = self.hashes / e
+                
+                # Calcul de la progression
+                avg = 16 ** self.diff  # ~65,536 pour diff=4
                 eta = "..."
-                if self.hr > 0:
+                if self.hr > 0 and self.hashes < avg:
                     es = max(0, avg - self.hashes) / self.hr
                     eta = f"{es/60:.1f}min" if es > 60 else f"{es:.0f}s"
+                elif self.hashes >= avg:
+                    eta = "0s (bloc imminent)"
+                
                 pct = min(100, (self.hashes / avg) * 100)
-                bar = "█" * int(pct/2) + "░" * (50 - int(pct/2))
-                sys.stdout.write(f"\r{G}⛏️{X} {self.hr:.0f} H/s | {bar} {pct:.2f}% | ⏳{eta} | 💰{self.bal:.1f} VEIL  ")
+                bar_len = int(pct / 2)
+                bar = "█" * bar_len + "░" * (50 - bar_len)
+                
+                sys.stdout.write(f"\r{G}⛏️{X} {self.hr:.0f} H/s | {bar} {pct:.1f}% | ⏳{eta} | 💰{self.bal:.1f} VEIL | 🎯{self.blocks} blocs  ")
                 sys.stdout.flush()
                 lp = time.time()
 
@@ -125,49 +169,26 @@ def main():
 ║   ╚██╗ ██╔╝██╔══╝  ██║██║     ██║     ██║   ██║██║██║╚██╗██║
 ║    ╚████╔╝ ███████╗██║███████╗╚██████╗╚██████╔╝██║██║ ╚████║
 ║     ╚═══╝  ╚══════╝╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝
-║                  ⛏️  MINER v2.0 - DIFF 5  ⛏️                  ║
+║                  ⛏️  MINER v2.0 - DIFFICULTÉ 4  ⛏️            ║
 ╚══════════════════════════════════════════════════════════════╝{X}""")
 
     m = VeilMiner()
-    print(f"{C}Connexion à {API_URL}...{X}")
+    print(f"{C}🌐 Connexion à {API_URL}...{X}")
     s = m.stats()
     if s:
-        print(f"{G}[OK]{X} Hauteur: {s.get('height',0)} | Difficulté: {s.get('difficulty',5)}")
+        print(f"{G}[OK]{X} Hauteur: {s.get('height',0)} | Difficulté: {s.get('difficulty',4)}")
     
-    print(f"\n{G}CONNEXION WALLET{X}")
+    print(f"\n{G}🔐 CONNEXION WALLET{X}")
     name = input(f"{W}Nom du wallet: {X}").strip() or "default"
     seed = input(f"{W}Seed phrase (12 mots): {X}").strip()
     if seed and m.login(name, seed):
         print(f"{G}[OK]{X} Connecté ! Solde: {m.bal:.4f} VEIL")
     
-    m.mine()
-    
     try:
-        while True: time.sleep(1)
+        m.mine()
     except KeyboardInterrupt:
         m.stop()
         input(f"{W}Entrée pour quitter...{X}")
 
 if __name__ == "__main__":
     main()
-
-# Quand un bloc est trouvé (dans mine())
-if h.startswith(tgt):
-    self.blocks += 1
-    
-    # 🔥 AJOUTEZ CECI : Envoyer le bloc au serveur
-    submit_data = {
-        "wallet": self.wallet,
-        "nonce": nonce,
-        "hash": h,
-        "base": base,
-        "timestamp": time.time()
-    }
-    
-    result = self.api("/api/miner/submit_block", submit_data)
-    
-    if result and result.get("success"):
-        print(f"\n{G}✅ Bloc soumis au réseau !{X}")
-        self.bal += 25
-    else:
-        print(f"\n{R}❌ Échec de soumission{X}")
