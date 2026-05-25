@@ -4,7 +4,11 @@ import sys, os
 import hashlib
 import time
 import json
-
+# Initialisation de la pool avec des liquidités par défaut
+if pool and pool.pool_veil == 0 and pool.pool_eur == 0:
+    pool.pool_veil = 100000  # 100k VEIL
+    pool.pool_eur = 10000    # 10k EUR
+    print(f"✅ Pool initialisée: {pool.pool_veil} VEIL / {pool.pool_eur} EUR = {pool.get_veil_price():.4f} EUR/VEIL")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.wallet import VeilWallet
