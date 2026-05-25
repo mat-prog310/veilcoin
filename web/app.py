@@ -1,25 +1,22 @@
-# web/app.py - VERSION CORRIGÉE (sans socket_events)
-
 from flask import Flask
 from flask_cors import CORS
 import os
+from dotenv import load_dotenv
 
-# Import des routes uniquement (pas socket_events)
-from web import routes
+load_dotenv()
 
 def create_app():
     app = Flask(__name__)
     CORS(app)
-    
-    # Configuration
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-veilcoin')
-    
-    # Pas de socketio.init_app(app) ici
-    
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'veilcoin-secret-key')
     return app
 
 # Créer l'instance
 app = create_app()
 
-# Enregistrer les routes (si nécessaire)
-# Les routes sont déjà importées via 'from web import routes'
+# Importer les routes APRÈS la création de l'app
+from web import routes
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, debug=False)
