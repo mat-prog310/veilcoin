@@ -1,12 +1,17 @@
 from flask import jsonify, request, render_template, session
 from web.app import app
 import sys, os
+import hashlib
+import time
+import json
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.blockchain import Blockchain
 from core.wallet import VeilWallet
 from core.randomx_miner import RandomXMiner
 from core.market import VeilMarket
 from core.payment import LiquidityPool
+from config import Config
 
 blockchain = Blockchain()
 market = VeilMarket(blockchain)
@@ -15,7 +20,13 @@ market.current_price = pool.get_veil_price()
 miner = None
 active_wallets = {}
 
-ADMIN_SEED = "remplace_par_ta_seed_admin"
+import os
+
+# Lire la seed depuis les variables d'environnement
+ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+# Fichier pour stocker les blocs minés
+MINED_BLOCKS_FILE = os.path.join(Config.DATA_DIR, "mined_blocks.json")
+os.makedirs(Config.DATA_DIR, exist_ok=True)
 
 @app.route('/')
 def index(): 
@@ -24,7 +35,6 @@ def index():
 @app.route('/wallet')
 def wallet_page(): 
     return render_template('wallet.html', wallets=list(active_wallets.keys()))
-
 
 @app.route('/blockchain')
 def blockchain_page():
@@ -48,7 +58,7 @@ def api_create_wallet():
         w = VeilWallet(name)
         r = w.create_new()
         active_wallets[name] = w
-        return jsonify({'success': True, 'name': name, 'address': r['address'], 'seed_phrase': r['seed_phrase']})
+        return jsonify({'success': True, 'name': name, 'address': r['address'], 'seed_phrase': r['seed_phrase'], 'balance': r['balance']})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -58,29 +68,147 @@ def api_login():
     name = d.get('name', '').strip()
     seed = d.get('seed_phrase', '').strip()
     w = VeilWallet(name)
-    if not w.load_or_create(): return jsonify({'success': False, 'error': 'Wallet non trouvé'})
-    if not w.verify_seed(seed): return jsonify({'success': False, 'error': 'Seed incorrecte'})
+    if not w.load_or_create(): 
+        return jsonify({'success': False, 'error': 'Wallet non trouvé'})
+    if not w.verify_seed(seed): 
+        return jsonify({'success': False, 'error': 'Seed incorrecte'})
     active_wallets[name] = w
     return jsonify({'success': True, 'name': name, 'address': w.address, 'balance': w.balance})
 
 @app.route('/api/wallet/<name>/balance')
 def api_balance(name):
-    if name not in active_wallets: return jsonify({'balance_veil': 0})
+    if name not in active_wallets:
+        # Essayer de charger depuis le disque
+        w = VeilWallet(name)
+        if w.load_or_create():
+            active_wallets[name] = w
+            return jsonify({'name': name, 'balance_veil': w.balance, 'balance_eur': round(w.balance * pool.get_veil_price(), 6), 'veil_price': pool.get_veil_price()})
+        return jsonify({'balance_veil': 0})
     w = active_wallets[name]
     return jsonify({'name': name, 'balance_veil': w.balance, 'balance_eur': round(w.balance * pool.get_veil_price(), 6), 'veil_price': pool.get_veil_price()})
+
+@app.route('/api/wallet/<name>/send', methods=['POST'])
+def api_send(name):
+    try:
+        d = request.get_json()
+        to = d.get('to')
+        amount = float(d.get('amount', 0))
+        
+        if name not in active_wallets:
+            w = VeilWallet(name)
+            if not w.load_or_create():
+                return jsonify({'success': False, 'error': 'Wallet non trouvé'})
+            active_wallets[name] = w
+        
+        w = active_wallets[name]
+        
+        if w.balance < amount:
+            return jsonify({'success': False, 'error': 'Solde insuffisant'})
+        
+        w.balance -= amount
+        w.save()
+        
+        return jsonify({
+            'success': True,
+            'new_balance': w.balance,
+            'to': to,
+            'amount': amount
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/wallet/logout', methods=['POST'])
 def api_logout():
     return jsonify({'success': True})
 
-# ==================== API MINER ====================
+# ==================== API MINER (Difficulté 5 - EXTREME) ====================
 
+@app.route('/api/miner/submit_block', methods=['POST'])
+def submit_block():
+    """Soumission d'un bloc par un mineur - Difficulté 5 (5 zéros)"""
+    try:
+        data = request.get_json()
+        wallet = data.get('wallet')
+        nonce = data.get('nonce')
+        hash_proof = data.get('hash')
+        base = data.get('base')
+        submitted_diff = data.get('difficulty', 5)
+        
+        # VÉRIFICATION DIFFICULTÉ 5 (EXTREME)
+        REQUIRED_DIFFICULTY = 5
+        expected_prefix = "0" * REQUIRED_DIFFICULTY
+        
+        if not hash_proof.startswith(expected_prefix):
+            return jsonify({
+                'success': False, 
+                'error': f'Preuve invalide - besoin de {REQUIRED_DIFFICULTY} zéros (hash: {hash_proof[:10]}...)'
+            })
+        
+        # Récompenser le mineur
+        w = VeilWallet(wallet)
+        w.load_or_create()
+        w.balance += 25
+        w.save()
+        active_wallets[wallet] = w
+        
+        # Sauvegarder le bloc trouvé
+        block_record = {
+            'index': len(blockchain.chain) + 1,
+            'timestamp': time.time(),
+            'miner': wallet,
+            'hash': hash_proof,
+            'nonce': nonce,
+            'base': base,
+            'reward': 25,
+            'difficulty': REQUIRED_DIFFICULTY
+        }
+        
+        # Sauvegarder dans un fichier
+        existing_blocks = []
+        if os.path.exists(MINED_BLOCKS_FILE):
+            with open(MINED_BLOCKS_FILE, 'r') as f:
+                existing_blocks = json.load(f)
+        
+        existing_blocks.append(block_record)
+        with open(MINED_BLOCKS_FILE, 'w') as f:
+            json.dump(existing_blocks, f, indent=2)
+        
+        return jsonify({
+            'success': True,
+            'reward': 25,
+            'new_balance': w.balance,
+            'block_height': block_record['index'],
+            'message': f'Bloc accepté ! +25 VEIL (difficulté {REQUIRED_DIFFICULTY})'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/miner/stats', methods=['GET'])
+def miner_stats():
+    """Statistiques de minage"""
+    return jsonify({
+        'difficulty': 5,
+        'reward': 25,
+        'required_zeros': 5,
+        'estimated_hashes': 16**5,  # 1,048,576
+        'network_hashrate': 0
+    })
 
 # ==================== API STATS ====================
 
 @app.route('/api/stats')
 def api_stats(): 
     return jsonify(blockchain.get_stats())
+
+@app.route('/api/blockchain/blocks')
+def api_blocks():
+    """Retourne les blocs minés"""
+    if os.path.exists(MINED_BLOCKS_FILE):
+        with open(MINED_BLOCKS_FILE, 'r') as f:
+            blocks = json.load(f)
+        return jsonify({'blocks': blocks[-20:], 'total': len(blocks)})
+    return jsonify({'blocks': [], 'total': 0})
 
 # ==================== API MARCHÉ ====================
 
@@ -135,45 +263,3 @@ def api_admin_reset():
 @app.route('/ping')
 def ping():
     return 'pong', 200
-
-@app.route('/api/miner/submit_block', methods=['POST'])
-def submit_block():
-    """Soumission d'un bloc par un mineur"""
-    try:
-        data = request.get_json()
-        wallet = data.get('wallet')
-        nonce = data.get('nonce')
-        hash_proof = data.get('hash')
-        base = data.get('base')
-        
-        # Vérifier la preuve de travail
-        if not hash_proof.startswith('0' * 5):
-            return jsonify({'success': False, 'error': 'Preuve invalide'})
-        
-        # Créer le nouveau bloc
-        from core.blockchain import blockchain
-        new_block = blockchain.add_block(
-            proof=nonce,
-            previous_hash=blockchain.last_block['hash'],
-            miner=wallet,
-            hash=hash_proof
-        )
-        
-        if new_block:
-            # Récompenser le mineur
-            from core.wallet import VeilWallet
-            w = VeilWallet(wallet)
-            w.load_or_create()
-            w.balance += 25
-            w.save()
-            
-            return jsonify({
-                'success': True, 
-                'reward': 25,
-                'block_height': new_block['index']
-            })
-        
-        return jsonify({'success': False, 'error': 'Bloc refusé'})
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
