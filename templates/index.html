@@ -4,6 +4,7 @@
 <div class="container mt-4">
     <h1 class="text-center mb-4">🏠 VeilCoin Dashboard</h1>
     
+    <!-- Statistiques -->
     <div class="row">
         <div class="col-md-3 mb-3">
             <div class="card bg-dark border-primary h-100">
@@ -38,5 +39,204 @@
             </div>
         </div>
     </div>
+    
+    <!-- Graphique du prix en direct -->
+    <div class="card bg-dark mt-4">
+        <div class="card-header">
+            <h4>📈 Prix du VEIL en direct (EUR)</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="text-center mb-3">
+                        <h2 id="current-price" class="text-success">0.0000 EUR</h2>
+                        <span id="price-change" class="badge bg-secondary">0%</span>
+                    </div>
+                    <canvas id="price-chart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Derniers blocs -->
+    <div class="card bg-dark mt-4">
+        <div class="card-header">
+            <h4>📋 Derniers blocs</h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Hash</th>
+                            <th>Mineur</th>
+                            <th>TX</th>
+                            <th>Temps</th>
+                        </thead>
+                        <tbody>
+                            {% for block in blocks %}
+                            <tr>
+                                <td>{{ block.index }}</td>
+                                <td><code class="small">{{ block.hash }}</code></td>
+                                <td><small>{{ block.miner }}</small></td>
+                                <td>{{ block.tx_count }}</td>
+                                <td><small>{{ block.timestamp|datetime }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let priceChart = null;
+    let priceHistory = [];
+    let timeLabels = [];
+    
+    // Récupérer le prix actuel
+    async function getCurrentPrice() {
+        try {
+            const res = await fetch('/api/market/price');
+            const data = await res.json();
+            return data.current_price;
+        } catch(e) {
+            console.error('Erreur prix:', e);
+            return 0.01;
+        }
+    }
+    
+    // Récupérer l'historique des prix
+    async function getPriceHistory() {
+        try {
+            const res = await fetch('/api/market/price/history');
+            const data = await res.json();
+            return data.history || [];
+        } catch(e) {
+            console.error('Erreur historique:', e);
+            return [];
+        }
+    }
+    
+    // Mettre à jour l'affichage
+    async function updatePrice() {
+        const price = await getCurrentPrice();
+        document.getElementById('current-price').innerText = price.toFixed(4) + ' EUR';
+        
+        // Récupérer l'historique
+        const history = await getPriceHistory();
+        if (history.length > 0) {
+            priceHistory = history.map(h => h.price);
+            timeLabels = history.map(h => h.time);
+            
+            // Calculer la variation
+            if (priceHistory.length >= 2) {
+                const oldPrice = priceHistory[0];
+                const change = ((price - oldPrice) / oldPrice) * 100;
+                const changeEl = document.getElementById('price-change');
+                changeEl.innerText = (change > 0 ? '+' : '') + change.toFixed(2) + '%';
+                changeEl.className = change >= 0 ? 'badge bg-success' : 'badge bg-danger';
+            }
+            
+            updateChart();
+        }
+    }
+    
+    // Créer/mettre à jour le graphique
+    function updateChart() {
+        const ctx = document.getElementById('price-chart').getContext('2d');
+        
+        if (priceChart) {
+            priceChart.destroy();
+        }
+        
+        priceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'Prix VEIL (EUR)',
+                    data: priceHistory,
+                    borderColor: '#00ff88',
+                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#00ff88'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#ffffff'
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.y.toFixed(4) + ' EUR';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: '#ffffff',
+                            maxRotation: 45,
+                            minRotation: 45
+                        },
+                        grid: {
+                            color: '#333333'
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            color: '#ffffff',
+                            callback: function(value) {
+                                return value.toFixed(4) + ' EUR';
+                            }
+                        },
+                        grid: {
+                            color: '#333333'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Enregistrer le prix dans l'historique
+    async function recordPrice() {
+        const price = await getCurrentPrice();
+        try {
+            await fetch('/api/market/price/record', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({price: price})
+            });
+        } catch(e) {
+            console.error('Erreur enregistrement:', e);
+        }
+    }
+    
+    // Initialisation
+    async function init() {
+        await updatePrice();
+        // Rafraîchir toutes les 10 secondes
+        setInterval(updatePrice, 10000);
+        // Enregistrer le prix toutes les minutes
+        setInterval(recordPrice, 60000);
+    }
+    
+    init();
+</script>
 {% endblock %}
