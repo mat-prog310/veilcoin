@@ -22,6 +22,8 @@
                     <h5>💧 Liquidité</h5>
                     <p>VEIL: {{ pool_veil }}</p>
                     <p>EUR: {{ pool_eur }}</p>
+                    <p class="text-muted small mt-2">Max par trade: {{ max_trade_percent }}% ({{ (pool_veil * max_trade_percent / 100)|int }} VEIL)</p>
+                    <p class="text-muted small">Cooldown: {{ cooldown_seconds }} secondes</p>
                 </div>
             </div>
         </div>
@@ -154,10 +156,10 @@
             const data = await res.json();
             
             if (data.success) {
-                alert(`✅ Achat effectué !\nVEIL reçus: ${data.veil_received.toFixed(4)}\nNouveau solde: ${data.new_balance.toFixed(4)} VEIL`);
+                alert(`✅ Achat effectué !\nVEIL reçus: ${data.veil_received.toFixed(4)}\nNouveau solde: ${data.new_balance.toFixed(4)} VEIL\nVariation prix: ${data.price_change}%`);
                 currentBalance = data.new_balance;
                 document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
-                document.getElementById('connected-value').innerText = (currentBalance * price).toFixed(2);
+                document.getElementById('connected-value').innerText = (currentBalance * data.new_price).toFixed(2);
                 location.reload();
             } else {
                 alert('Erreur: ' + (data.error || 'Achat échoué'));
@@ -192,10 +194,10 @@
             const data = await res.json();
             
             if (data.success) {
-                alert(`✅ Vente effectuée !\nEUR reçus: ${data.eur_received.toFixed(2)}\nNouveau solde: ${data.new_balance.toFixed(4)} VEIL`);
+                alert(`✅ Vente effectuée !\nEUR reçus: ${data.eur_received.toFixed(2)}\nNouveau solde: ${data.new_balance.toFixed(4)} VEIL\nVariation prix: ${data.price_change}%`);
                 currentBalance = data.new_balance;
                 document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
-                document.getElementById('connected-value').innerText = (currentBalance * price).toFixed(2);
+                document.getElementById('connected-value').innerText = (currentBalance * data.new_price).toFixed(2);
                 location.reload();
             } else {
                 alert('Erreur: ' + (data.error || 'Vente échouée'));
