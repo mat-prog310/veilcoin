@@ -1,5 +1,4 @@
 from flask import jsonify, request, render_template, session
-from web.app import app
 import sys, os
 import hashlib
 import time
