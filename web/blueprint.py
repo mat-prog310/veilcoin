@@ -416,6 +416,48 @@ def market_sell():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+# ==================== API PRIX HISTORIQUE ====================
+
+# Stockage de l'historique des prix
+price_history_file = os.path.join(DATA_DIR, "price_history.json")
+if not os.path.exists(price_history_file):
+    with open(price_history_file, 'w') as f:
+        json.dump([], f)
+
+@web_bp.route('/api/market/price/history', methods=['GET'])
+def get_price_history():
+    try:
+        with open(price_history_file, 'r') as f:
+            history = json.load(f)
+        return jsonify({'history': history[-50:]})  # 50 derniers points
+    except:
+        return jsonify({'history': []})
+
+@web_bp.route('/api/market/price/record', methods=['POST'])
+def record_price():
+    try:
+        d = request.get_json()
+        price = d.get('price', 0.01)
+        
+        with open(price_history_file, 'r') as f:
+            history = json.load(f)
+        
+        history.append({
+            'price': price,
+            'time': datetime.now().strftime('%H:%M:%S')
+        })
+        
+        # Garder seulement les 100 derniers points
+        if len(history) > 100:
+            history = history[-100:]
+        
+        with open(price_history_file, 'w') as f:
+            json.dump(history, f, indent=2)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 # ==================== API MINER ====================
 
 @web_bp.route('/api/miner/submit_block', methods=['POST'])
