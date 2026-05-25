@@ -1,12 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Blockchain Explorer - VeilCoin{% endblock %}
+{% block title %}Blockchain - VeilCoin{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <h1 class="text-center mb-4">
-        <span class="gradient-text">⛓️ Blockchain Explorer</span>
-    </h1>
+    <h1 class="text-center mb-4">⛓️ Blockchain VeilCoin</h1>
     
     <!-- Statistiques -->
     <div class="row mb-4">
@@ -15,7 +13,6 @@
                 <div class="card-body text-center">
                     <h5>📦 Hauteur</h5>
                     <h2>{{ stats.height }}</h2>
-                    <small>blocs</small>
                 </div>
             </div>
         </div>
@@ -24,25 +21,22 @@
                 <div class="card-body text-center">
                     <h5>🎯 Difficulté</h5>
                     <h2>{{ stats.difficulty }}</h2>
-                    <small>actuelle</small>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card bg-dark text-white">
                 <div class="card-body text-center">
-                    <h5>💰 Supply total</h5>
-                    <h2>{{ "%.2f"|format(stats.total_supply) }}</h2>
-                    <small>VEIL</small>
+                    <h5>🔥 Brûlé</h5>
+                    <h2>{{ "%.2f"|format(stats.total_burned) }}</h2>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card bg-dark text-white">
                 <div class="card-body text-center">
-                    <h5>⛏️ Mempool</h5>
+                    <h5>⏳ Mempool</h5>
                     <h2>{{ stats.mempool_size }}</h2>
-                    <small>en attente</small>
                 </div>
             </div>
         </div>
@@ -60,67 +54,27 @@
                         <tr>
                             <th>#</th>
                             <th>Hash</th>
-                            <th>Hash précédent</th>
+                            <th>Mineur</th>
                             <th>TX</th>
                             <th>Nonce</th>
-                            <th>Difficulté</th>
                             <th>Temps</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for block in blocks %}
-                        <tr>
-                            <td class="text-center">
-                                <span class="badge bg-primary">{{ block.index }}</span>
-                            </td>
-                            <td>
-                                <code class="small text-info">{{ block.hash }}</code>
-                            </td>
-                            <td>
-                                <code class="small text-muted">{{ block.previous_hash }}</code>
-                            </td>
-                            <td class="text-center">{{ block.tx_count }}</td>
-                            <td>{{ block.nonce }}</td>
-                            <td>{{ block.difficulty }}</td>
-                            <td class="small">{{ block.timestamp|int|datetime }}</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center">Aucun bloc trouvé</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Détail du dernier bloc -->
-    {% if blocks %}
-    <div class="card bg-dark mt-4">
-        <div class="card-header">
-            <h4>🔗 Détails du dernier bloc</h4>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-12">
-                    <strong>Hash complet:</strong>
-                    <code class="d-block bg-black p-2 rounded small" style="word-break: break-all;">
-                        {{ blocks[-1].full_hash }}
-                    </code>
+                        </thead>
+                        <tbody>
+                            {% for block in blocks %}
+                            <tr>
+                                <td class="text-center">{{ block.index }}</td>
+                                <td><code class="small">{{ block.hash }}</code></td>
+                                <td><small>{{ block.miner }}</small></td>
+                                <td class="text-center">{{ block.tx_count }}</td>
+                                <td>{{ block.nonce }}</td>
+                                <td><small>{{ block.timestamp|int|datetime }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
-    {% endif %}
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    // Auto-refresh toutes les 30 secondes
-    setTimeout(function() {
-        location.reload();
-    }, 30000);
-</script>
 {% endblock %}
