@@ -15,7 +15,7 @@ import urllib.request
 import ssl
 from datetime import datetime
 
-API_URL = "https://veilcoin.xyz"
+API_URL = "https://veilcoin-fvzp.onrender.com"
 
 if os.name == 'nt':
     import ctypes
