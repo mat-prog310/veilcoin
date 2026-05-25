@@ -7,7 +7,7 @@
     <h1 class="text-center mb-4">📊 Marché VeilCoin</h1>
     
     <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-6 mx-auto">
             <div class="card bg-dark text-white">
                 <div class="card-body text-center">
                     <h5>💰 Prix actuel</h5>
@@ -16,20 +16,8 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card bg-dark text-white">
-                <div class="card-body text-center">
-                    <h5>💧 Liquidité</h5>
-                    <p>VEIL: {{ pool_veil }}</p>
-                    <p>EUR: {{ pool_eur }}</p>
-                    <p class="text-muted small mt-2">Max par trade: {{ max_trade_percent }}% ({{ (pool_veil * max_trade_percent / 100)|int }} VEIL)</p>
-                    <p class="text-muted small">Cooldown: {{ cooldown_seconds }} secondes</p>
-                </div>
-            </div>
-        </div>
     </div>
     
-    <!-- Connexion Wallet -->
     <div class="card bg-dark mt-4">
         <div class="card-header">
             <h4>👛 Connexion au wallet</h4>
@@ -45,21 +33,17 @@
             </div>
             <button id="connect-wallet" class="btn btn-success mt-3 w-100">🔌 Se connecter</button>
             <div id="wallet-info" class="mt-3 text-center" style="display:none;">
-                <hr>
-                <p>✅ Connecté: <strong id="connected-name"></strong></p>
+                <hr><p>✅ Connecté: <strong id="connected-name"></strong></p>
                 <p>💰 Solde: <strong id="connected-balance"></strong> VEIL</p>
                 <p>💶 Valeur: <strong id="connected-value"></strong> EUR</p>
             </div>
         </div>
     </div>
     
-    <!-- Achat/Vente -->
     <div class="row mt-4">
         <div class="col-md-6">
             <div class="card bg-dark text-white">
-                <div class="card-header">
-                    <h4>🟢 ACHETER VEIL</h4>
-                </div>
+                <div class="card-header"><h4>🟢 ACHETER VEIL</h4></div>
                 <div class="card-body">
                     <label>Montant en EUR</label>
                     <input type="number" id="buy-eur" class="form-control bg-dark text-white" placeholder="Ex: 100">
@@ -68,12 +52,9 @@
                 </div>
             </div>
         </div>
-        
         <div class="col-md-6">
             <div class="card bg-dark text-white">
-                <div class="card-header">
-                    <h4>🔴 VENDRE VEIL</h4>
-                </div>
+                <div class="card-header"><h4>🔴 VENDRE VEIL</h4></div>
                 <div class="card-body">
                     <label>Montant en VEIL</label>
                     <input type="number" id="sell-veil" class="form-control bg-dark text-white" placeholder="Ex: 100">
@@ -86,125 +67,61 @@
 </div>
 
 <script>
-    let currentWallet = null;
-    let currentBalance = 0;
-    const price = {{ price }};
-    
-    // Connexion wallet
-    document.getElementById('connect-wallet').onclick = async () => {
-        const name = document.getElementById('wallet-name').value;
-        const seed = document.getElementById('wallet-seed').value;
-        
-        if (!name || !seed) {
-            alert('Entrez nom et seed phrase');
-            return;
-        }
-        
-        try {
-            const res = await fetch('/api/wallet/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name: name, seed_phrase: seed})
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                currentWallet = name;
-                currentBalance = data.balance;
-                document.getElementById('wallet-info').style.display = 'block';
-                document.getElementById('connected-name').innerText = name;
-                document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
-                document.getElementById('connected-value').innerText = (currentBalance * price).toFixed(2);
-            } else {
-                alert('Erreur: ' + (data.error || 'Connexion échouée'));
-            }
-        } catch(e) {
-            alert('Erreur réseau: ' + e.message);
-        }
-    };
-    
-    // Calcul achat
-    document.getElementById('buy-eur').oninput = () => {
-        const eur = parseFloat(document.getElementById('buy-eur').value) || 0;
-        document.getElementById('buy-veil').innerText = (eur / price).toFixed(4);
-    };
-    
-    // Calcul vente
-    document.getElementById('sell-veil').oninput = () => {
-        const veil = parseFloat(document.getElementById('sell-veil').value) || 0;
-        document.getElementById('sell-eur').innerText = (veil * price).toFixed(2);
-    };
-    
-    // Achat
-    document.getElementById('buy-btn').onclick = async () => {
-        if (!currentWallet) {
-            alert('Connectez-vous d\'abord');
-            return;
-        }
-        const eur = parseFloat(document.getElementById('buy-eur').value) || 0;
-        if (eur <= 0) {
-            alert('Montant invalide');
-            return;
-        }
-        
-        try {
-            const res = await fetch('/api/market/buy', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({wallet: currentWallet, eur_amount: eur})
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                alert(`✅ Achat effectué !\nVEIL reçus: ${data.veil_received.toFixed(4)}\nNouveau solde: ${data.new_balance.toFixed(4)} VEIL\nVariation prix: ${data.price_change}%`);
-                currentBalance = data.new_balance;
-                document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
-                document.getElementById('connected-value').innerText = (currentBalance * data.new_price).toFixed(2);
-                location.reload();
-            } else {
-                alert('Erreur: ' + (data.error || 'Achat échoué'));
-            }
-        } catch(e) {
-            alert('Erreur réseau: ' + e.message);
-        }
-    };
-    
-    // Vente
-    document.getElementById('sell-btn').onclick = async () => {
-        if (!currentWallet) {
-            alert('Connectez-vous d\'abord');
-            return;
-        }
-        const veil = parseFloat(document.getElementById('sell-veil').value) || 0;
-        if (veil <= 0) {
-            alert('Montant invalide');
-            return;
-        }
-        if (veil > currentBalance) {
-            alert(`Solde insuffisant. Vous avez ${currentBalance.toFixed(4)} VEIL`);
-            return;
-        }
-        
-        try {
-            const res = await fetch('/api/market/sell', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({wallet: currentWallet, veil_amount: veil})
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                alert(`✅ Vente effectuée !\nEUR reçus: ${data.eur_received.toFixed(2)}\nNouveau solde: ${data.new_balance.toFixed(4)} VEIL\nVariation prix: ${data.price_change}%`);
-                currentBalance = data.new_balance;
-                document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
-                document.getElementById('connected-value').innerText = (currentBalance * data.new_price).toFixed(2);
-                location.reload();
-            } else {
-                alert('Erreur: ' + (data.error || 'Vente échouée'));
-            }
-        } catch(e) {
-            alert('Erreur réseau: ' + e.message);
-        }
-    };
+let currentWallet = null, currentBalance = 0;
+const price = {{ price }};
+
+document.getElementById('connect-wallet').onclick = async () => {
+    const name = document.getElementById('wallet-name').value;
+    const seed = document.getElementById('wallet-seed').value;
+    if (!name || !seed) { alert('Entrez nom et seed'); return; }
+    const res = await fetch('/api/wallet/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, seed_phrase: seed})});
+    const data = await res.json();
+    if (data.success) {
+        currentWallet = name;
+        currentBalance = data.balance;
+        document.getElementById('wallet-info').style.display = 'block';
+        document.getElementById('connected-name').innerText = name;
+        document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
+        document.getElementById('connected-value').innerText = (currentBalance * price).toFixed(2);
+    } else alert('Erreur: ' + data.error);
+};
+
+document.getElementById('buy-eur').oninput = () => {
+    const eur = parseFloat(document.getElementById('buy-eur').value) || 0;
+    document.getElementById('buy-veil').innerText = (eur / price).toFixed(4);
+};
+document.getElementById('sell-veil').oninput = () => {
+    const veil = parseFloat(document.getElementById('sell-veil').value) || 0;
+    document.getElementById('sell-eur').innerText = (veil * price).toFixed(2);
+};
+document.getElementById('buy-btn').onclick = async () => {
+    if (!currentWallet) { alert('Connectez-vous'); return; }
+    const eur = parseFloat(document.getElementById('buy-eur').value) || 0;
+    if (eur <= 0) { alert('Montant invalide'); return; }
+    const res = await fetch('/api/market/buy', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({wallet: currentWallet, eur_amount: eur})});
+    const data = await res.json();
+    if (data.success) {
+        alert(`✅ Achat effectué !\nVEIL: ${data.veil_received.toFixed(4)}\nNouveau solde: ${data.new_balance.toFixed(4)} VEIL`);
+        currentBalance = data.new_balance;
+        document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
+        document.getElementById('connected-value').innerText = (currentBalance * data.new_price).toFixed(2);
+        location.reload();
+    } else alert('Erreur: ' + data.error);
+};
+document.getElementById('sell-btn').onclick = async () => {
+    if (!currentWallet) { alert('Connectez-vous'); return; }
+    const veil = parseFloat(document.getElementById('sell-veil').value) || 0;
+    if (veil <= 0) { alert('Montant invalide'); return; }
+    if (veil > currentBalance) { alert(`Solde insuffisant`); return; }
+    const res = await fetch('/api/market/sell', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({wallet: currentWallet, veil_amount: veil})});
+    const data = await res.json();
+    if (data.success) {
+        alert(`✅ Vente effectuée !\nEUR: ${data.eur_received.toFixed(2)}\nNouveau solde: ${data.new_balance.toFixed(4)} VEIL`);
+        currentBalance = data.new_balance;
+        document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
+        document.getElementById('connected-value').innerText = (currentBalance * data.new_price).toFixed(2);
+        location.reload();
+    } else alert('Erreur: ' + data.error);
+};
 </script>
 {% endblock %}
