@@ -1,28 +1,208 @@
 {% extends "base.html" %}
-{% block title %}VeilCoin - Marché{% endblock %}
+
+{% block title %}Marché VeilCoin{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1 class="mb-4"><i class="fas fa-handshake text-success"></i> Marché P2P</h1>
-    <div class="row mb-4">
-        <div class="col-md-4"><div class="card bg-dark border-primary"><div class="card-body text-center"><h5>Prix</h5><h2 id="market-price">€0.001</h2></div></div></div>
-        <div class="col-md-4"><div class="card bg-dark border-info"><div class="card-body text-center"><h5>Offres vente</h5><h2 id="sell-count">0</h2></div></div></div>
-        <div class="col-md-4"><div class="card bg-dark border-success"><div class="card-body text-center"><h5>Offres achat</h5><h2 id="buy-count">0</h2></div></div></div>
-    </div>
+<div class="container mt-4">
+    <h1 class="text-center mb-4">📊 Marché VeilCoin</h1>
+    
     <div class="row">
-        <div class="col-md-6 mb-3"><div class="card bg-dark border-danger"><div class="card-body"><h5 class="text-danger">Vendre</h5><select id="sell-wallet" class="form-select mb-2">{% for w in wallets %}<option value="{{ w }}">{{ w }}</option>{% endfor %}</select><input type="number" id="sell-amount" class="form-control mb-2" placeholder="Quantité"><input type="number" id="sell-price" class="form-control mb-2" value="0.001" step="0.0001"><input type="email" id="sell-paypal" class="form-control mb-2" placeholder="PayPal"><button class="btn btn-danger w-100" onclick="createSell()">Créer offre</button><div id="sell-result" class="mt-2"></div></div></div></div>
-        <div class="col-md-6 mb-3"><div class="card bg-dark border-success"><div class="card-body"><h5 class="text-success">Acheter</h5><select id="buy-wallet" class="form-select mb-2">{% for w in wallets %}<option value="{{ w }}">{{ w }}</option>{% endfor %}</select><input type="number" id="buy-amount" class="form-control mb-2" placeholder="Quantité"><input type="number" id="buy-price" class="form-control mb-2" value="0.001" step="0.0001"><input type="email" id="buy-paypal" class="form-control mb-2" placeholder="PayPal"><button class="btn btn-success w-100" onclick="createBuy()">Créer offre</button><div id="buy-result" class="mt-2"></div></div></div></div>
+        <div class="col-md-6">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center">
+                    <h5>💰 Prix actuel</h5>
+                    <h2 class="text-success">{{ price }} EUR</h2>
+                    <p>1 VEIL = {{ price }} EUR</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center">
+                    <h5>💧 Liquidité</h5>
+                    <p>VEIL: {{ pool_veil }}</p>
+                    <p>EUR: {{ pool_eur }}</p>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="row">
-        <div class="col-md-6"><div class="card bg-dark"><div class="card-body"><h5 class="text-danger">Offres de vente</h5><table class="table table-dark"><thead><tr><th>Qté</th><th>Prix</th><th>Total</th></tr></thead><tbody id="sell-offers"><tr><td colspan="3">Aucune</td></tr></tbody></table></div></div></div>
-        <div class="col-md-6"><div class="card bg-dark"><div class="card-body"><h5 class="text-success">Offres d'achat</h5><table class="table table-dark"><thead><tr><th>Qté</th><th>Prix</th><th>Total</th></tr></thead><tbody id="buy-offers"><tr><td colspan="3">Aucune</td></tr></tbody></table></div></div></div>
+    
+    <!-- Connexion Wallet -->
+    <div class="card bg-dark mt-4">
+        <div class="card-header">
+            <h4>👛 Connexion au wallet</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <input type="text" id="wallet-name" class="form-control bg-dark text-white" placeholder="Nom du wallet">
+                </div>
+                <div class="col-md-6">
+                    <input type="text" id="wallet-seed" class="form-control bg-dark text-white" placeholder="Seed phrase (12 mots)">
+                </div>
+            </div>
+            <button id="connect-wallet" class="btn btn-success mt-3 w-100">🔌 Se connecter</button>
+            <div id="wallet-info" class="mt-3 text-center" style="display:none;">
+                <hr>
+                <p>✅ Connecté: <strong id="connected-name"></strong></p>
+                <p>💰 Solde: <strong id="connected-balance"></strong> VEIL</p>
+                <p>💶 Valeur: <strong id="connected-value"></strong> EUR</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Achat/Vente -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card bg-dark text-white">
+                <div class="card-header">
+                    <h4>🟢 ACHETER VEIL</h4>
+                </div>
+                <div class="card-body">
+                    <label>Montant en EUR</label>
+                    <input type="number" id="buy-eur" class="form-control bg-dark text-white" placeholder="Ex: 100">
+                    <p class="mt-2">Vous recevrez: <strong id="buy-veil">0</strong> VEIL</p>
+                    <button id="buy-btn" class="btn btn-success w-100">💸 Acheter</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card bg-dark text-white">
+                <div class="card-header">
+                    <h4>🔴 VENDRE VEIL</h4>
+                </div>
+                <div class="card-body">
+                    <label>Montant en VEIL</label>
+                    <input type="number" id="sell-veil" class="form-control bg-dark text-white" placeholder="Ex: 100">
+                    <p class="mt-2">Vous recevrez: <strong id="sell-eur">0</strong> EUR</p>
+                    <button id="sell-btn" class="btn btn-danger w-100">💰 Vendre</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-{% endblock %}
-{% block extra_scripts %}
+
 <script>
-function update(){fetch('/api/market/price').then(r=>r.json()).then(d=>{document.getElementById('market-price').textContent='€'+(d.current_price||0.001).toFixed(8)});fetch('/api/market/sell-offers').then(r=>r.json()).then(o=>{var t=document.getElementById('sell-offers');t.innerHTML='';o.forEach(o=>{t.insertRow().innerHTML='<td>'+o.veil_amount+'</td><td>€'+o.price_per_veil.toFixed(6)+'</td><td>€'+o.total_eur.toFixed(2)+'</td>'})});fetch('/api/market/buy-offers').then(r=>r.json()).then(o=>{var t=document.getElementById('buy-offers');t.innerHTML='';o.forEach(o=>{t.insertRow().innerHTML='<td>'+o.veil_wanted+'</td><td>€'+o.price_per_veil.toFixed(6)+'</td><td>€'+o.total_eur.toFixed(2)+'</td>'})})}
-async function createSell(){var w=document.getElementById('sell-wallet').value,a=parseFloat(document.getElementById('sell-amount').value),p=parseFloat(document.getElementById('sell-price').value),pp=document.getElementById('sell-paypal').value;var r=await fetch('/api/market/create-offer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wallet:w,amount:a,price_per_veil:p,paypal_email:pp})});var d=await r.json();document.getElementById('sell-result').innerHTML=d.success?'<div class="alert alert-success">✅ Offre créée!</div>':'<div class="alert alert-danger">'+d.error+'</div>';update()}
-async function createBuy(){var w=document.getElementById('buy-wallet').value,a=parseFloat(document.getElementById('buy-amount').value),p=parseFloat(document.getElementById('buy-price').value),pp=document.getElementById('buy-paypal').value;var r=await fetch('/api/market/create-buy-offer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wallet:w,amount:a,price_per_veil:p,paypal_email:pp})});var d=await r.json();document.getElementById('buy-result').innerHTML=d.success?'<div class="alert alert-success">✅ Offre créée!</div>':'<div class="alert alert-danger">'+d.error+'</div>';update()}
-update();setInterval(update,30000);
+    let currentWallet = null;
+    let currentBalance = 0;
+    const price = {{ price }};
+    
+    // Connexion wallet
+    document.getElementById('connect-wallet').onclick = async () => {
+        const name = document.getElementById('wallet-name').value;
+        const seed = document.getElementById('wallet-seed').value;
+        
+        if (!name || !seed) {
+            alert('Entrez nom et seed phrase');
+            return;
+        }
+        
+        try {
+            const res = await fetch('/api/wallet/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: name, seed_phrase: seed})
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                currentWallet = name;
+                currentBalance = data.balance;
+                document.getElementById('wallet-info').style.display = 'block';
+                document.getElementById('connected-name').innerText = name;
+                document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
+                document.getElementById('connected-value').innerText = (currentBalance * price).toFixed(2);
+            } else {
+                alert('Erreur: ' + (data.error || 'Connexion échouée'));
+            }
+        } catch(e) {
+            alert('Erreur réseau: ' + e.message);
+        }
+    };
+    
+    // Calcul achat
+    document.getElementById('buy-eur').oninput = () => {
+        const eur = parseFloat(document.getElementById('buy-eur').value) || 0;
+        document.getElementById('buy-veil').innerText = (eur / price).toFixed(4);
+    };
+    
+    // Calcul vente
+    document.getElementById('sell-veil').oninput = () => {
+        const veil = parseFloat(document.getElementById('sell-veil').value) || 0;
+        document.getElementById('sell-eur').innerText = (veil * price).toFixed(2);
+    };
+    
+    // Achat
+    document.getElementById('buy-btn').onclick = async () => {
+        if (!currentWallet) {
+            alert('Connectez-vous d\'abord');
+            return;
+        }
+        const eur = parseFloat(document.getElementById('buy-eur').value) || 0;
+        if (eur <= 0) {
+            alert('Montant invalide');
+            return;
+        }
+        
+        try {
+            const res = await fetch('/api/market/buy', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({wallet: currentWallet, eur_amount: eur})
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                alert(`✅ Achat effectué !\nVEIL reçus: ${data.veil_received.toFixed(4)}\nNouveau solde: ${data.new_balance.toFixed(4)} VEIL`);
+                currentBalance = data.new_balance;
+                document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
+                document.getElementById('connected-value').innerText = (currentBalance * price).toFixed(2);
+                location.reload();
+            } else {
+                alert('Erreur: ' + (data.error || 'Achat échoué'));
+            }
+        } catch(e) {
+            alert('Erreur réseau: ' + e.message);
+        }
+    };
+    
+    // Vente
+    document.getElementById('sell-btn').onclick = async () => {
+        if (!currentWallet) {
+            alert('Connectez-vous d\'abord');
+            return;
+        }
+        const veil = parseFloat(document.getElementById('sell-veil').value) || 0;
+        if (veil <= 0) {
+            alert('Montant invalide');
+            return;
+        }
+        if (veil > currentBalance) {
+            alert(`Solde insuffisant. Vous avez ${currentBalance.toFixed(4)} VEIL`);
+            return;
+        }
+        
+        try {
+            const res = await fetch('/api/market/sell', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({wallet: currentWallet, veil_amount: veil})
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                alert(`✅ Vente effectuée !\nEUR reçus: ${data.eur_received.toFixed(2)}\nNouveau solde: ${data.new_balance.toFixed(4)} VEIL`);
+                currentBalance = data.new_balance;
+                document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
+                document.getElementById('connected-value').innerText = (currentBalance * price).toFixed(2);
+                location.reload();
+            } else {
+                alert('Erreur: ' + (data.error || 'Vente échouée'));
+            }
+        } catch(e) {
+            alert('Erreur réseau: ' + e.message);
+        }
+    };
 </script>
 {% endblock %}
