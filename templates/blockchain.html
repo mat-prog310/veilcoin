@@ -6,9 +6,8 @@
 <div class="container mt-4">
     <h1 class="text-center mb-4">⛓️ Blockchain VeilCoin</h1>
     
-    <!-- Statistiques -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card bg-dark text-white">
                 <div class="card-body text-center">
                     <h5>📦 Hauteur</h5>
@@ -16,7 +15,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card bg-dark text-white">
                 <div class="card-body text-center">
                     <h5>🎯 Difficulté</h5>
@@ -24,25 +23,16 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card bg-dark text-white">
                 <div class="card-body text-center">
                     <h5>🔥 Brûlé</h5>
-                    <h2>{{ "%.2f"|format(stats.total_burned) }}</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-dark text-white">
-                <div class="card-body text-center">
-                    <h5>⏳ Mempool</h5>
-                    <h2>{{ stats.mempool_size }}</h2>
+                    <h2>{{ "%.2f"|format(stats.total_burned) }} VEIL</h2>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Liste des blocs -->
     <div class="card bg-dark">
         <div class="card-header">
             <h4>📋 Derniers blocs</h4>
@@ -51,28 +41,21 @@
             <div class="table-responsive">
                 <table class="table table-dark table-hover mb-0">
                     <thead>
+                        <tr><th>#</th><th>Hash</th><th>Mineur</th><th>TX</th><th>Nonce</th><th>Temps</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for block in blocks %}
                         <tr>
-                            <th>#</th>
-                            <th>Hash</th>
-                            <th>Mineur</th>
-                            <th>TX</th>
-                            <th>Nonce</th>
-                            <th>Temps</th>
-                        </thead>
-                        <tbody>
-                            {% for block in blocks %}
-                            <tr>
-                                <td class="text-center">{{ block.index }}</td>
-                                <td><code class="small">{{ block.hash }}</code></td>
-                                <td><small>{{ block.miner }}</small></td>
-                                <td class="text-center">{{ block.tx_count }}</td>
-                                <td>{{ block.nonce }}</td>
-                                <td><small>{{ block.timestamp|int|datetime }}</small></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                            <td class="text-center">{{ block.index }}</td>
+                            <td><code class="small">{{ block.hash }}</code></td>
+                            <td><small>{{ block.miner }}</small></td>
+                            <td class="text-center">{{ block.tx_count }}</td>
+                            <td>{{ block.nonce }}</td>
+                            <td><small>{{ block.timestamp|datetime }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
