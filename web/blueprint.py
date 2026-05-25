@@ -17,12 +17,12 @@ from config import Config
 web_bp = Blueprint('web', __name__, template_folder='../templates')
 
 # ==================== ANTI-DUMP & ANTI-PUMP ====================
-MAX_TRADE_PERCENT = 5          # Max 5% de la pool par transaction
-MIN_TRADE_INTERVAL = 60        # 60 secondes minimum entre trades
-COOLDOWN_BLOCKS = 10           # 10 blocs avant de pouvoir retrader
+MAX_TRADE_PERCENT = 5
+MIN_TRADE_INTERVAL = 60
+COOLDOWN_BLOCKS = 10
 
-user_last_trade = {}           # {wallet: timestamp}
-user_trade_count = {}          # {wallet: count}
+user_last_trade = {}
+user_trade_count = {}
 
 # ==================== INITIALISATION ====================
 try:
@@ -35,7 +35,6 @@ except:
 market = VeilMarket(blockchain) if blockchain else None
 pool = LiquidityPool(market, blockchain) if market else None
 
-# Forcer la pool à 0.01 EUR
 if pool:
     pool.pool_veil = 1000000
     pool.pool_eur = 10000
@@ -55,7 +54,6 @@ else:
 active_wallets = {}
 mempool = []
 
-# Stats
 MAX_SUPPLY = 1_000_000_000
 total_burned = 0
 total_fees_collected = 0
@@ -65,7 +63,6 @@ MINED_BLOCKS_FILE = os.path.join(DATA_DIR, "mined_blocks.json")
 BURN_STATS_FILE = os.path.join(DATA_DIR, "burn_stats.json")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Créer le bloc genesis
 if not os.path.exists(MINED_BLOCKS_FILE):
     genesis_block = {
         'index': 0,
@@ -83,7 +80,6 @@ if not os.path.exists(MINED_BLOCKS_FILE):
         json.dump([genesis_block], f, indent=2)
     print("✅ Bloc genesis créé")
 
-# Charger les stats de burn
 if os.path.exists(BURN_STATS_FILE):
     try:
         with open(BURN_STATS_FILE, 'r') as f:
@@ -124,31 +120,21 @@ def apply_burn(fee):
     }
 
 def check_anti_manipulation(wallet, amount_veil, is_buy):
-    """Vérifie les limites anti-dump/anti-pump"""
     global user_last_trade, user_trade_count
-    
     now = time.time()
-    
-    # Vérifier le cooldown
     if wallet in user_last_trade:
         elapsed = now - user_last_trade[wallet]
         if elapsed < MIN_TRADE_INTERVAL:
-            return False, f"Attendez {MIN_TRADE_INTERVAL - elapsed:.0f} secondes entre deux trades"
-    
-    # Vérifier la limite par transaction (max 5% de la pool)
+            return False, f"Attendez {MIN_TRADE_INTERVAL - elapsed:.0f} secondes"
     max_trade = pool.pool_veil * (MAX_TRADE_PERCENT / 100)
     if amount_veil > max_trade:
-        return False, f"Transaction trop grande. Maximum {MAX_TRADE_PERCENT}% de la pool ({max_trade:.0f} VEIL)"
-    
-    # Vérifier le nombre de trades récents
+        return False, f"Maximum {MAX_TRADE_PERCENT}% de la pool ({max_trade:.0f} VEIL)"
     if wallet in user_trade_count:
         if user_trade_count[wallet] >= COOLDOWN_BLOCKS:
-            return False, f"Trop de trades récents. Attendez que {COOLDOWN_BLOCKS} blocs soient minés"
-    
+            return False, f"Trop de trades. Attendez {COOLDOWN_BLOCKS} blocs"
     return True, "OK"
 
 def update_trade_record(wallet):
-    """Met à jour l'historique des trades"""
     global user_last_trade, user_trade_count
     user_last_trade[wallet] = time.time()
     user_trade_count[wallet] = user_trade_count.get(wallet, 0) + 1
@@ -197,8 +183,7 @@ def get_recent_blocks(n=20):
 def format_datetime(timestamp):
     if not timestamp:
         return "N/A"
-    dt = datetime.fromtimestamp(timestamp)
-    return dt.strftime("%d/%m/%Y %H:%M:%S")
+    return datetime.fromtimestamp(timestamp).strftime("%d/%m/%Y %H:%M:%S")
 
 # ==================== PAGES WEB ====================
 
@@ -334,7 +319,7 @@ def api_send(name):
 def api_logout():
     return jsonify({'success': True})
 
-# ==================== API MARCHÉ (ACHAT/VENTE) ====================
+# ==================== API MARCHÉ ====================
 
 @web_bp.route('/api/market/buy', methods=['POST'])
 def market_buy():
@@ -356,7 +341,6 @@ def market_buy():
         current_price = pool.get_veil_price()
         veil_amount = eur_amount / current_price
         
-        # ANTI-DUMP/ANTI-PUMP
         allowed, msg = check_anti_manipulation(wallet_name, veil_amount, True)
         if not allowed:
             return jsonify({'success': False, 'error': msg})
@@ -406,13 +390,12 @@ def market_sell():
         current_price = pool.get_veil_price()
         eur_amount = veil_amount * current_price
         
-        # ANTI-DUMP/ANTI-PUMP
         allowed, msg = check_anti_manipulation(wallet_name, veil_amount, False)
         if not allowed:
             return jsonify({'success': False, 'error': msg})
         
         if eur_amount > pool.pool_eur:
-            return jsonify({'success': False, 'error': 'Pas assez d\'EUR dans la pool'})
+            return jsonify({'success': False, 'error': 'Pas assez d\'EUR'})
         
         pool.pool_veil += veil_amount
         pool.pool_eur -= eur_amount
@@ -480,7 +463,6 @@ def submit_block():
         if pool:
             pool.pool_veil = getattr(pool, 'pool_veil', 0) + 25
         
-        # Reset anti-dump counters après un bloc miné
         global user_trade_count
         for wallet_key in list(user_trade_count.keys()):
             user_trade_count[wallet_key] = max(0, user_trade_count[wallet_key] - 1)
@@ -491,12 +473,7 @@ def submit_block():
 
 @web_bp.route('/api/miner/stats', methods=['GET'])
 def miner_stats():
-    return jsonify({
-        'difficulty': 5, 
-        'reward': 25, 
-        'required_zeros': 5,
-        'estimated_hashes': 1048576
-    })
+    return jsonify({'difficulty': 5, 'reward': 25, 'required_zeros': 5, 'estimated_hashes': 1048576})
 
 @web_bp.route('/api/miner/mempool', methods=['GET'])
 def get_mempool():
@@ -519,20 +496,7 @@ def api_blocks():
 @web_bp.route('/api/market/price')
 def api_price():
     price = pool.get_veil_price() if pool else 0.01
-    return jsonify({
-        'current_price': price,
-        'pool_veil': pool.pool_veil if pool else 0,
-        'pool_eur': pool.pool_eur if pool else 0
-    })
-
-@web_bp.route('/api/market/limits')
-def api_market_limits():
-    return jsonify({
-        'max_trade_percent': MAX_TRADE_PERCENT,
-        'min_trade_interval': MIN_TRADE_INTERVAL,
-        'cooldown_blocks': COOLDOWN_BLOCKS,
-        'max_trade_veil': pool.pool_veil * (MAX_TRADE_PERCENT / 100) if pool else 0
-    })
+    return jsonify({'current_price': price, 'pool_veil': pool.pool_veil if pool else 0, 'pool_eur': pool.pool_eur if pool else 0})
 
 @web_bp.route('/api/burn/stats')
 def api_burn_stats():
