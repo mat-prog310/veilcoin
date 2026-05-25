@@ -2,29 +2,77 @@
 {% block title %}VeilCoin - Wallet{% endblock %}
 {% block content %}
 <div class="container">
-    <h1 class="mb-4"><i class="fas fa-wallet text-success"></i> Wallet</h1>
+    <h1 style="color:#20c997;">Wallet</h1>
+    
     <div class="row">
-        <div class="col-md-6 mb-3"><div class="card bg-dark"><div class="card-body"><h5><i class="fas fa-plus-circle"></i> Créer un wallet</h5><div class="mb-3"><label>Nom</label><input type="text" id="create-name" class="form-control" placeholder="mon_wallet"></div><button class="btn btn-success w-100" onclick="createWallet()"><i class="fas fa-plus"></i> Créer</button><div id="create-result" class="mt-3"></div></div></div></div>
-        <div class="col-md-6 mb-3"><div class="card bg-dark"><div class="card-body"><h5><i class="fas fa-sign-in-alt"></i> Se connecter</h5><div class="mb-3"><label>Nom</label><input type="text" id="login-name" class="form-control"></div><div class="mb-3"><label>Seed Phrase</label><textarea id="login-seed" class="form-control" rows="2"></textarea></div><button class="btn btn-primary w-100" onclick="loginWallet()"><i class="fas fa-unlock"></i> Se connecter</button><div id="login-result" class="mt-3"></div></div></div></div>
-    </div>
-    <div id="wallet-connected" class="d-none">
-        <div class="row">
-            <div class="col-md-4 mb-3"><div class="card bg-dark border-success"><div class="card-body text-center"><h5>Adresse</h5><code id="wallet-address" class="text-success"></code></div></div></div>
-            <div class="col-md-4 mb-3"><div class="card bg-dark border-info"><div class="card-body text-center"><h5>Solde VEIL</h5><h2 id="wallet-balance" class="text-info">0</h2></div></div></div>
-            <div class="col-md-4 mb-3"><div class="card bg-dark border-warning"><div class="card-body text-center"><h5>Valeur en €</h5><h2 id="wallet-eur" class="text-warning">€0</h2></div></div></div>
+        <div class="col-md-6 mb-3">
+            <div class="card" style="background:#1a1a2e;">
+                <div class="card-body">
+                    <h5 style="color:#fff;">Créer</h5>
+                    <input type="text" id="create-name" class="form-control mb-2" style="background:#0d0d1a;color:#fff;">
+                    <button class="btn" style="background:#20c997;color:#000;width:100%;" onclick="createWallet()">Créer</button>
+                    <div id="create-result" style="margin-top:10px;"></div>
+                </div>
+            </div>
         </div>
-        <button class="btn btn-outline-danger mb-3" onclick="logoutWallet()"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
-        <div class="card bg-dark"><div class="card-body"><h5>Historique</h5><table class="table table-dark table-hover"><thead><tr><th>ID</th><th>Type</th><th>Montant</th><th>Date</th></tr></thead><tbody id="tx-history"><tr><td colspan="4">Aucune</td></tr></tbody></table></div></div>
+        <div class="col-md-6 mb-3">
+            <div class="card" style="background:#1a1a2e;">
+                <div class="card-body">
+                    <h5 style="color:#fff;">Connexion</h5>
+                    <input type="text" id="login-name" class="form-control mb-2" style="background:#0d0d1a;color:#fff;">
+                    <textarea id="login-seed" class="form-control mb-2" rows="2" style="background:#0d0d1a;color:#fff;"></textarea>
+                    <button class="btn" style="background:#6f42c1;color:#fff;width:100%;" onclick="loginWallet()">Connexion</button>
+                    <div id="login-result" style="margin-top:10px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="wallet-connected" style="display:none;">
+        <div class="row">
+            <div class="col-md-4"><div class="card" style="background:#1a1a2e;"><div class="card-body text-center"><h5 style="color:#fff;">Adresse</h5><code id="wallet-address" style="color:#20c997;"></code></div></div></div>
+            <div class="col-md-4"><div class="card" style="background:#1a1a2e;"><div class="card-body text-center"><h5 style="color:#fff;">Solde</h5><h2 id="wallet-balance" style="color:#0dcaf0;">0</h2></div></div></div>
+            <div class="col-md-4"><div class="card" style="background:#1a1a2e;"><div class="card-body text-center"><h5 style="color:#fff;">Valeur</h5><h2 id="wallet-eur" style="color:#ffc107;">€0</h2></div></div></div>
+        </div>
+        <button class="btn" style="background:none;border:1px solid #e94560;color:#e94560;margin-top:15px;" onclick="logoutWallet()">Déconnexion</button>
     </div>
 </div>
-{% endblock %}
-{% block extra_scripts %}
+
 <script>
-let currentWallet=null;
-async function createWallet(){const n=document.getElementById('create-name').value.trim();if(!n)return alert('Nom requis');const r=await fetch('/api/wallet/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n})});const d=await r.json();if(d.success){document.getElementById('create-result').innerHTML=`<div class="alert alert-success"><strong>✅ Wallet créé!</strong><br><small>${d.address.substring(0,20)}...</small><br><br><strong>🔐 SEED:</strong><br><code>${d.seed_phrase}</code><br><small class="text-danger">⚠️ Sauvegardez-la!</small></div>`;document.getElementById('login-name').value=n;document.getElementById('login-seed').value=d.seed_phrase}}
-async function loginWallet(){const n=document.getElementById('login-name').value.trim();const s=document.getElementById('login-seed').value.trim();if(!n||!s)return alert('Nom et seed requis');const r=await fetch('/api/wallet/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,seed_phrase:s})});const d=await r.json();if(d.success){currentWallet=d.name;document.getElementById('wallet-connected').classList.remove('d-none');document.getElementById('wallet-address').textContent=d.address.substring(0,20)+'...';loadBalance();loadTx()}}
-async function loadBalance(){if(!currentWallet)return;const r=await fetch(`/api/wallet/${currentWallet}/balance`);const d=await r.json();document.getElementById('wallet-balance').textContent=d.balance_veil.toFixed(4);document.getElementById('wallet-eur').textContent='€'+d.balance_eur.toFixed(6)}
-async function loadTx(){if(!currentWallet)return;const r=await fetch(`/api/wallet/${currentWallet}/transactions`);const txs=await r.json();const t=document.getElementById('tx-history');t.innerHTML='';if(!txs.length){t.innerHTML='<tr><td colspan="4">Aucune</td></tr>';return}txs.forEach(tx=>{const row=t.insertRow();row.innerHTML=`<td><code>${(tx.tx_id||'').substring(0,12)}...</code></td><td class="${tx.type==='receive'?'text-success':'text-danger'}">${tx.type==='receive'?'↓':'↑'} ${tx.type}</td><td>${(tx.amount||0).toFixed(4)} VEIL</td><td><small>${new Date(tx.timestamp).toLocaleString()}</small></td>`})}
-async function logoutWallet(){await fetch('/api/wallet/logout',{method:'POST'});currentWallet=null;document.getElementById('wallet-connected').classList.add('d-none')}
+var cw=null;
+async function createWallet(){
+    var n=document.getElementById('create-name').value.trim();
+    if(!n)return;
+    var r=await fetch('/api/wallet/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n})});
+    var d=await r.json();
+    if(d.success){
+        document.getElementById('create-result').innerHTML='<div style="color:#20c997;">✅ Créé!<br><code>'+d.seed_phrase+'</code></div>';
+        document.getElementById('login-name').value=n;
+        document.getElementById('login-seed').value=d.seed_phrase;
+    }
+}
+async function loginWallet(){
+    var n=document.getElementById('login-name').value.trim();
+    var s=document.getElementById('login-seed').value.trim();
+    var r=await fetch('/api/wallet/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,seed_phrase:s})});
+    var d=await r.json();
+    if(d.success){
+        cw=d.name;
+        document.getElementById('wallet-connected').style.display='block';
+        document.getElementById('wallet-address').textContent=d.address.substring(0,20)+'...';
+        loadBalance();
+    }
+}
+async function loadBalance(){
+    var r=await fetch('/api/wallet/'+cw+'/balance');
+    var d=await r.json();
+    document.getElementById('wallet-balance').textContent=(d.balance_veil||0).toFixed(4);
+    document.getElementById('wallet-eur').textContent='€'+(d.balance_eur||0).toFixed(6);
+}
+async function logoutWallet(){
+    await fetch('/api/wallet/logout',{method:'POST'});
+    cw=null;
+    document.getElementById('wallet-connected').style.display='none';
+}
 </script>
 {% endblock %}
