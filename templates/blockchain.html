@@ -40,9 +40,9 @@
         <div class="col-md-3">
             <div class="card bg-dark text-white">
                 <div class="card-body text-center">
-                    <h5>⛏️ Récompense</h5>
-                    <h2>{{ stats.current_reward }}</h2>
-                    <small>VEIL/bloc</small>
+                    <h5>⛏️ Mempool</h5>
+                    <h2>{{ stats.mempool_size }}</h2>
+                    <small>en attente</small>
                 </div>
             </div>
         </div>
@@ -60,7 +60,8 @@
                         <tr>
                             <th>#</th>
                             <th>Hash</th>
-                            <th>Transactions</th>
+                            <th>Hash précédent</th>
+                            <th>TX</th>
                             <th>Nonce</th>
                             <th>Difficulté</th>
                             <th>Temps</th>
@@ -73,7 +74,10 @@
                                 <span class="badge bg-primary">{{ block.index }}</span>
                             </td>
                             <td>
-                                <code class="small">{{ block.hash[:20] }}...</code>
+                                <code class="small text-info">{{ block.hash }}</code>
+                            </td>
+                            <td>
+                                <code class="small text-muted">{{ block.previous_hash }}</code>
                             </td>
                             <td class="text-center">{{ block.tx_count }}</td>
                             <td>{{ block.nonce }}</td>
@@ -82,7 +86,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" class="text-center">Aucun bloc trouvé</td>
+                            <td colspan="7" class="text-center">Aucun bloc trouvé</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -90,6 +94,25 @@
             </div>
         </div>
     </div>
+    
+    <!-- Détail du dernier bloc -->
+    {% if blocks %}
+    <div class="card bg-dark mt-4">
+        <div class="card-header">
+            <h4>🔗 Détails du dernier bloc</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12">
+                    <strong>Hash complet:</strong>
+                    <code class="d-block bg-black p-2 rounded small" style="word-break: break-all;">
+                        {{ blocks[-1].full_hash }}
+                    </code>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
