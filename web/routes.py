@@ -25,9 +25,6 @@ def index():
 def wallet_page(): 
     return render_template('wallet.html', wallets=list(active_wallets.keys()))
 
-@app.route('/miner')
-def miner_page():
-    return render_template('miner.html', wallets=list(active_wallets.keys()))
 
 @app.route('/blockchain')
 def blockchain_page():
