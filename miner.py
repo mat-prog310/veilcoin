@@ -7,6 +7,7 @@
 ╚══════════════════════════════════════════════════════════════╝
 """
 import hashlib
+# SUPPRIME CETTE LIGNE: from py_compile import main
 import time
 import os
 import sys
@@ -182,10 +183,11 @@ class VeilMiner:
                     self.bal += 25
                     print(f"   ✅ Bloc validé par le réseau !")
                     print(f"   💰 Nouveau solde: {self.bal:.4f} VEIL")
-                    print(f"   📊 Block #: {result.get('block_index', '?')}")
+                    if result.get('block_index'):
+                     print(f"   📊 Block #: {result.get('block_index')}")
                 else:
-                    error = result.get('error', 'unknown') if result else 'API error'
-                    print(f"   ❌ Bloc refusé: {error}")
+                   error = result.get('error', 'unknown') if result else 'API error'
+                   print(f"   ❌ Bloc refusé: {error}")
                 
                 nonce = random.randint(0, 1000000)
                 # Forcer un rafraîchissement de la mempool
@@ -220,4 +222,37 @@ class VeilMiner:
         e = time.time() - self.t0 if self.t0 > 0 else 0
         print(f"\n\n{R}🛑 MINAGE ARRÊTÉ - {e/60:.1f} min | {self.blocks} blocs | {self.bal:.1f} VEIL{X}\n")
 
-def main
+# ✅ AJOUTE CETTE FONCTION main()
+def main():
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print(f"""{G}
+╔══════════════════════════════════════════════════════════════╗
+║   ██╗   ██╗███████╗██╗██╗      ██████╗ ██████╗ ██╗███╗   ██╗
+║   ██║   ██║██╔════╝██║██║     ██╔════╝██╔═══██╗██║████╗  ██║
+║   ██║   ██║█████╗  ██║██║     ██║     ██║   ██║██║██╔██╗ ██║
+║   ╚██╗ ██╔╝██╔══╝  ██║██║     ██║     ██║   ██║██║██║╚██╗██║
+║    ╚████╔╝ ███████╗██║███████╗╚██████╗╚██████╔╝██║██║ ╚████║
+║     ╚═══╝  ╚══════╝╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝
+║            ⛏️  MINER v2.0 - DIFFICULTÉ 5  ⛏️                  ║
+╚══════════════════════════════════════════════════════════════╝{X}""")
+
+    m = VeilMiner()
+    print(f"{C}🌐 Connexion à {API_URL}...{X}")
+    s = m.stats()
+    if s:
+        print(f"{G}[OK]{X} Hauteur: {s.get('height',0)} | Difficulté: {s.get('difficulty',5)}")
+    
+    print(f"\n{G}🔐 CONNEXION WALLET{X}")
+    name = input(f"{W}Nom du wallet: {X}").strip() or "default"
+    seed = input(f"{W}Seed phrase (12 mots): {X}").strip()
+    if seed and m.login(name, seed):
+        print(f"{G}[OK]{X} Connecté ! Solde: {m.bal:.4f} VEIL")
+    
+    try:
+        m.mine()
+    except KeyboardInterrupt:
+        m.stop()
+        input(f"{W}Entrée pour quitter...{X}")
+
+if __name__ == "__main__":
+    main()
