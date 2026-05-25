@@ -86,5 +86,25 @@ class Blockchain:
             'current_reward': 50
         }
 
-    def get_recent_blocks(self, n=10):
+    # Dans core/blockchain.py, ajoutez/modifiez cette méthode :
+
+def get_recent_blocks(self, n=10):
+    """Retourne les n derniers blocs formatés pour l'affichage"""
+    blocks = []
+    start_index = max(0, len(self.chain) - n)
+    
+    for i in range(start_index, len(self.chain)):
+        b = self.chain[i]
+        blocks.append({
+            'index': i,  # L'index est la position dans la chaîne
+            'hash': b.block_hash[:20] + "..." if b.block_hash else "N/A",
+            'full_hash': b.block_hash,
+            'tx_count': len(b.transactions),
+            'nonce': b.header.nonce,
+            'difficulty': b.header.difficulty,
+            'timestamp': b.header.timestamp,
+            'previous_hash': b.header.previous_hash[:20] + "..." if b.header.previous_hash else "N/A"
+        })
+    
+    return blocks
         return [b.to_dict() for b in self.chain[-n:]]
