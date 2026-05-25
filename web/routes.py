@@ -131,3 +131,45 @@ def api_admin_reset():
 @app.route('/ping')
 def ping():
     return 'pong', 200
+
+@app.route('/api/miner/submit_block', methods=['POST'])
+def submit_block():
+    """Soumission d'un bloc par un mineur"""
+    try:
+        data = request.get_json()
+        wallet = data.get('wallet')
+        nonce = data.get('nonce')
+        hash_proof = data.get('hash')
+        base = data.get('base')
+        
+        # Vérifier la preuve de travail
+        if not hash_proof.startswith('0' * 5):
+            return jsonify({'success': False, 'error': 'Preuve invalide'})
+        
+        # Créer le nouveau bloc
+        from core.blockchain import blockchain
+        new_block = blockchain.add_block(
+            proof=nonce,
+            previous_hash=blockchain.last_block['hash'],
+            miner=wallet,
+            hash=hash_proof
+        )
+        
+        if new_block:
+            # Récompenser le mineur
+            from core.wallet import VeilWallet
+            w = VeilWallet(wallet)
+            w.load_or_create()
+            w.balance += 25
+            w.save()
+            
+            return jsonify({
+                'success': True, 
+                'reward': 25,
+                'block_height': new_block['index']
+            })
+        
+        return jsonify({'success': False, 'error': 'Bloc refusé'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
