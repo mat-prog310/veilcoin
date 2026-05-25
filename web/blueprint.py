@@ -4,11 +4,8 @@ import sys, os
 import hashlib
 import time
 import json
-# Initialisation de la pool avec des liquidités par défaut
-if pool and pool.pool_veil == 0 and pool.pool_eur == 0:
-    pool.pool_veil = 100000  # 100k VEIL
-    pool.pool_eur = 10000    # 10k EUR
-    print(f"✅ Pool initialisée: {pool.pool_veil} VEIL / {pool.pool_eur} EUR = {pool.get_veil_price():.4f} EUR/VEIL")
+from datetime import datetime
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.wallet import VeilWallet
@@ -32,8 +29,16 @@ pool = LiquidityPool(market, blockchain) if market else None
 if pool:
     market.current_price = pool.get_veil_price()
 
+# ✅ MAINTENANT pool est défini, on peut l'utiliser
+if pool and pool.pool_veil == 0 and pool.pool_eur == 0:
+    pool.pool_veil = 100000  # 100k VEIL
+    pool.pool_eur = 10000    # 10k EUR
+    print(f"✅ Pool initialisée: {pool.pool_veil} VEIL / {pool.pool_eur} EUR = {pool.get_veil_price():.4f} EUR/VEIL")
+
 active_wallets = {}
 mempool = []
+
+# ... reste du code inchangé ...
 
 # ==================== STATS BURN ====================
 MAX_SUPPLY = 1_000_000_000
