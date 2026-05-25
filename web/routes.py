@@ -28,7 +28,9 @@ def wallet_page():
 
 @app.route('/blockchain')
 def blockchain_page():
-    return render_template('blockchain.html', stats=blockchain.get_stats())
+    from core.blockchain import blockchain
+    blocks = blockchain.get_all_blocks()
+    return render_template('blockchain.html', blocks=blocks, stats=blockchain.get_stats())
 
 @app.route('/market')
 def market_page(): 
