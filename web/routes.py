@@ -130,3 +130,7 @@ def api_admin_reset():
         shutil.rmtree(wallets_dir)
     
     return jsonify({'success': True, 'message': 'Cache vidé. Redémarrage nécessaire.'})
+
+@app.route('/ping')
+def ping():
+    return 'pong', 200
