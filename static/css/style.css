@@ -1,176 +1,472 @@
-/* VeilCoin - Thème sombre */
-body { 
-    background: #0a0a1a; 
-    color: #ffffff; 
-    font-family: 'Segoe UI', sans-serif; 
-    min-height: 100vh; 
+/* static/css/style.css - VeilCoin Theme */
+
+/* ==================== BASE ==================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-/* Navbar */
-.navbar { 
-    background: #000000 !important; 
-    border-bottom: 2px solid #6f42c1; 
-}
-.navbar-brand { 
-    color: #20c997 !important; 
-    font-weight: bold; 
-}
-.nav-link { 
-    color: #cccccc !important; 
-}
-.nav-link:hover { 
-    color: #ffffff !important; 
+body {
+    background-color: #0a0a0a;
+    color: #ffffff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
 }
 
-/* Cards */
-.card { 
-    background: #1a1a2e !important; 
-    border: 1px solid #333333; 
-    border-radius: 15px; 
-}
-.card h5 { 
-    color: #ffffff !important; 
-}
-.card small { 
-    color: #aaaaaa !important; 
+/* ==================== TYPOGRAPHIE ==================== */
+h1, h2, h3, h4, h5, h6 {
+    color: #ffffff;
+    font-weight: 600;
 }
 
-/* Stats */
-h2, h3 { 
-    color: #ffffff !important; 
+h1 {
+    color: #00ff88;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
 }
 
-/* Table */
-.table-dark { 
-    background: #1a1a2e; 
-    color: #ffffff; 
-    border-radius: 10px; 
-}
-.table-dark th { 
-    color: #20c997; 
-    border-bottom: 2px solid #333; 
-}
-.table-dark td { 
-    color: #ffffff; 
-    border-bottom: 1px solid #222; 
-}
-.table-hover tbody tr:hover { 
-    background: rgba(111, 66, 193, 0.2) !important; 
+.text-primary {
+    color: #00ff88 !important;
 }
 
-/* Code */
-code { 
-    color: #20c997; 
-    background: #0d0d1a; 
-    padding: 2px 8px; 
-    border-radius: 5px; 
-    font-size: 0.85em; 
+.text-success {
+    color: #00ff88 !important;
 }
 
-/* Buttons */
-.btn-primary { 
-    background: #6f42c1; 
-    border: none; 
-    color: #ffffff; 
+.text-warning {
+    color: #ffc107 !important;
 }
-.btn-primary:hover { 
-    background: #5a32a8; 
+
+.text-danger {
+    color: #ff4444 !important;
 }
-.btn-success { 
-    background: #20c997; 
-    border: none; 
-    color: #000000; 
+
+.text-info {
+    color: #17a2b8 !important;
 }
-.btn-success:hover { 
-    background: #1aa179; 
+
+.text-muted {
+    color: #888888 !important;
 }
-.btn-danger { 
-    background: #e94560; 
-    border: none; 
-    color: #ffffff; 
+
+/* ==================== NAVBAR ==================== */
+.navbar {
+    background-color: #0d0d0d !important;
+    border-bottom: 2px solid #00ff88;
+    box-shadow: 0 2px 15px rgba(0, 255, 136, 0.1);
+    padding: 0.8rem 1rem;
 }
-.btn-outline-danger {
-    color: #e94560;
-    border-color: #e94560;
+
+.navbar-brand {
+    color: #00ff88 !important;
+    font-weight: bold;
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
 }
-.btn-outline-danger:hover {
-    background: #e94560;
+
+.navbar-brand:hover {
+    color: #00cc66 !important;
+    text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.nav-link {
+    color: #cccccc !important;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    margin: 0 5px;
+}
+
+.nav-link:hover {
+    color: #00ff88 !important;
+    transform: translateY(-2px);
+}
+
+.navbar-toggler {
+    border-color: #00ff88;
+}
+
+/* ==================== CARTES ==================== */
+.card {
+    background-color: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.card:hover {
+    box-shadow: 0 6px 20px rgba(0, 255, 136, 0.1);
+    border-color: #00ff88;
+}
+
+.card-header {
+    background-color: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    color: #00ff88;
+}
+
+.card-body {
+    padding: 1.25rem;
     color: #ffffff;
 }
 
-/* Forms */
-.form-control, .form-select { 
-    background: #0d0d1a; 
-    border: 1px solid #444444; 
-    color: #ffffff; 
-}
-.form-control:focus, .form-select:focus { 
-    background: #1a1a2e; 
-    border-color: #6f42c1; 
-    color: #ffffff; 
-    box-shadow: 0 0 10px rgba(111, 66, 193, 0.3); 
-}
-.form-control::placeholder { 
-    color: #666666; 
+.card-footer {
+    background-color: #0f0f0f;
+    border-top: 1px solid #2a2a2a;
+    padding: 0.75rem 1.25rem;
 }
 
-/* Labels */
-label { 
-    color: #cccccc; 
-    font-weight: 500; 
+/* ==================== TABLES ==================== */
+.table {
+    color: #ffffff;
+    margin-bottom: 0;
 }
 
-/* Alerts */
-.alert-success { 
-    background: rgba(32, 201, 151, 0.2); 
-    color: #20c997; 
-    border: 1px solid #20c997; 
-}
-.alert-danger { 
-    background: rgba(233, 69, 96, 0.2); 
-    color: #e94560; 
-    border: 1px solid #e94560; 
-}
-.alert-warning { 
-    background: rgba(255, 193, 7, 0.2); 
-    color: #ffc107; 
-    border: 1px solid #ffc107; 
-}
-.alert-secondary { 
-    background: rgba(170, 170, 170, 0.2); 
-    color: #aaaaaa; 
-    border: 1px solid #666666; 
+.table-dark {
+    background-color: #0f0f0f;
 }
 
-/* Footer */
-footer { 
-    color: #666666; 
-    border-top: 1px solid #222222; 
+.table-hover tbody tr:hover {
+    background-color: #1a1a1a;
+    transition: all 0.2s ease;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #0a0a1a; }
-::-webkit-scrollbar-thumb { background: #6f42c1; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #5a32a8; }
+.table thead th {
+    background-color: #1a1a1a;
+    color: #00ff88;
+    border-bottom: 2px solid #00ff88;
+    font-weight: 600;
+    padding: 12px;
+}
 
-/* Badge */
-.badge { font-size: 0.8em; padding: 5px 10px; }
-.bg-warning { background: #ffc107 !important; color: #000000 !important; }
+.table tbody td {
+    border-color: #2a2a2a;
+    padding: 12px;
+    color: #e0e0e0;
+}
 
-/* Text colors */
-.text-success { color: #20c997 !important; }
-.text-danger { color: #e94560 !important; }
-.text-warning { color: #ffc107 !important; }
-.text-info { color: #0dcaf0 !important; }
-.text-primary { color: #6f42c1 !important; }
-.text-muted { color: #666666 !important; }
+/* ==================== BOUTONS ==================== */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 8px 20px;
+    transition: all 0.3s ease;
+    border: none;
+}
 
-/* Canvas */
-canvas { background: transparent; }
+.btn-primary {
+    background-color: #00ff88;
+    color: #000000;
+}
 
-/* Responsive */
+.btn-primary:hover {
+    background-color: #00cc66;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: #ffffff;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    transform: translateY(-2px);
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: #ffffff;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    transform: translateY(-2px);
+}
+
+.btn-warning {
+    background-color: #ffc107;
+    color: #000000;
+}
+
+.btn-warning:hover {
+    background-color: #e0a800;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: #ffffff;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+    transform: translateY(-2px);
+}
+
+.btn-outline-primary {
+    border: 1px solid #00ff88;
+    color: #00ff88;
+    background: transparent;
+}
+
+.btn-outline-primary:hover {
+    background-color: #00ff88;
+    color: #000000;
+    transform: translateY(-2px);
+}
+
+/* ==================== FORMULAIRES ==================== */
+.form-control {
+    background-color: #0f0f0f !important;
+    border: 1px solid #2a2a2a !important;
+    color: #ffffff !important;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #00ff88 !important;
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
+    outline: none;
+}
+
+.form-control::placeholder {
+    color: #666666 !important;
+}
+
+label {
+    color: #cccccc;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+/* ==================== ALERTES ==================== */
+.alert {
+    border-radius: 10px;
+    border: none;
+    padding: 1rem;
+}
+
+.alert-success {
+    background-color: #0a2a1a;
+    color: #00ff88;
+    border-left: 4px solid #00ff88;
+}
+
+.alert-danger {
+    background-color: #2a0a0a;
+    color: #ff6666;
+    border-left: 4px solid #ff4444;
+}
+
+.alert-warning {
+    background-color: #2a1a0a;
+    color: #ffc107;
+    border-left: 4px solid #ffc107;
+}
+
+.alert-info {
+    background-color: #0a1a2a;
+    color: #17a2b8;
+    border-left: 4px solid #17a2b8;
+}
+
+/* ==================== BADGES ==================== */
+.badge {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.bg-success {
+    background-color: #00ff88 !important;
+    color: #000000;
+}
+
+.bg-danger {
+    background-color: #ff4444 !important;
+    color: #ffffff;
+}
+
+.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000000;
+}
+
+.bg-info {
+    background-color: #17a2b8 !important;
+    color: #ffffff;
+}
+
+.bg-secondary {
+    background-color: #6c757d !important;
+    color: #ffffff;
+}
+
+.bg-dark {
+    background-color: #141414 !important;
+}
+
+/* ==================== LIENS ==================== */
+a {
+    color: #00ff88;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+a:hover {
+    color: #00cc66;
+    text-decoration: none;
+}
+
+/* ==================== CODES ==================== */
+code {
+    background-color: #0a0a0a;
+    color: #00ff88;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+}
+
+/* ==================== CONTAINERS ==================== */
+.container {
+    max-width: 1400px;
+}
+
+/* ==================== FOOTER ==================== */
+footer {
+    background-color: #0d0d0d;
+    border-top: 1px solid #2a2a2a;
+    margin-top: 50px;
+    padding: 20px 0;
+    text-align: center;
+    color: #666666;
+}
+
+/* ==================== UTILITAIRES ==================== */
+.gradient-text {
+    background: linear-gradient(45deg, #00ff88, #00cc66);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.highlight {
+    background-color: rgba(0, 255, 136, 0.1);
+    border-left: 3px solid #00ff88;
+    padding: 10px 15px;
+}
+
+/* ==================== CHART ET GRAPHIQUES ==================== */
+.chart-container {
+    background-color: #141414;
+    border-radius: 12px;
+    padding: 15px;
+    border: 1px solid #2a2a2a;
+}
+
+/* ==================== P2P SPECIFIQUE ==================== */
+.nav-tabs {
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.nav-tabs .nav-link {
+    background-color: #141414;
+    color: #cccccc;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px 8px 0 0;
+    margin-right: 5px;
+    transition: all 0.2s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #00ff88;
+    color: #00ff88;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: #00ff88;
+    color: #000000;
+    border-color: #00ff88;
+    font-weight: 600;
+}
+
+/* ==================== MODALS ==================== */
+.modal-content {
+    background-color: #141414;
+    border: 1px solid #00ff88;
+    border-radius: 12px;
+}
+
+.modal-header {
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.modal-footer {
+    border-top: 1px solid #2a2a2a;
+}
+
+.close {
+    color: #ffffff;
+    opacity: 0.8;
+}
+
+.close:hover {
+    color: #ff4444;
+    opacity: 1;
+}
+
+/* ==================== RESPONSIVE ==================== */
 @media (max-width: 768px) {
-    .card { margin-bottom: 10px; }
-    h1 { font-size: 1.5rem; }
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    .table thead th,
+    .table tbody td {
+        padding: 6px;
+        font-size: 0.8rem;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    h2 {
+        font-size: 1.2rem;
+    }
+    
+    .btn {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+    
+    .nav-link {
+        padding: 6px 10px;
+        font-size: 0.85rem;
+    }
+}
+
+/* ==================== SCROLLBAR ==================== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #00ff88;
 }
