@@ -470,3 +470,115 @@ footer {
 ::-webkit-scrollbar-thumb:hover {
     background: #00ff88;
 }
+
+/* static/css/style.css - Ajoutez ceci à la fin du fichier */
+
+/* ==================== CORRECTIONS TEXTES ==================== */
+
+/* Force toutes les couleurs de texte */
+body, html {
+    color: #ffffff !important;
+}
+
+.card, .card-body, .card-header, .card-footer {
+    color: #ffffff !important;
+}
+
+.card p, .card li, .card span, .card div {
+    color: #ffffff !important;
+}
+
+.table, .table td, .table th {
+    color: #ffffff !important;
+}
+
+.nav-link, .navbar-brand, .navbar-nav .nav-link {
+    color: #ffffff !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #ffffff !important;
+}
+
+.form-control, .form-control::placeholder {
+    color: #ffffff !important;
+}
+
+label {
+    color: #cccccc !important;
+}
+
+/* Couleurs spécifiques */
+.text-primary, .text-primary * {
+    color: #00ff88 !important;
+}
+
+.text-success, .text-success * {
+    color: #00ff88 !important;
+}
+
+.text-danger, .text-danger * {
+    color: #ff4444 !important;
+}
+
+.text-warning, .text-warning * {
+    color: #ffc107 !important;
+}
+
+.text-info, .text-info * {
+    color: #17a2b8 !important;
+}
+
+.text-muted, .text-muted * {
+    color: #888888 !important;
+}
+
+/* Alertes */
+.alert, .alert * {
+    color: #ffffff !important;
+}
+
+.alert-success, .alert-success * {
+    color: #00ff88 !important;
+}
+
+.alert-danger, .alert-danger * {
+    color: #ff6666 !important;
+}
+
+.alert-warning, .alert-warning * {
+    color: #ffc107 !important;
+}
+
+/* Badges */
+.badge, .badge * {
+    color: #ffffff !important;
+}
+
+.badge.bg-success, .badge.bg-success * {
+    color: #000000 !important;
+}
+
+/* Modal */
+.modal, .modal * {
+    color: #ffffff !important;
+}
+
+.modal .modal-header, .modal .modal-body, .modal .modal-footer {
+    color: #ffffff !important;
+}
+
+/* Liens */
+a, a * {
+    color: #00ff88 !important;
+}
+
+a:hover, a:hover * {
+    color: #00cc66 !important;
+}
+
+/* Code */
+code, pre {
+    color: #00ff88 !important;
+    background-color: #0a0a0a !important;
+}
