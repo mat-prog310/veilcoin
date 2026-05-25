@@ -4,7 +4,7 @@
 ║                    ⛏️  VEILCOIN MINER  ⛏️                     ║
 ║                    Terminal v2.0.0                           ║
 ║              Mine Simply. Transact Privately.                ║
-║              Difficulté: 5 zéros (EXTREME)                   ║
+║              Difficulté: 5 zéros (MODE LENT)                 ║
 ╚══════════════════════════════════════════════════════════════╝
 """
 import hashlib
@@ -15,8 +15,8 @@ import json
 import urllib.request
 import urllib.error
 import ssl
+import random
 
-# ⚠️ CORRECTION: URL de votre serveur Render
 API_URL = "https://veilcoin-fvzp.onrender.com"
 
 if os.name == 'nt':
@@ -36,8 +36,9 @@ class VeilMiner:
         self.hashes = 0
         self.blocks = 0
         self.t0 = 0
-        self.diff = 5  # 🔒 DIFFICULTÉ 5 FIXE (EXTREME)
+        self.diff = 5
         self.bal = 0.0
+        self.last_block_time = 0
 
     def api(self, ep, data=None):
         try:
@@ -53,10 +54,8 @@ class VeilMiner:
             with urllib.request.urlopen(req, timeout=10, context=ctx) as r:
                 return json.loads(r.read().decode())
         except urllib.error.URLError as e:
-            print(f"{R}❌ Erreur réseau: {e.reason}{X}")
             return None
         except Exception as e:
-            print(f"{R}❌ Erreur: {e}{X}")
             return None
 
     def login(self, name, seed):
@@ -70,44 +69,51 @@ class VeilMiner:
     def stats(self):
         r = self.api("/api/stats")
         if r: 
-            server_diff = r.get("difficulty", 5)
-            if server_diff != self.diff:
-                print(f"{Y}⚠️ Note: Difficulté serveur = {server_diff}, locale = {self.diff}{X}")
+            self.diff = r.get("difficulty", 5)
         return r
+
+    def submit_block(self, nonce, hash_proof, base):
+        """Soumet un bloc trouvé au serveur"""
+        submit_data = {
+            "wallet": self.wallet,
+            "nonce": nonce,
+            "hash": hash_proof,
+            "base": base,
+            "difficulty": self.diff
+        }
+        return self.api("/api/miner/submit_block", submit_data)
 
     def mine(self):
         self.stats()
-        tgt = "0" * self.diff  # "00000"
+        tgt = "0" * self.diff
         self.mining = True
         self.t0 = time.time()
         self.hashes = 0
         self.blocks = 0
-        nonce = 0
+        nonce = random.randint(0, 1000000)
         lp = time.time()
-        
-        # ⚠️ CORRECTION: Base fixe sans time.time() dans le hash
-        base = f"VEIL_{self.wallet}_{int(self.t0)}"
 
         print(f"\n{G}{'='*60}{X}")
-        print(f"{G}🔒 MINAGE LANCÉ - DIFFICULTÉ EXTREME{X}")
+        print(f"{G}🔒 MINAGE LANCÉ - MODE LENT (COMME AVANT){X}")
         print(f"{G}{'='*60}{X}")
-        print(f"  🎯 Difficulté: {Y}{self.diff}{X} zéros (EXTREME)")
+        print(f"  🎯 Difficulté: {Y}{self.diff}{X} zéros")
         print(f"  💰 Récompense: {G}25{X} VEIL/bloc")
-        print(f"  🔢 Base: {Y}{base}{X}")
-        print(f"  ⚡ Hashes nécessaires: ~{16**self.diff:,}")
+        print(f"  ⏱️  Temps estimé: {Y}10-30 minutes{X}")
         print(f"{G}{'='*60}{X}\n")
 
         while self.mining:
-            for _ in range(1000):
+            for _ in range(100):
                 nonce += 1
                 self.hashes += 1
                 
-                # ⚠️ CORRECTION: time.time() enlevé, nonce est la seule variable
-                h = hashlib.sha256(f"{base}_{nonce}".encode()).hexdigest()
+                # 🔑 HASH AVEC time.time() - CHAQUE HASH EST UNIQUE (LENT)
+                h = hashlib.sha256(f"VEIL_{self.wallet}_{nonce}_{time.time()}".encode()).hexdigest()
                 
                 if h.startswith(tgt):
                     self.blocks += 1
                     e = time.time() - self.t0
+                    self.last_block_time = time.time()
+                    
                     print(f"\n{G}{'='*60}{X}")
                     print(f"{G}🎉 BLOC TROUVÉ !{X}")
                     print(f"   ⏱️  Temps: {e/60:.1f}min ({e:.0f}s)")
@@ -116,36 +122,29 @@ class VeilMiner:
                     print(f"   💰 +25 VEIL")
                     print(f"{G}{'='*60}{X}")
                     
-                    # ⚠️ CORRECTION: Soumission au serveur
-                    submit_data = {
-                        "wallet": self.wallet,
-                        "nonce": nonce,
-                        "hash": h,
-                        "base": base,
-                        "difficulty": self.diff
-                    }
-                    
-                    result = self.api("/api/miner/submit_block", submit_data)
+                    # 📤 ENVOI DU BLOC AU SERVEUR
+                    result = self.submit_block(nonce, h, f"VEIL_{self.wallet}_{int(self.t0)}")
                     
                     if result and result.get("success"):
-                        print(f"   ✅ Bloc validé sur le réseau !")
                         self.bal += 25
+                        print(f"   ✅ Bloc validé par le réseau !")
                         print(f"   💰 Nouveau solde: {self.bal:.4f} VEIL")
                     else:
                         error = result.get('error', 'unknown') if result else 'API error'
-                        print(f"   ❌ Bloc refusé: {error}")
+                        print(f"   ❌ Bloc refusé par le réseau: {error}")
                     
-                    # Reset pour le prochain bloc
-                    nonce = 0
-                    base = f"VEIL_{self.wallet}_{int(time.time())}"
+                    # Reset nonce après bloc trouvé
+                    nonce = random.randint(0, 1000000)
             
+            # Affichage du hashrate toutes les 5 secondes
             if time.time() - lp > 5:
                 e = time.time() - self.t0
                 if e > 0: 
                     self.hr = self.hashes / e
+                
                 avg = 16 ** self.diff
                 eta = "..."
-                if self.hr > 0:
+                if self.hr > 0 and self.hashes < avg:
                     es = max(0, avg - self.hashes) / self.hr
                     if es > 3600:
                         eta = f"{es/3600:.1f}h"
@@ -153,9 +152,14 @@ class VeilMiner:
                         eta = f"{es/60:.1f}min"
                     else:
                         eta = f"{es:.0f}s"
+                elif self.hashes >= avg:
+                    eta = "0s (bloc imminent)"
+                
                 pct = min(100, (self.hashes / avg) * 100)
-                bar = "█" * int(pct/2) + "░" * (50 - int(pct/2))
-                sys.stdout.write(f"\r{G}⛏️{X} {self.hr:.0f} H/s | {bar} {pct:.2f}% | ⏳{eta} | 💰{self.bal:.1f} VEIL  ")
+                bar_len = int(pct / 2)
+                bar = "█" * bar_len + "░" * (50 - bar_len)
+                
+                sys.stdout.write(f"\r{G}⛏️{X} {self.hr:.0f} H/s | {bar} {pct:.2f}% | ⏳{eta} | 💰{self.bal:.1f} VEIL | 🎯{self.blocks} blocs  ")
                 sys.stdout.flush()
                 lp = time.time()
 
@@ -174,7 +178,8 @@ def main():
 ║   ╚██╗ ██╔╝██╔══╝  ██║██║     ██║     ██║   ██║██║██║╚██╗██║
 ║    ╚████╔╝ ███████╗██║███████╗╚██████╗╚██████╔╝██║██║ ╚████║
 ║     ╚═══╝  ╚══════╝╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝
-║            ⛏️  MINER v2.0 - DIFFICULTÉ 5 EXTREME  ⛏️          ║
+║            ⛏️  MINER v2.0 - DIFFICULTÉ 5  ⛏️                  ║
+║                    (MODE LENT AVEC ENVOI)                     ║
 ╚══════════════════════════════════════════════════════════════╝{X}""")
 
     m = VeilMiner()
