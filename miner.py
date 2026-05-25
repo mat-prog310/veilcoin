@@ -4,7 +4,6 @@
 ║                    ⛏️  VEILCOIN MINER  ⛏️                     ║
 ║                    Terminal v2.0.0                           ║
 ║              Mine Simply. Transact Privately.                ║
-║              Difficulté: 5 zéros (EXTREME)                   ║
 ╚══════════════════════════════════════════════════════════════╝
 """
 import hashlib
@@ -72,7 +71,6 @@ class VeilMiner:
         return r
 
     def get_mempool(self):
-        """Récupère les transactions en attente depuis le serveur"""
         try:
             r = self.api("/api/miner/mempool")
             if r:
@@ -82,7 +80,6 @@ class VeilMiner:
         return []
 
     def get_last_block(self):
-        """Récupère le dernier bloc"""
         try:
             r = self.api("/api/blockchain/blocks")
             if r and r.get('blocks'):
@@ -94,7 +91,6 @@ class VeilMiner:
         return None
 
     def submit_block(self, nonce, hash_proof, transactions, previous_hash):
-        """Soumet un bloc trouvé au serveur"""
         submit_data = {
             "wallet": self.wallet,
             "nonce": nonce,
@@ -106,7 +102,6 @@ class VeilMiner:
         return self.api("/api/miner/submit_block", submit_data)
 
     def slow_hash(self, data):
-        """Hash lent avec délai artificiel"""
         time.sleep(0.001)
         return hashlib.sha256(data.encode()).hexdigest()
 
@@ -120,9 +115,11 @@ class VeilMiner:
         nonce = random.randint(0, 1000000)
         lp = time.time()
         
-        # Variables pour limiter le hashrate
         last_hash_time = time.time()
         hash_count_this_second = 0
+        last_mempool_fetch = 0
+        mempool = []
+        previous_hash = "0" * 64
 
         print(f"\n{G}{'='*60}{X}")
         print(f"{G}🔒 MINAGE LANCÉ - VERSION EXTREME{X}")
@@ -135,16 +132,14 @@ class VeilMiner:
         print(f"{G}{'='*60}{X}\n")
 
         while self.mining:
-            # Récupérer les transactions en attente toutes les 10 secondes
-            if int(time.time()) % 10 == 0:
+            # Récupérer la mempool toutes les 10 secondes
+            if time.time() - last_mempool_fetch > 10:
                 mempool = self.get_mempool()
                 last_block = self.get_last_block()
-                previous_hash = last_block.get('hash', "0" * 64) if last_block else "0" * 64
-            else:
-                mempool = []
-                previous_hash = "0" * 64
+                if last_block:
+                    previous_hash = last_block.get('hash', "0" * 64)
+                last_mempool_fetch = time.time()
             
-            # Limitation de vitesse
             hash_count_this_second += 1
             if hash_count_this_second >= self.hash_rate_limit:
                 elapsed = time.time() - last_hash_time
@@ -156,16 +151,14 @@ class VeilMiner:
             nonce += 1
             self.hashes += 1
             
-            # Construire le bloc à miner (avec les transactions)
             block_data = {
                 'miner': self.wallet,
                 'nonce': nonce,
-                'transactions': mempool[:10],  # Max 10 transactions par bloc
+                'transactions': mempool[:10],
                 'previous_hash': previous_hash,
                 'timestamp': time.time()
             }
             
-            # Hash du bloc
             block_string = json.dumps(block_data, sort_keys=True)
             h = self.slow_hash(block_string)
             
@@ -183,7 +176,6 @@ class VeilMiner:
                 print(f"   💧 +25 VEIL pour la pool")
                 print(f"{G}{'='*60}{X}")
                 
-                # Soumettre le bloc au serveur
                 result = self.submit_block(nonce, h, mempool[:10], previous_hash)
                 
                 if result and result.get("success"):
@@ -196,8 +188,9 @@ class VeilMiner:
                     print(f"   ❌ Bloc refusé: {error}")
                 
                 nonce = random.randint(0, 1000000)
+                # Forcer un rafraîchissement de la mempool
+                last_mempool_fetch = 0
             
-            # Affichage du hashrate
             if time.time() - lp > 5:
                 e = time.time() - self.t0
                 if e > 0: 
@@ -227,37 +220,4 @@ class VeilMiner:
         e = time.time() - self.t0 if self.t0 > 0 else 0
         print(f"\n\n{R}🛑 MINAGE ARRÊTÉ - {e/60:.1f} min | {self.blocks} blocs | {self.bal:.1f} VEIL{X}\n")
 
-def main():
-    os.system('cls' if os.name == 'nt' else 'clear')
-    print(f"""{G}
-╔══════════════════════════════════════════════════════════════╗
-║   ██╗   ██╗███████╗██╗██╗      ██████╗ ██████╗ ██╗███╗   ██╗
-║   ██║   ██║██╔════╝██║██║     ██╔════╝██╔═══██╗██║████╗  ██║
-║   ██║   ██║█████╗  ██║██║     ██║     ██║   ██║██║██╔██╗ ██║
-║   ╚██╗ ██╔╝██╔══╝  ██║██║     ██║     ██║   ██║██║██║╚██╗██║
-║    ╚████╔╝ ███████╗██║███████╗╚██████╗╚██████╔╝██║██║ ╚████║
-║     ╚═══╝  ╚══════╝╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝
-║            ⛏️  MINER v2.0 - DIFFICULTÉ 5  ⛏️                  ║
-║              (AVEC VALIDATION DES TRANSACTIONS)               ║
-╚══════════════════════════════════════════════════════════════╝{X}""")
-
-    m = VeilMiner()
-    print(f"{C}🌐 Connexion à {API_URL}...{X}")
-    s = m.stats()
-    if s:
-        print(f"{G}[OK]{X} Hauteur: {s.get('height',0)} | Difficulté: {s.get('difficulty',5)}")
-    
-    print(f"\n{G}🔐 CONNEXION WALLET{X}")
-    name = input(f"{W}Nom du wallet: {X}").strip() or "default"
-    seed = input(f"{W}Seed phrase (12 mots): {X}").strip()
-    if seed and m.login(name, seed):
-        print(f"{G}[OK]{X} Connecté ! Solde: {m.bal:.4f} VEIL")
-    
-    try:
-        m.mine()
-    except KeyboardInterrupt:
-        m.stop()
-        input(f"{W}Entrée pour quitter...{X}")
-
-if __name__ == "__main__":
-    main()
+def main
