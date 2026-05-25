@@ -4,29 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}VeilCoin{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        body{background:#0a0a1a;color:#fff;font-family:Arial,sans-serif;}
+        .card{background:#1a1a2e;border-radius:10px;padding:15px;margin-bottom:15px;}
+        .container{max-width:1200px;margin:0 auto;padding:20px;}
+        .row{display:flex;flex-wrap:wrap;gap:15px;}
+        .col-md-3{flex:1;min-width:200px;}
+        .col-md-4{flex:1;min-width:250px;}
+        .col-md-6{flex:2;min-width:300px;}
+        h1,h2,h3,h5{color:#fff;}
+        code{color:#20c997;background:#0d0d1a;padding:2px 8px;border-radius:5px;}
+        .btn{padding:10px 20px;border:none;border-radius:5px;cursor:pointer;}
+        input,textarea,select{background:#0d0d1a;border:1px solid #333;color:#fff;padding:8px;border-radius:5px;width:100%;}
+        table{width:100%;border-collapse:collapse;}
+        th{color:#20c997;text-align:left;padding:8px;}
+        td{color:#fff;padding:8px;border-bottom:1px solid #222;}
+        .navbar{background:#000;padding:15px;display:flex;justify-content:space-between;}
+        .navbar a{color:#fff;text-decoration:none;margin:0 10px;}
+        footer{text-align:center;padding:20px;color:#666;border-top:1px solid #222;}
+    </style>
     {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-dark text-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-black shadow-lg">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="/">🌫️ VeilCoin</a>
-            <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
-            <div class="collapse navbar-collapse" id="nav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="/"><i class="fas fa-chart-line"></i> Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/wallet"><i class="fas fa-wallet"></i> Wallet</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/blockchain"><i class="fas fa-cubes"></i> Blockchain</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/market"><i class="fas fa-handshake"></i> Marché</a></li>
-                </ul>
-            </div>
+<body>
+    <div class="navbar">
+        <a href="/" style="color:#20c997;font-weight:bold;">🌫️ VeilCoin</a>
+        <div>
+            <a href="/">Dashboard</a>
+            <a href="/wallet">Wallet</a>
+            <a href="/blockchain">Blockchain</a>
+            <a href="/market">Marché</a>
         </div>
-    </nav>
-    <main class="container-fluid py-4">{% block content %}{% endblock %}</main>
-    <footer class="bg-black text-center text-muted py-3"><small>VeilCoin v1.5.0</small></footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+    </div>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    <footer>VeilCoin v1.5.0</footer>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
