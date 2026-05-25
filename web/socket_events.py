@@ -9,14 +9,12 @@ def updater():
     global update_running
     while update_running:
         try:
-            from web.routes import blockchain, miner
+            from web.routes import blockchain
             socketio.emit('blockchain_stats', blockchain.get_stats())
-            if miner and miner.is_mining:
-                socketio.emit('miner_stats', miner.get_stats())
             socketio.emit('recent_blocks', blockchain.get_recent_blocks(5))
-        except Exception as e:
-            print(f"Socket error: {e}")
-        time.sleep(2)
+        except:
+            pass
+        time.sleep(10)  # Toutes les 10 secondes au lieu de 2
 
 @socketio.on('connect')
 def connect():
