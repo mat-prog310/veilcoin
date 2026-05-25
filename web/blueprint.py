@@ -145,8 +145,54 @@ def wallet_page():
 
 @web_bp.route('/blockchain')
 def blockchain_page():
-    blocks = get_recent_blocks(20)
-    stats = get_blockchain_stats()
+    blocks = []
+    stats = {
+        'height': 0,
+        'difficulty': 5,
+        'total_supply': 0,
+        'total_burned': total_burned,
+        'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0,
+        'remaining_supply': MAX_SUPPLY - total_burned,
+        'mempool_size': len(mempool)
+    }
+    
+    # Lire les blocs depuis mined_blocks.json
+    if os.path.exists(MINED_BLOCKS_FILE):
+        try:
+            with open(MINED_BLOCKS_FILE, 'r') as f:
+                all_blocks = json.load(f)
+                stats['height'] = len(all_blocks)
+                
+                # Prendre les 20 derniers blocs
+                for b in all_blocks[-20:]:
+                    blocks.append({
+                        'index': b.get('index', 0),
+                        'hash': b.get('hash', '')[:20] + '...',
+                        'full_hash': b.get('hash', ''),
+                        'tx_count': len(b.get('transactions', [])),
+                        'nonce': b.get('nonce', 0),
+                        'difficulty': b.get('difficulty', 5),
+                        'timestamp': b.get('timestamp', time.time()),
+                        'miner': b.get('miner', 'unknown')[:20] + '...' if len(b.get('miner', '')) > 20 else b.get('miner', 'unknown')
+                    })
+        except Exception as e:
+            print(f"Erreur lecture blocs: {e}")
+    
+    # Créer un bloc genesis si aucun bloc n'existe
+    if not blocks:
+        genesis_block = {
+            'index': 0,
+            'hash': '00000...GENESIS...',
+            'full_hash': '0000000000000000000000000000000000000000000000000000000000000000',
+            'tx_count': 0,
+            'nonce': 0,
+            'difficulty': 5,
+            'timestamp': time.time(),
+            'miner': 'system'
+        }
+        blocks.append(genesis_block)
+        stats['height'] = 1
+    
     return render_template('blockchain.html', blocks=blocks, stats=stats)
 
 @web_bp.route('/market')
