@@ -452,7 +452,3 @@ def health():
         'mempool_size': len(mempool)
     })
 
-@app.route('/api/miner/mempool', methods=['GET'])
-def get_mempool():
-    """Récupère les transactions en attente de validation"""
-    return jsonify({'transactions': mempool, 'count': len(mempool)})
