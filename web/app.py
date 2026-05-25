@@ -1,18 +1,25 @@
+# web/app.py - VERSION CORRIGÉE (sans socket_events)
+
 from flask import Flask
-from flask_socketio import SocketIO
 from flask_cors import CORS
-import os, sys
+import os
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import Config
+# Import des routes uniquement (pas socket_events)
+from web import routes
 
-app = Flask(__name__, template_folder='../templates', static_folder='../static')
-app.config['SECRET_KEY'] = Config.SECRET_KEY
-app.config['DEBUG'] = False
+def create_app():
+    app = Flask(__name__)
+    CORS(app)
+    
+    # Configuration
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-veilcoin')
+    
+    # Pas de socketio.init_app(app) ici
+    
+    return app
 
-# CORS pour tous les domaines
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# Créer l'instance
+app = create_app()
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
-
-from web import routes, socket_events
+# Enregistrer les routes (si nécessaire)
+# Les routes sont déjà importées via 'from web import routes'
