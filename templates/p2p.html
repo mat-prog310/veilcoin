@@ -4,21 +4,31 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1 class="text-center mb-4">🤝 Marché P2P VeilCoin</h1>
-    <p class="text-center text-muted">Achetez et vendez des VEIL directement avec PayPal</p>
+    <h1 class="text-center mb-4" style="color: #00ff88;">🤝 Marché P2P VeilCoin</h1>
+    <p class="text-center text-light">Achetez et vendez des VEIL directement entre utilisateurs avec PayPal</p>
+    
+    <!-- Onglets -->
+    <ul class="nav nav-tabs mb-4" id="p2pTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#buy" type="button" role="tab" style="background-color: #1a1a1a; color: #00ff88;">🟢 ACHETER</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#sell" type="button" role="tab" style="background-color: #1a1a1a; color: #ff4444;">🔴 VENDRE</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#myorders" type="button" role="tab" style="background-color: #1a1a1a; color: #ffc107;">📦 Mes offres</button>
+        </li>
+    </ul>
     
     <!-- Connexion wallet -->
-    <div class="card bg-dark mb-4">
-        <div class="card-header">
-            <h4>👛 Connexion</h4>
-        </div>
+    <div class="card bg-dark mb-4" style="background-color: #141414 !important;">
         <div class="card-body">
             <div class="row">
                 <div class="col-md-5">
-                    <input type="text" id="wallet-name" class="form-control bg-dark text-white" placeholder="Nom wallet">
+                    <input type="text" id="wallet-name" class="form-control bg-dark text-white" placeholder="Nom wallet" style="background-color: #0f0f0f !important;">
                 </div>
                 <div class="col-md-5">
-                    <input type="text" id="wallet-seed" class="form-control bg-dark text-white" placeholder="Seed phrase">
+                    <input type="text" id="wallet-seed" class="form-control bg-dark text-white" placeholder="Seed phrase" style="background-color: #0f0f0f !important;">
                 </div>
                 <div class="col-md-2">
                     <button id="connect-btn" class="btn btn-success w-100">🔌 Connecter</button>
@@ -30,86 +40,128 @@
         </div>
     </div>
     
-    <div class="row">
-        <!-- Créer une offre -->
-        <div class="col-md-4">
-            <div class="card bg-dark">
-                <div class="card-header">
-                    <h4>💰 Vendre des VEIL</h4>
-                </div>
-                <div class="card-body">
-                    <input type="number" id="sell-amount" class="form-control bg-dark text-white mb-2" placeholder="Montant VEIL">
-                    <input type="number" id="sell-price" class="form-control bg-dark text-white mb-2" placeholder="Prix par VEIL (EUR)">
-                    <button id="create-offer-btn" class="btn btn-primary w-100">📢 Créer l'offre</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Liste des offres -->
-        <div class="col-md-8">
-            <div class="card bg-dark">
-                <div class="card-header">
-                    <h4>📋 Offres de vente</h4>
+    <div class="tab-content">
+        <!-- ==================== ONGLET ACHETER ==================== -->
+        <div class="tab-pane fade show active" id="buy" role="tabpanel">
+            <div class="card bg-dark" style="background-color: #141414 !important;">
+                <div class="card-header" style="background-color: #1a1a1a;">
+                    <h4 style="color: #00ff88;">🟢 Offres de vente</h4>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-dark table-hover mb-0">
-                            <thead><tr><th>ID</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th><th>Action</th></tr></thead>
-                            <tbody id="orders-list"><tr><td colspan="5" class="text-center">Chargement...</td></tr></tbody>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>VEIL</th>
+                                    <th>Prix/VEIL</th>
+                                    <th>Total EUR</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-list">
+                                <tr><td colspan="5" class="text-center">Chargement...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== ONGLET VENDRE ==================== -->
+        <div class="tab-pane fade" id="sell" role="tabpanel">
+            <div class="card bg-dark" style="background-color: #141414 !important;">
+                <div class="card-header" style="background-color: #1a1a1a;">
+                    <h4 style="color: #ff4444;">🔴 Vendre des VEIL</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label>💰 Montant de VEIL</label>
+                            <input type="number" id="sell-amount" class="form-control bg-dark text-white" placeholder="Ex: 100" style="background-color: #0f0f0f !important;">
+                        </div>
+                        <div class="col-md-4">
+                            <label>💶 Prix par VEIL (EUR)</label>
+                            <input type="number" id="sell-price" class="form-control bg-dark text-white" placeholder="Ex: 0.05" step="0.001" style="background-color: #0f0f0f !important;">
+                        </div>
+                        <div class="col-md-4">
+                            <label>📧 Votre email PayPal</label>
+                            <input type="email" id="seller-email" class="form-control bg-dark text-white" placeholder="votre@email.com" style="background-color: #0f0f0f !important;">
+                        </div>
+                    </div>
+                    <button id="create-offer-btn" class="btn btn-primary w-100 mt-3" style="background-color: #00ff88; color: #000; font-weight: bold;">📢 Créer l'offre de vente</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== ONGLET MES OFFRES ==================== -->
+        <div class="tab-pane fade" id="myorders" role="tabpanel">
+            <div class="card bg-dark" style="background-color: #141414 !important;">
+                <div class="card-header" style="background-color: #1a1a1a;">
+                    <h4 style="color: #ffc107;">📦 Mes offres</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>VEIL</th>
+                                    <th>Prix</th>
+                                    <th>Total</th>
+                                    <th>Statut</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="my-orders-list">
+                                <tr><td colspan="6" class="text-center">Connectez-vous</td></tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- Mes offres -->
-    <div class="card bg-dark mt-4">
-        <div class="card-header">
-            <h4>📦 Mes offres</h4>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-dark table-hover mb-0">
-                    <thead><tr><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Action</th></tr></thead>
-                    <tbody id="my-orders-list"><tr><td colspan="6" class="text-center">Connectez-vous</td></tr></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
 </div>
 
-<!-- Popups -->
-<div id="buy-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:300px;">
-    <h4>Acheter des VEIL</h4>
-    <p id="buy-details"></p>
-    <input type="email" id="buyer-email" class="form-control bg-dark text-white mb-2" placeholder="Email PayPal">
-    <button id="confirm-buy-btn" class="btn btn-success w-100 mb-2">Confirmer l'achat</button>
-    <button id="close-modal" class="btn btn-secondary w-100">Fermer</button>
+<!-- Popup pour acheter -->
+<div id="buy-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:300px; border: 1px solid #00ff88;">
+    <h4 style="color: #00ff88;">🟢 Acheter des VEIL</h4>
+    <p id="buy-details" style="color: white;"></p>
+    <input type="email" id="buyer-email" class="form-control bg-dark text-white mb-2" placeholder="Votre email PayPal">
+    <button id="confirm-buy-btn" class="btn btn-success w-100 mb-2">✅ Confirmer l'achat</button>
+    <button id="close-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
 
-<div id="pay-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px;">
-    <h4>📧 Paiement PayPal</h4>
-    <p>Contactez le vendeur : <strong id="seller-email"></strong></p>
-    <p>Montant : <strong id="pay-amount"></strong> EUR</p>
-    <button id="confirm-payment-btn" class="btn btn-warning w-100 mb-2">J'ai payé ✅</button>
-    <button id="close-pay-modal" class="btn btn-secondary w-100">Fermer</button>
+<!-- Popup pour paiement -->
+<div id="pay-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border: 1px solid #00ff88;">
+    <h4 style="color: #ffc107;">📧 Paiement PayPal</h4>
+    <p style="color: white;">Contactez le vendeur : <strong id="seller-email" style="color: #00ff88;"></strong></p>
+    <p style="color: white;">Montant à payer : <strong id="pay-amount" style="color: #00ff88;"></strong> EUR</p>
+    <button id="confirm-payment-btn" class="btn btn-warning w-100 mb-2">💸 J'ai payé</button>
+    <button id="close-pay-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
 
-<div id="confirm-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:300px;">
-    <h4>🔐 Confirmation</h4>
-    <p>Confirmez-vous avoir reçu les VEIL ?</p>
-    <button id="confirm-receipt-btn" class="btn btn-success w-100 mb-2">Oui, j'ai reçu ✅</button>
-    <button id="close-confirm-modal" class="btn btn-secondary w-100">Fermer</button>
+<!-- Popup pour confirmer réception -->
+<div id="confirm-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:300px; border: 1px solid #00ff88;">
+    <h4 style="color: #00ff88;">🔐 Confirmation réception</h4>
+    <p style="color: white;">Confirmez-vous avoir reçu les VEIL ?</p>
+    <button id="confirm-receipt-btn" class="btn btn-success w-100 mb-2">✅ Oui, j'ai reçu</button>
+    <button id="close-confirm-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
 
 <script>
 let currentWallet = null, currentBalance = 0, currentOrderId = null;
 
+// Connexion
 document.getElementById('connect-btn').onclick = async () => {
     const name = document.getElementById('wallet-name').value;
     const seed = document.getElementById('wallet-seed').value;
-    const res = await fetch('/api/wallet/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, seed_phrase: seed})});
+    const res = await fetch('/api/wallet/login', {
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({name, seed_phrase: seed})
+    });
     const data = await res.json();
     if (data.success) {
         currentWallet = name;
@@ -122,39 +174,94 @@ document.getElementById('connect-btn').onclick = async () => {
     } else alert('Erreur: ' + data.error);
 };
 
+// Charger les offres
 async function loadOrders() {
     const res = await fetch('/api/p2p/orders');
     const data = await res.json();
     const tbody = document.getElementById('orders-list');
-    if (!data.orders.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-center">Aucune offre</td></tr>'; return; }
-    tbody.innerHTML = data.orders.map(o => `<tr><td>${o.id}</td><td>${o.amount_veil}</td><td>${o.price_eur} EUR</td><td>${o.total_eur} EUR</td><td><button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">Acheter</button></td></tr>`).join('');
+    if (!data.orders.length) { 
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Aucune offre de vente</td></tr>'; 
+        return; 
+    }
+    tbody.innerHTML = data.orders.map(o => `
+        <tr>
+            <td>${o.id}</td>
+            <td>${o.amount_veil}</td>
+            <td>${o.price_eur} EUR</td>
+            <td>${o.total_eur} EUR</td>
+            <td><button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">🟢 Acheter</button></td>
+        </tr>
+    `).join('');
 }
 
+// Charger mes offres
 async function loadMyOrders() {
     if (!currentWallet) return;
     const res = await fetch(`/api/p2p/my-orders?wallet=${currentWallet}`);
     const data = await res.json();
     const tbody = document.getElementById('my-orders-list');
-    if (!data.orders.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center">Aucune offre</td></tr>'; return; }
-    tbody.innerHTML = data.orders.map(o => `<tr><td>${o.id}</td><td>${o.amount_veil}</td><td>${o.price_eur} EUR</td><td>${o.total_eur} EUR</td><td><span class="badge ${o.status === 'open' ? 'bg-success' : (o.status === 'matched' ? 'bg-warning' : 'bg-secondary')}">${o.status === 'open' ? '📢 En vente' : (o.status === 'matched' ? '⏳ En attente' : '✅ Vendu')}</span></td><td>${o.status === 'matched' ? `<button class="btn btn-sm btn-warning" onclick="confirmSeller('${o.id}')">Confirmer vente</button>` : (o.status === 'open' ? `<button class="btn btn-sm btn-danger" onclick="cancelOrder('${o.id}')">Annuler</button>` : '')}</td></tr>`).join('');
+    if (!data.orders.length) { 
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Aucune offre</td></tr>'; 
+        return; 
+    }
+    tbody.innerHTML = data.orders.map(o => `
+        <tr>
+            <td>${o.id}</td>
+            <td>${o.amount_veil}</td>
+            <td>${o.price_eur} EUR</td>
+            <td>${o.total_eur} EUR</td>
+            <td><span class="badge ${o.status === 'open' ? 'bg-success' : (o.status === 'matched' ? 'bg-warning' : 'bg-secondary')}">${o.status === 'open' ? '📢 En vente' : (o.status === 'matched' ? '⏳ En attente' : '✅ Vendue')}</span></td>
+            <td>${o.status === 'matched' ? `<button class="btn btn-sm btn-warning" onclick="confirmSeller('${o.id}')">Confirmer vente</button>` : (o.status === 'open' ? `<button class="btn btn-sm btn-danger" onclick="cancelOrder('${o.id}')">Annuler</button>` : '✅ Vendu')}</td>
+        </tr>
+    `).join('');
 }
 
+// Créer une offre de vente
 document.getElementById('create-offer-btn').onclick = async () => {
-    if (!currentWallet) { alert('Connectez-vous'); return; }
+    if (!currentWallet) { alert('Connectez-vous d\'abord'); return; }
     const amount = parseFloat(document.getElementById('sell-amount').value);
     const price = parseFloat(document.getElementById('sell-price').value);
+    const email = document.getElementById('seller-email').value;
+    
     if (!amount || !price) { alert('Entrez montant et prix'); return; }
-    const res = await fetch('/api/p2p/create', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({wallet: currentWallet, amount_veil: amount, price_eur: price})});
+    if (!email) { alert('Entrez votre email PayPal'); return; }
+    
+    const res = await fetch('/api/p2p/create', {
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({
+            wallet: currentWallet, 
+            amount_veil: amount, 
+            price_eur: price,
+            seller_email: email
+        })
+    });
     const data = await res.json();
-    if (data.success) { alert('Offre créée !'); loadOrders(); loadMyOrders(); }
-    else alert('Erreur: ' + data.error);
+    if (data.success) { 
+        alert('Offre créée !'); 
+        loadOrders(); 
+        loadMyOrders(); 
+        document.getElementById('sell-amount').value = ''; 
+        document.getElementById('sell-price').value = '';
+        document.getElementById('seller-email').value = '';
+    } else alert('Erreur: ' + data.error);
 };
 
-window.buyOrder = (orderId, amount, total) => { currentOrderId = orderId; document.getElementById('buy-details').innerHTML = `Achat de ${amount} VEIL pour ${total} EUR`; document.getElementById('buy-modal').style.display = 'block'; };
+// Acheter une offre
+window.buyOrder = (orderId, amount, total) => { 
+    currentOrderId = orderId; 
+    document.getElementById('buy-details').innerHTML = `Achat de ${amount} VEIL pour ${total} EUR`; 
+    document.getElementById('buy-modal').style.display = 'block'; 
+};
+
 document.getElementById('confirm-buy-btn').onclick = async () => {
     const email = document.getElementById('buyer-email').value;
-    if (!email) { alert('Entrez email PayPal'); return; }
-    const res = await fetch('/api/p2p/match', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({order_id: currentOrderId, buyer: currentWallet, email})});
+    if (!email) { alert('Entrez votre email PayPal'); return; }
+    const res = await fetch('/api/p2p/match', {
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({order_id: currentOrderId, buyer: currentWallet, email: email})
+    });
     const data = await res.json();
     if (data.success) {
         document.getElementById('buy-modal').style.display = 'none';
@@ -163,8 +270,13 @@ document.getElementById('confirm-buy-btn').onclick = async () => {
         document.getElementById('pay-modal').style.display = 'block';
     } else alert('Erreur: ' + data.error);
 };
+
 document.getElementById('confirm-payment-btn').onclick = async () => {
-    const res = await fetch('/api/p2p/pay', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({order_id: currentOrderId, buyer: currentWallet})});
+    const res = await fetch('/api/p2p/pay', {
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({order_id: currentOrderId, buyer: currentWallet})
+    });
     const data = await res.json();
     if (data.success) {
         document.getElementById('pay-modal').style.display = 'none';
@@ -172,28 +284,57 @@ document.getElementById('confirm-payment-btn').onclick = async () => {
         document.getElementById('confirm-modal').style.display = 'block';
     } else alert('Erreur: ' + data.error);
 };
+
 document.getElementById('confirm-receipt-btn').onclick = async () => {
-    const res = await fetch('/api/p2p/confirm', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({order_id: currentOrderId, wallet: currentWallet, confirm_type: 'buyer'})});
+    const res = await fetch('/api/p2p/confirm', {
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({order_id: currentOrderId, wallet: currentWallet, confirm_type: 'buyer'})
+    });
     const data = await res.json();
-    if (data.success) { alert(data.message); document.getElementById('confirm-modal').style.display = 'none'; loadOrders(); loadMyOrders(); }
-    else alert('Erreur: ' + data.error);
+    if (data.success) { 
+        alert(data.message); 
+        document.getElementById('confirm-modal').style.display = 'none'; 
+        loadOrders(); 
+        loadMyOrders(); 
+    } else alert('Erreur: ' + data.error);
 };
+
 window.confirmSeller = async (orderId) => {
-    const res = await fetch('/api/p2p/confirm', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({order_id: orderId, wallet: currentWallet, confirm_type: 'seller'})});
+    const res = await fetch('/api/p2p/confirm', {
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({order_id: orderId, wallet: currentWallet, confirm_type: 'seller'})
+    });
     const data = await res.json();
-    if (data.success) { alert(data.message); loadMyOrders(); loadOrders(); }
-    else alert('Erreur: ' + data.error);
+    if (data.success) { 
+        alert(data.message); 
+        loadMyOrders(); 
+        loadOrders(); 
+    } else alert('Erreur: ' + data.error);
 };
+
 window.cancelOrder = async (orderId) => {
     if (!confirm('Annuler cette offre ?')) return;
-    const res = await fetch('/api/p2p/cancel', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({order_id: orderId, wallet: currentWallet})});
+    const res = await fetch('/api/p2p/cancel', {
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({order_id: orderId, wallet: currentWallet})
+    });
     const data = await res.json();
-    if (data.success) { alert('Offre annulée'); loadMyOrders(); loadOrders(); }
-    else alert('Erreur: ' + data.error);
+    if (data.success) { 
+        alert('Offre annulée'); 
+        loadMyOrders(); 
+        loadOrders(); 
+    } else alert('Erreur: ' + data.error);
 };
+
+// Fermer les modales
 document.getElementById('close-modal').onclick = () => document.getElementById('buy-modal').style.display = 'none';
 document.getElementById('close-pay-modal').onclick = () => document.getElementById('pay-modal').style.display = 'none';
 document.getElementById('close-confirm-modal').onclick = () => document.getElementById('confirm-modal').style.display = 'none';
+
+// Rafraîchissement automatique
 setInterval(() => { if(currentWallet){ loadOrders(); loadMyOrders(); } }, 10000);
 </script>
 {% endblock %}
