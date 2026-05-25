@@ -15,13 +15,13 @@ from config import Config
 # Création du Blueprint
 web_bp = Blueprint('web', __name__, template_folder='../templates')
 
-# Initialisation
+# Initialisation (sans blockchain)
 try:
     from core.blockchain import Blockchain
     blockchain = Blockchain()
 except:
     blockchain = None
-    print("⚠️ Blockchain non disponible")
+    print("⚠️ Blockchain non disponible - Utilisation du stockage JSON")
 
 market = VeilMarket(blockchain) if blockchain else None
 pool = LiquidityPool(market, blockchain) if market else None
@@ -31,19 +31,28 @@ if pool:
 active_wallets = {}
 mempool = []
 
-# Statistiques du burn
+# ==================== STATS BURN ====================
 MAX_SUPPLY = 1_000_000_000
 total_burned = 0
 total_fees_collected = 0
 
 # Fichiers de données
-MINED_BLOCKS_FILE = os.path.join(Config.DATA_DIR, "mined_blocks.json")
-BURN_STATS_FILE = os.path.join(Config.DATA_DIR, "burn_stats.json")
-os.makedirs(Config.DATA_DIR, exist_ok=True)
+DATA_DIR = Config.DATA_DIR
+MINED_BLOCKS_FILE = os.path.join(DATA_DIR, "mined_blocks.json")
+BURN_STATS_FILE = os.path.join(DATA_DIR, "burn_stats.json")
+os.makedirs(DATA_DIR, exist_ok=True)
 
-# Stockage P2P
-p2p_orders = {}
-order_counter = 0
+# Charger les stats de burn
+if os.path.exists(BURN_STATS_FILE):
+    try:
+        with open(BURN_STATS_FILE, 'r') as f:
+            burn_data = json.load(f)
+            total_burned = burn_data.get('total_burned', 0)
+            total_fees_collected = burn_data.get('total_fees_collected', 0)
+    except:
+        pass
+
+# ==================== FONCTIONS ====================
 
 def save_burn_stats():
     with open(BURN_STATS_FILE, 'w') as f:
@@ -72,17 +81,58 @@ def apply_burn(fee):
         'treasury': treasury_amount,
         'total_burned_since_start': total_burned,
         'remaining_supply': MAX_SUPPLY - total_burned,
-        'burn_percentage': (total_burned / MAX_SUPPLY) * 100
+        'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0
     }
 
-# ==================== ROUTES ====================
+def get_blockchain_stats():
+    """Récupère les stats depuis mined_blocks.json"""
+    stats = {
+        'height': 0,
+        'difficulty': 5,
+        'total_supply': 0,
+        'total_burned': total_burned,
+        'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0,
+        'remaining_supply': MAX_SUPPLY - total_burned,
+        'mempool_size': len(mempool)
+    }
+    
+    if os.path.exists(MINED_BLOCKS_FILE):
+        try:
+            with open(MINED_BLOCKS_FILE, 'r') as f:
+                blocks = json.load(f)
+                stats['height'] = len(blocks)
+        except:
+            pass
+    
+    return stats
+
+def get_recent_blocks(n=20):
+    """Récupère les n derniers blocs depuis mined_blocks.json"""
+    blocks = []
+    if os.path.exists(MINED_BLOCKS_FILE):
+        try:
+            with open(MINED_BLOCKS_FILE, 'r') as f:
+                all_blocks = json.load(f)
+                for b in all_blocks[-n:]:
+                    blocks.append({
+                        'index': b.get('index', 0),
+                        'hash': b.get('hash', '')[:20],
+                        'full_hash': b.get('hash', ''),
+                        'tx_count': len(b.get('transactions', [])),
+                        'nonce': b.get('nonce', 0),
+                        'difficulty': b.get('difficulty', 5),
+                        'timestamp': b.get('timestamp', time.time()),
+                        'miner': b.get('miner', 'unknown')
+                    })
+        except:
+            pass
+    return blocks
+
+# ==================== PAGES WEB ====================
 
 @web_bp.route('/')
 def index():
-    stats = blockchain.get_stats() if blockchain else {'height': 0, 'difficulty': 5, 'total_supply': 0}
-    stats['total_burned'] = total_burned
-    stats['burn_percentage'] = (total_burned / MAX_SUPPLY) * 100
-    stats['remaining_supply'] = MAX_SUPPLY - total_burned
+    stats = get_blockchain_stats()
     return render_template('index.html', stats=stats)
 
 @web_bp.route('/wallet')
@@ -91,20 +141,15 @@ def wallet_page():
 
 @web_bp.route('/blockchain')
 def blockchain_page():
-    blocks = []
-    stats = {'height': 0, 'difficulty': 5}
-    if blockchain:
-        blocks = blockchain.get_recent_blocks(20)
-        stats = blockchain.get_stats()
-    stats['total_burned'] = total_burned
-    stats['burn_percentage'] = (total_burned / MAX_SUPPLY) * 100
-    return render_template('blockchain.html', blocks=blocks[-20:], stats=stats)
+    blocks = get_recent_blocks(20)
+    stats = get_blockchain_stats()
+    return render_template('blockchain.html', blocks=blocks, stats=stats)
 
 @web_bp.route('/market')
 def market_page():
     return render_template('market.html', wallets=list(active_wallets.keys()))
 
-# ==================== API ROUTES ====================
+# ==================== API WALLET ====================
 
 @web_bp.route('/api/wallet/create', methods=['POST'])
 def api_create_wallet():
@@ -114,7 +159,13 @@ def api_create_wallet():
         w = VeilWallet(name)
         r = w.create_new()
         active_wallets[name] = w
-        return jsonify({'success': True, 'name': name, 'address': r['address'], 'seed_phrase': r['seed_phrase'], 'balance': r.get('balance', 0)})
+        return jsonify({
+            'success': True, 
+            'name': name, 
+            'address': r['address'], 
+            'seed_phrase': r['seed_phrase'],
+            'balance': r.get('balance', 0)
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -130,7 +181,12 @@ def api_login():
         if not w.verify_seed(seed):
             return jsonify({'success': False, 'error': 'Seed incorrecte'})
         active_wallets[name] = w
-        return jsonify({'success': True, 'name': name, 'address': w.address, 'balance': w.balance})
+        return jsonify({
+            'success': True, 
+            'name': name, 
+            'address': w.address, 
+            'balance': w.balance
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -144,10 +200,18 @@ def api_balance(name):
             if not w.load_or_create():
                 return jsonify({'balance_veil': 0})
             active_wallets[name] = w
+        
         price = pool.get_veil_price() if pool else 0.042
-        return jsonify({'name': name, 'balance_veil': w.balance, 'balance_eur': round(w.balance * price, 6), 'veil_price': price})
-    except:
-        return jsonify({'balance_veil': 0})
+        return jsonify({
+            'name': name, 
+            'balance_veil': w.balance, 
+            'balance_eur': round(w.balance * price, 6), 
+            'veil_price': price,
+            'total_burned': total_burned,
+            'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0
+        })
+    except Exception as e:
+        return jsonify({'balance_veil': 0, 'error': str(e)})
 
 @web_bp.route('/api/wallet/<name>/send', methods=['POST'])
 def api_send(name):
@@ -155,6 +219,7 @@ def api_send(name):
         d = request.get_json()
         to = d.get('to')
         amount = float(d.get('amount', 0))
+        
         if name in active_wallets:
             w = active_wallets[name]
         else:
@@ -162,18 +227,51 @@ def api_send(name):
             if not w.load_or_create():
                 return jsonify({'success': False, 'error': 'Wallet non trouvé'})
             active_wallets[name] = w
+        
         fee = calculate_fee(amount)
-        total = amount + fee
-        if w.balance < total:
-            return jsonify({'success': False, 'error': f'Solde insuffisant'})
+        total_amount = amount + fee
+        
+        if w.balance < total_amount:
+            return jsonify({'success': False, 'error': f'Solde insuffisant. Nécessaire: {total_amount:.4f} VEIL'})
+        
         burn_result = apply_burn(fee)
-        w.balance -= total
+        
+        w.balance -= total_amount
         w.save()
-        transaction = {'from': w.address, 'to': to, 'amount': amount, 'fee': fee, 'timestamp': time.time()}
+        
+        transaction = {
+            'from': w.address,
+            'to': to,
+            'amount': amount,
+            'fee': fee,
+            'burned': burn_result['burned'],
+            'treasury': burn_result['treasury'],
+            'timestamp': time.time(),
+            'signature': hashlib.sha256(f"{w.address}{to}{amount}{fee}{time.time()}".encode()).hexdigest()
+        }
+        
         mempool.append(transaction)
-        return jsonify({'success': True, 'new_balance': w.balance, 'fee': fee, 'burned': burn_result['burned']})
+        
+        return jsonify({
+            'success': True,
+            'new_balance': w.balance,
+            'to': to,
+            'amount': amount,
+            'fee': fee,
+            'burned': burn_result['burned'],
+            'burn_percentage': burn_result['burn_percentage'],
+            'total_burned_since_start': burn_result['total_burned_since_start'],
+            'message': f'Transaction envoyée ! Frais: {fee:.4f} VEIL (dont {burn_result["burned"]:.4f} brûlés)'
+        })
+        
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/wallet/logout', methods=['POST'])
+def api_logout():
+    return jsonify({'success': True})
+
+# ==================== API MINER ====================
 
 @web_bp.route('/api/miner/submit_block', methods=['POST'])
 def submit_block():
@@ -184,10 +282,17 @@ def submit_block():
         hash_proof = data.get('hash')
         previous_hash = data.get('previous_hash', '')
         transactions = data.get('transactions', [])
-        if not hash_proof.startswith('0' * 5):
-            return jsonify({'success': False, 'error': 'Preuve invalide'})
+        
+        REQUIRED_DIFFICULTY = 5
+        
+        if not hash_proof.startswith('0' * REQUIRED_DIFFICULTY):
+            return jsonify({'success': False, 'error': f'Preuve invalide - besoin de {REQUIRED_DIFFICULTY} zéros'})
+        
+        # Lire les blocs existants
+        existing_blocks = []
         last_block_hash = "0" * 64
         last_block_index = 0
+        
         if os.path.exists(MINED_BLOCKS_FILE):
             with open(MINED_BLOCKS_FILE, 'r') as f:
                 existing_blocks = json.load(f)
@@ -195,6 +300,8 @@ def submit_block():
                     last_block = existing_blocks[-1]
                     last_block_hash = last_block.get('hash', "0" * 64)
                     last_block_index = last_block.get('index', 0)
+        
+        # Créer le nouveau bloc
         new_block = {
             'index': last_block_index + 1,
             'timestamp': time.time(),
@@ -205,33 +312,117 @@ def submit_block():
             'miner': wallet,
             'reward_miner': 25,
             'reward_pool': 25,
-            'difficulty': 5
+            'total_reward': 50,
+            'difficulty': REQUIRED_DIFFICULTY
         }
-        existing_blocks = []
-        if os.path.exists(MINED_BLOCKS_FILE):
-            with open(MINED_BLOCKS_FILE, 'r') as f:
-                existing_blocks = json.load(f)
+        
+        # Sauvegarder
         existing_blocks.append(new_block)
         with open(MINED_BLOCKS_FILE, 'w') as f:
             json.dump(existing_blocks[-100:], f, indent=2)
+        
+        # Récompenser le mineur
         w = VeilWallet(wallet)
         w.load_or_create()
         w.balance += 25
         w.save()
         active_wallets[wallet] = w
+        
+        # Ajouter à la pool
         if pool:
             pool.pool_veil = getattr(pool, 'pool_veil', 0) + 25
-        return jsonify({'success': True, 'reward_miner': 25, 'new_balance': w.balance})
+        
+        # Vider la mempool
+        for tx in transactions:
+            if tx in mempool:
+                mempool.remove(tx)
+        
+        return jsonify({
+            'success': True,
+            'reward_miner': 25,
+            'reward_pool': 25,
+            'total_reward': 50,
+            'new_balance': w.balance,
+            'block_index': new_block['index'],
+            'block_hash': hash_proof,
+            'message': f'Bloc #{new_block["index"]} validé ! +25 VEIL pour vous'
+        })
+        
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/miner/stats', methods=['GET'])
+def miner_stats():
+    blocks_count = 0
+    if os.path.exists(MINED_BLOCKS_FILE):
+        try:
+            with open(MINED_BLOCKS_FILE, 'r') as f:
+                blocks_count = len(json.load(f))
+        except:
+            pass
+    
+    return jsonify({
+        'difficulty': 5,
+        'reward': 25,
+        'required_zeros': 5,
+        'estimated_hashes': 1048576,
+        'network_hashrate': 0,
+        'mempool_size': len(mempool),
+        'total_blocks': blocks_count
+    })
 
 @web_bp.route('/api/miner/mempool', methods=['GET'])
 def get_mempool():
     return jsonify({'transactions': mempool, 'count': len(mempool)})
 
+# ==================== API STATS ====================
+
 @web_bp.route('/api/stats')
 def api_stats():
-    return jsonify({'height': 0, 'difficulty': 5, 'mempool_size': len(mempool), 'total_burned': total_burned})
+    stats = get_blockchain_stats()
+    return jsonify(stats)
+
+@web_bp.route('/api/blockchain/blocks')
+def api_blocks():
+    if os.path.exists(MINED_BLOCKS_FILE):
+        with open(MINED_BLOCKS_FILE, 'r') as f:
+            blocks = json.load(f)
+        return jsonify({'blocks': blocks[-20:], 'total': len(blocks)})
+    return jsonify({'blocks': [], 'total': 0})
+
+@web_bp.route('/api/market/price')
+def api_price():
+    if pool:
+        return jsonify({
+            'current_price': pool.get_veil_price(), 
+            'pool_veil': getattr(pool, 'pool_veil', 0), 
+            'pool_eur': getattr(pool, 'pool_eur', 0)
+        })
+    return jsonify({'current_price': 0.042, 'pool_veil': 0, 'pool_eur': 0})
+
+@web_bp.route('/api/market/offers')
+def api_offers():
+    if pool:
+        return jsonify(pool.get_open_sell_offers())
+    return jsonify([])
+
+@web_bp.route('/api/pool/info')
+def api_pool_info():
+    if pool:
+        return jsonify(pool.get_pool_info())
+    return jsonify({})
+
+@web_bp.route('/api/burn/stats')
+def api_burn_stats():
+    return jsonify({
+        'total_burned': total_burned,
+        'total_fees_collected': total_fees_collected,
+        'max_supply': MAX_SUPPLY,
+        'remaining_supply': MAX_SUPPLY - total_burned,
+        'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0
+    })
+
+# ==================== PING & HEALTH ====================
 
 @web_bp.route('/ping')
 def ping():
@@ -239,31 +430,19 @@ def ping():
 
 @web_bp.route('/health')
 def health():
-    return jsonify({'status': 'ok', 'mempool_size': len(mempool), 'total_burned': total_burned})
-
-# Ajoutez ceci dans web/blueprint.py, après les imports
-
-def init_blockchain():
-    """Initialise la blockchain si elle n'existe pas"""
-    blockchain_file = os.path.join(Config.DATA_DIR, 'blockchain.json')
-    if not os.path.exists(blockchain_file):
-        genesis_block = {
-            'index': 0,
-            'timestamp': time.time(),
-            'transactions': [],
-            'nonce': 0,
-            'previous_hash': '0' * 64,
-            'hash': hashlib.sha256(b'VEILCOIN_GENESIS').hexdigest(),
-            'miner': 'system',
-            'reward_miner': 0,
-            'reward_pool': 0,
-            'difficulty': 5
-        }
-        with open(blockchain_file, 'w') as f:
-            json.dump([genesis_block], f, indent=2)
-        print("✅ Blockchain initialisée avec bloc genesis")
-        return True
-    return False
-
-# Appeler l'initialisation
-init_blockchain()
+    blocks_count = 0
+    if os.path.exists(MINED_BLOCKS_FILE):
+        try:
+            with open(MINED_BLOCKS_FILE, 'r') as f:
+                blocks_count = len(json.load(f))
+        except:
+            pass
+    
+    return jsonify({
+        'status': 'ok',
+        'pool': pool is not None,
+        'wallets_count': len(active_wallets),
+        'mempool_size': len(mempool),
+        'total_burned': total_burned,
+        'total_blocks': blocks_count
+    })
