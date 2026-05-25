@@ -2,7 +2,7 @@
 """
 ╔══════════════════════════════════════════════════════════════╗
 ║                 👛  VEILCOIN WALLET  👛                       ║
-║                    Terminal v1.0.0                           ║
+║                    Terminal v2.0.0                           ║
 ║              Mine Simply. Transact Privately.                ║
 ╚══════════════════════════════════════════════════════════════╝
 """
@@ -12,6 +12,7 @@ import json
 import hashlib
 import secrets
 import urllib.request
+import urllib.error
 import ssl
 from datetime import datetime
 
@@ -21,7 +22,7 @@ if os.name == 'nt':
     import ctypes
     kernel32 = ctypes.windll.kernel32
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
-    G = ""; Y = ""; R = ""; C = ""; W = ""; X = ""
+    G = Y = R = C = W = X = ""
 else:
     G = "\033[92m"; Y = "\033[93m"; R = "\033[91m"
     C = "\033[96m"; W = "\033[97m"; X = "\033[0m"
@@ -34,21 +35,27 @@ class WalletApp:
         self.address = ""
         self.seed = ""
         self.balance = 0.0
+        self.last_refresh = 0
 
     def api(self, ep, data=None):
         try:
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
+            url = f"{API_URL}{ep}"
             if data:
-                req = urllib.request.Request(f"{API_URL}{ep}",
+                req = urllib.request.Request(url,
                     data=json.dumps(data).encode(),
                     headers={'Content-Type': 'application/json'}, method='POST')
             else:
-                req = urllib.request.Request(f"{API_URL}{ep}")
+                req = urllib.request.Request(url)
             with urllib.request.urlopen(req, timeout=10, context=ctx) as r:
                 return json.loads(r.read().decode())
-        except:
+        except urllib.error.URLError as e:
+            print(f"{R}❌ Erreur réseau: {e.reason}{X}")
+            return None
+        except Exception as e:
+            print(f"{R}❌ Erreur: {e}{X}")
             return None
 
     def create(self, name):
@@ -57,7 +64,7 @@ class WalletApp:
             self.name = name
             self.address = r.get("address", "")
             self.seed = r.get("seed_phrase", "")
-            self.balance = 0
+            self.balance = float(r.get("balance", 0))
             return True
         return False
 
@@ -67,26 +74,50 @@ class WalletApp:
             self.name = name
             self.address = r.get("address", "")
             self.seed = seed
-            self.balance = r.get("balance", 0)
+            self.balance = float(r.get("balance", 0))
             return True
         return False
 
-    def refresh(self):
-        if not self.name: return
-        r = self.api(f"/api/wallet/{self.name}/balance")
-        if r:
-            self.balance = r.get("balance_veil", 0)
+    def refresh(self, silent=False):
+        """Rafraîchit le solde depuis le serveur"""
+        if not self.name:
+            return False
+        try:
+            r = self.api(f"/api/wallet/{self.name}/balance")
+            if r and 'balance_veil' in r:
+                old_balance = self.balance
+                self.balance = float(r.get('balance_veil', 0))
+                self.last_refresh = datetime.now().timestamp()
+                if not silent and old_balance != self.balance:
+                    print(f"{G}💰 Solde mis à jour: {self.balance:.4f} VEIL{X}")
+                return True
+        except:
+            pass
+        return False
+
+    def get_veil_price(self):
+        """Récupère le prix du VEIL en EUR"""
+        try:
+            r = self.api("/api/market/price")
+            if r:
+                return float(r.get('current_price', 0.042))
+        except:
+            pass
+        return 0.042
 
     def send(self, to, amount):
         r = self.api(f"/api/wallet/{self.name}/send", {"to": to, "amount": amount})
-        return r
+        if r and r.get("success"):
+            self.balance = float(r.get("new_balance", self.balance))
+            return r
+        return None
 
 def main():
     os.system('cls' if os.name == 'nt' else 'clear')
     print(f"""
 {G}╔══════════════════════════════════════════════════════════════╗
 ║                 👛  VEILCOIN WALLET  👛                       ║
-║                    Terminal v1.0.0                           ║
+║                    Terminal v2.0.0                           ║
 ╚══════════════════════════════════════════════════════════════╝{X}""")
 
     w = WalletApp()
@@ -103,50 +134,84 @@ def main():
                 if w.create(name):
                     print(f"\n{G}✅ Wallet créé !{X}")
                     print(f"{W}Adresse: {X}{w.address[:30]}...")
+                    print(f"{W}Solde initial: {G}{w.balance:.4f} VEIL{X}")
                     print(f"\n{G}🔐 SEED PHRASE (12 mots) :{X}")
                     print(f"{Y}{w.seed}{X}")
                     print(f"\n{R}⚠️  SAUVEGARDEZ-LA PRÉCIEUSEMENT !{X}")
                     input(f"\n{W}Entrée pour continuer...{X}")
                 else:
-                    print(f"{R}Erreur création{X}")
+                    print(f"{R}❌ Erreur création{X}")
 
             elif c == "2":
                 name = input(f"{W}Nom: {X}").strip()
                 seed = input(f"{W}Seed phrase: {X}").strip()
                 if w.login(name, seed):
                     print(f"{G}✅ Connecté !{X}")
+                    w.refresh()
                 else:
-                    print(f"{R}Erreur connexion{X}")
+                    print(f"{R}❌ Erreur connexion{X}")
 
             elif c == "3":
                 break
 
         else:
-            w.refresh()
-            print(f"\n{G}👛 {w.name}{X}")
-            print(f"{W}Adresse: {X}{w.address[:30]}...")
-            print(f"{W}Solde: {G}{w.balance:.4f} VEIL{X}")
-            print(f"\n{Y}1.{X} Rafraîchir")
-            print(f"{Y}2.{X} Envoyer")
+            # Auto-refresh silencieux
+            w.refresh(silent=True)
+            
+            price = w.get_veil_price()
+            value_eur = w.balance * price
+            
+            print(f"\n{G}{'='*50}{X}")
+            print(f"{G}👛 {w.name}{X}")
+            print(f"{G}{'='*50}{X}")
+            print(f"{W}📫 Adresse: {X}{w.address[:30]}...")
+            print(f"{W}💰 Solde: {G}{w.balance:.4f} VEIL{X}")
+            print(f"{W}💶 Valeur: {Y}{value_eur:.2f} EUR{X}")
+            if price > 0:
+                print(f"{W}📈 Prix VEIL: {C}{price:.4f} EUR{X}")
+            print(f"{G}{'='*50}{X}")
+            print(f"\n{Y}1.{X} Rafraîchir le solde")
+            print(f"{Y}2.{X} Envoyer des VEIL")
             print(f"{Y}3.{X} Déconnexion")
+            print(f"{Y}4.{X} Quitter")
             c = input(f"{W}> {X}").strip()
 
             if c == "1":
-                w.refresh()
-                print(f"{G}✅ Rafraîchi !{X}")
+                if w.refresh(silent=False):
+                    print(f"{G}✅ Solde: {w.balance:.4f} VEIL{X}")
+                else:
+                    print(f"{R}❌ Erreur rafraîchissement{X}")
+                input(f"{W}Entrée pour continuer...{X}")
 
             elif c == "2":
                 to = input(f"{W}Adresse destinataire: {X}").strip()
-                amt = float(input(f"{W}Montant: {X}").strip())
-                r = w.send(to, amt)
-                if r and r.get("success"):
-                    print(f"{G}✅ Envoyé !{X}")
-                else:
-                    print(f"{R}❌ Erreur{X}")
+                try:
+                    amt = float(input(f"{W}Montant: {X}").strip())
+                    if amt <= 0:
+                        print(f"{R}❌ Montant invalide{X}")
+                    elif amt > w.balance:
+                        print(f"{R}❌ Solde insuffisant ({w.balance:.4f} VEIL){X}")
+                    else:
+                        print(f"{Y}⏳ Envoi en cours...{X}")
+                        r = w.send(to, amt)
+                        if r and r.get("success"):
+                            print(f"{G}✅ {amt:.4f} VEIL envoyés !{X}")
+                            w.refresh()
+                            print(f"{G}💰 Nouveau solde: {w.balance:.4f} VEIL{X}")
+                        else:
+                            error = r.get('error', 'Inconnue') if r else 'Erreur API'
+                            print(f"{R}❌ Échec: {error}{X}")
+                except ValueError:
+                    print(f"{R}❌ Montant invalide{X}")
+                input(f"{W}Entrée pour continuer...{X}")
 
             elif c == "3":
                 w = WalletApp()
                 print(f"{G}✅ Déconnecté{X}")
+
+            elif c == "4":
+                print(f"{G}👋 Au revoir !{X}")
+                break
 
 if __name__ == "__main__":
     main()
