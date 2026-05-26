@@ -1,32 +1,30 @@
-# 🌫️ VeilCoin (VEIL)
+# VeilCoin
 
-> **Mine Simply. Transact Privately.**
+> Mine Simply. Transact Privately.
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-green.svg)](https://github.com/mat-prog310/veilcoin)
-[![Render](https://img.shields.io/badge/Live-Render-brightgreen)](https://veilcoin-fvzp.onrender.com)
-
----
+[![License](https://img.shields.io/badge/License-Render-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11+-green.svg)](https://python.org)
+[![Blockchain](https://img.shields.io/badge/Blockchain-Proof%20of%20Work-orange.svg)]()
 
 ## 📜 Copyright
-© 2026 VeilCoin - Tous droits réservés.
-Créé par DevOfVeil (github.com/mat-prog310)
+© 2026 VeilCoin - Tous droits réservés.  
+Créé par [DevOfVeil](https://github.com/mat-prog310)
 
-Ce logiciel est protégé par les lois internationales sur le droit d'auteur.
-Toute reproduction ou distribution non autorisée est strictement interdite.
+Ce logiciel est protégé par les lois internationales sur le droit d'auteur. Toute reproduction ou distribution non autorisée est strictement interdite.
 
 ---
 
 ## 🛡️ Qu'est-ce que VeilCoin ?
 
-**VeilCoin** est un réseau blockchain décentralisé inspiré de **Bitcoin**, mais conçu dès le départ pour offrir :
+VeilCoin est un réseau blockchain décentralisé inspiré de Bitcoin, mais conçu dès le départ pour offrir :
 
-- 🔒 **Confidentialité maximale** : Transactions intraçables grâce aux **Ring Signatures** et **Stealth Addresses**
-- 🛡️ **Sécurité renforcée** : Algorithme **SHA256 Proof of Work** avec mécanisme de **Double Hash**
-- ⛏️ **Minage équitable** : **ASIC-resistant**, minable sur n'importe quel PC (même ancien)50%pool 50% récompense.
-- 💰 **Supply limitée** : **1 Md VEIL** maximum (comme Bitcoin avec ses 21M)
-- 🤝 **100% P2P** : Échanges directs entre utilisateurs via **PayPal**, sans intermédiaire
-
+| Fonctionnalité | Description |
+|----------------|-------------|
+| 🔒 **Confidentialité maximale** | Transactions intraçables grâce aux Ring Signatures et Stealth Addresses |
+| 🛡️ **Sécurité renforcée** | Algorithme SHA256 Proof of Work avec mécanisme de Double Hash |
+| ⛏️ **Minage équitable** | ASIC-resistant, minable sur n'importe quel PC (même ancien) - 50% pool / 50% récompense |
+| 💰 **Supply limitée** | 1 Md VEIL maximum (comme Bitcoin avec ses 21M) |
+| 🤝 **100% P2P** | Échanges directs entre utilisateurs via PayPal, sans intermédiaire |
 
 ---
 
@@ -34,12 +32,12 @@ Toute reproduction ou distribution non autorisée est strictement interdite.
 
 | Composant | Technologie |
 |-----------|-------------|
-| **Blockchain** | Propriétaire (inspirée Bitcoin) |
-| **Consensus** | Proof of Work (SHA256 Double Hash) |
-| **Confidentialité** | Ring Signatures + Stealth Addresses |
-| **Paiements** | P2P PayPal (email caché jusqu'à double blocage) |
-| **Protection marché** | Anti pump/dump (±10% max par transaction) |
-| **Minage** | CPU-friendly, ASIC-resistant |
+| Blockchain | Propriétaire (inspirée Bitcoin) |
+| Consensus | Proof of Work (SHA256 Double Hash) |
+| Confidentialité | Ring Signatures + Stealth Addresses |
+| Paiements | P2P PayPal (email caché jusqu'à double blocage) |
+| Protection marché | Anti pump/dump (±5% max par transaction) |
+| Minage | CPU-friendly, ASIC-resistant |
 
 ---
 
@@ -50,12 +48,13 @@ Toute reproduction ou distribution non autorisée est strictement interdite.
 | **Nom** | VeilCoin |
 | **Symbole** | VEIL |
 | **Supply maximale** | 1 000 000 000 VEIL |
-| **Récompense par bloc** | 50 VEIL |
+| **Récompense par bloc** | 50 VEIL (25 mineur + 25 pool) |
 | **Halving** | Tous les 210 000 blocs |
-| **Temps de bloc cible** | ~2 minutes |
+| **Temps de bloc cible** | ~30-60 minutes |
 | **Algorithme** | SHA256 Double Hash avec sel aléatoire |
-| **Difficulté** | Ajustement automatique tous les 10 blocs |
+| **Difficulté** | 5 zéros (fixe) |
 | **Portefeuille** | Seed phrase BIP39 (12 mots) |
+| **Frais transaction** | 1% (50% brûlés, 50% trésorerie) |
 
 ---
 
@@ -64,17 +63,18 @@ Toute reproduction ou distribution non autorisée est strictement interdite.
 | Service | URL |
 |---------|-----|
 | **Dashboard** | [veilcoin-fvzp.onrender.com](https://veilcoin-fvzp.onrender.com) |
-| **Marché P2P** | [veilcoin-fvzp.onrender.com/market](https://veilcoin-fvzp.onrender.com/market) |
+| **Marché P2P** | [veilcoin-fvzp.onrender.com/p2p](https://veilcoin-fvzp.onrender.com/p2p) |
 | **Blockchain Explorer** | [veilcoin-fvzp.onrender.com/blockchain](https://veilcoin-fvzp.onrender.com/blockchain) |
+| **Wallet Web** | [veilcoin-fvzp.onrender.com/wallet](https://veilcoin-fvzp.onrender.com/wallet) |
 
 ---
 
 ## ⚡ Installation Rapide
 
 ### Prérequis
-- **Python 3.11** ou supérieur
-- **pip** (gestionnaire de paquets Python)
-- **Git** (optionnel)
+- Python 3.11 ou supérieur
+- pip (gestionnaire de paquets Python)
+- Git (optionnel)
 
 ### Étapes
 
@@ -90,7 +90,6 @@ pip install -r requirements.txt
 
 # 4. Lancer le serveur
 python app.py
-
 Puis ouvrir http://localhost:5000 dans le navigateur.
 
 ⛏️ Mineur Terminal
@@ -104,12 +103,8 @@ bash
 # Avec PyInstaller
 pip install pyinstaller
 pyinstaller --onefile --name VeilCoin_Miner miner.py
-# L'exe sera dans dist/VeilCoin_Miner.exe
 
-# Avec cx_Freeze
-pip install cx_Freeze
-python setup.py build
-# L'exe sera dans build/exe.win-amd64-3.11/VeilCoin_Miner.exe
+# L'exe sera dans dist/VeilCoin_Miner.exe
 🔐 Système de Sécurité
 VeilCoin utilise une architecture de sécurité multi-couches :
 
@@ -125,9 +120,9 @@ text
 Sécurité = Hashrate × 16^difficulté
 
 Exemple :
-- Hashrate : 10 000 H/s
-- Difficulté : 3
-- Sécurité : 10 000 × 4096 = 40 960 000
+- Hashrate : 500 H/s
+- Difficulté : 5
+- Sécurité : 500 × 1,048,576 = 524,288,000
 🤝 Comment Contribuer
 ⚠️ Critères d'Éligibilité
 Pour participer au développement de VeilCoin, vous devez obligatoirement :
@@ -142,6 +137,7 @@ Avoir une expérience vérifiable sur au moins un des projets suivants :
 
 🟢 Monero (RingCT, Bulletproofs)
 
+📝 Processus de Candidature
 Soumettre une candidature via une Issue GitHub contenant :
 
 📁 Portfolio blockchain (liens GitHub, commits)
@@ -151,8 +147,7 @@ Soumettre une candidature via une Issue GitHub contenant :
 ✍️ Lettre de motivation pour rejoindre VeilCoin
 
 Validation par le créateur :
-
-Toutes les Pull Requests seront examinées et validées par DevOfVeil avant d'être mergées. Cette période de validation manuelle garantit la qualité et la sécurité du code pendant la phase de lancement.
+Toutes les Pull Requests seront examinées et validées par DevOfVeil avant d'être mergées.
 
 📋 Processus de Contribution
 text
@@ -172,10 +167,10 @@ Phase 5	Application mobile (iOS/Android)	📅 Prévu Q3 2026
 Phase 6	DEX intégré (Uniswap-style)	📅 Prévu Q4 2026
 Phase 7	Governance DAO	📅 Prévu 2027
 📞 Contact
-Créateur : DevOfVeil
+Créateur	DevOfVeil
+GitHub	github.com/mat-prog310
+Discord	Rejoindre le serveur (bientôt)
+Twitter	@VeilCoin (bientôt)
+📄 License
+Render License - Tous droits réservés.
 
-GitHub : github.com/mat-prog310
-
-Discord : Rejoindre le serveur (bientôt)
-
-Twitter : @VeilCoin (bientôt)
