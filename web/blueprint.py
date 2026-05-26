@@ -446,8 +446,8 @@ def submit_block():
             'previous_hash': existing_blocks[-1].get('hash', '0'*64) if existing_blocks else '0'*64,
             'hash': hash_proof,
             'miner': wallet,
-            'reward_miner': 25,
-            'reward_pool': 25,
+            'reward_miner': 50,
+            'reward_pool': 0,
             'difficulty': 5
         }
         
@@ -457,17 +457,16 @@ def submit_block():
         
         w = VeilWallet(wallet)
         w.load_or_create()
-        w.balance += 25
+        w.balance += 50
         w.save()
         active_wallets[wallet] = w
         
-        if pool:
-            pool.pool_veil = getattr(pool, 'pool_veil', 0) + 25
+  
         
         for wk in list(user_trade_count.keys()):
             user_trade_count[wk] = max(0, user_trade_count[wk] - 1)
         
-        return jsonify({'success': True, 'reward_miner': 25, 'new_balance': w.balance, 'block_index': new_block['index']})
+        return jsonify({'success': True, 'reward_miner': 50, 'new_balance': w.balance, 'block_index': new_block['index']})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -665,3 +664,109 @@ def ping():
 @web_bp.route('/health')
 def health():
     return jsonify({'status': 'ok', 'wallets_count': len(active_wallets), 'mempool_size': len(mempool)})
+
+# ==================== ADMIN BURN COMMAND ====================
+
+@web_bp.route('/api/admin/burn', methods=['POST'])
+def admin_burn():
+    """
+    Commande admin pour brûler des VEIL
+    Seul l'admin avec la seed peut exécuter
+    """
+    try:
+        d = request.get_json()
+        admin_seed = d.get('admin_seed', '')
+        wallet_to_burn = d.get('wallet', '')  # Wallet à brûler
+        amount_to_burn = float(d.get('amount', 0))
+        
+        # Vérification admin (à configurer dans les variables d'environnement)
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', 'ta_seed_admin_ici')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'success': False, 'error': 'Non autorisé - Admin seed incorrecte'})
+        
+        if amount_to_burn <= 0:
+            return jsonify({'success': False, 'error': 'Montant invalide'})
+        
+        # Récupérer le wallet
+        w = active_wallets.get(wallet_to_burn)
+        if not w:
+            w = VeilWallet(wallet_to_burn)
+            if not w.load_or_create():
+                return jsonify({'success': False, 'error': 'Wallet non trouvé'})
+            active_wallets[wallet_to_burn] = w
+        
+        if w.balance < amount_to_burn:
+            return jsonify({'success': False, 'error': f'Solde insuffisant. Disponible: {w.balance:.4f} VEIL'})
+        
+        # BRÛLER LES VEIL
+        global total_burned
+        old_balance = w.balance
+        w.balance -= amount_to_burn
+        total_burned += amount_to_burn
+        w.save()
+        
+        # Enregistrer la transaction de burn
+        burn_tx = {
+            'from': w.address,
+            'to': 'BURN_ADDRESS',
+            'amount': amount_to_burn,
+            'timestamp': time.time(),
+            'admin': True,
+            'type': 'BURN'
+        }
+        
+        # Sauvegarder dans l'historique des burns
+        BURN_HISTORY_FILE = os.path.join(DATA_DIR, "burn_history.json")
+        burn_history = []
+        if os.path.exists(BURN_HISTORY_FILE):
+            with open(BURN_HISTORY_FILE, 'r') as f:
+                burn_history = json.load(f)
+        
+        burn_history.append(burn_tx)
+        with open(BURN_HISTORY_FILE, 'w') as f:
+            json.dump(burn_history[-100:], f, indent=2)
+        
+        save_burn_stats()
+        
+        return jsonify({
+            'success': True,
+            'burned': amount_to_burn,
+            'wallet': wallet_to_burn,
+            'old_balance': old_balance,
+            'new_balance': w.balance,
+            'total_burned_since_start': total_burned,
+            'remaining_supply': MAX_SUPPLY - total_burned,
+            'burn_percentage': round((total_burned / MAX_SUPPLY) * 100, 4),
+            'message': f'🔥 {amount_to_burn:.4f} VEIL brûlés de {wallet_to_burn}'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/admin/burn/stats', methods=['GET'])
+def admin_burn_stats():
+    """Voir les statistiques de burn (accessible à tous)"""
+    return jsonify({
+        'total_burned': total_burned,
+        'max_supply': MAX_SUPPLY,
+        'remaining_supply': MAX_SUPPLY - total_burned,
+        'burn_percentage': round((total_burned / MAX_SUPPLY) * 100, 4),
+        'total_fees_collected': total_fees_collected
+    })
+
+@web_bp.route('/api/admin/burn/history', methods=['GET'])
+def admin_burn_history():
+    """Historique des burns (admin uniquement)"""
+    admin_seed = request.args.get('admin_seed', '')
+    ADMIN_SEED = os.environ.get('ADMIN_SEED', 'ta_seed_admin_ici')
+    
+    if admin_seed != ADMIN_SEED:
+        return jsonify({'error': 'Non autorisé'}), 403
+    
+    BURN_HISTORY_FILE = os.path.join(DATA_DIR, "burn_history.json")
+    if os.path.exists(BURN_HISTORY_FILE):
+        with open(BURN_HISTORY_FILE, 'r') as f:
+            history = json.load(f)
+        return jsonify({'history': history, 'total': len(history)})
+    return jsonify({'history': [], 'total': 0})
