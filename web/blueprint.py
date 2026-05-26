@@ -19,48 +19,6 @@ web_bp = Blueprint('web', __name__, template_folder='../templates')
 p2p_orders = {}
 p2p_counter = 0
 
-# ==================== HISTORIQUE DES PRIX ====================
-
-PRICE_HISTORY_FILE = os.path.join(DATA_DIR, "price_history.json")
-
-# Initialiser l'historique
-if not os.path.exists(PRICE_HISTORY_FILE):
-    with open(PRICE_HISTORY_FILE, 'w') as f:
-        json.dump([], f)
-
-@web_bp.route('/api/market/price/history', methods=['GET'])
-def get_price_history():
-    try:
-        with open(PRICE_HISTORY_FILE, 'r') as f:
-            history = json.load(f)
-        return jsonify({'history': history[-50:]})
-    except:
-        return jsonify({'history': []})
-
-@web_bp.route('/api/market/price/record', methods=['POST'])
-def record_price():
-    try:
-        d = request.get_json()
-        price = d.get('price', 0.01)
-        
-        with open(PRICE_HISTORY_FILE, 'r') as f:
-            history = json.load(f)
-        
-        history.append({
-            'price': price,
-            'time': datetime.now().strftime('%H:%M:%S')
-        })
-        
-        if len(history) > 100:
-            history = history[-100:]
-        
-        with open(PRICE_HISTORY_FILE, 'w') as f:
-            json.dump(history, f, indent=2)
-        
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
 # ==================== ANTI-DUMP ====================
 MAX_TRADE_PERCENT = 5
 MIN_TRADE_INTERVAL = 60
@@ -104,6 +62,51 @@ MINED_BLOCKS_FILE = os.path.join(DATA_DIR, "mined_blocks.json")
 BURN_STATS_FILE = os.path.join(DATA_DIR, "burn_stats.json")
 os.makedirs(DATA_DIR, exist_ok=True)
 
+# ==================== HISTORIQUE DES PRIX ====================
+PRICE_HISTORY_FILE = os.path.join(DATA_DIR, "price_history.json")
+
+if not os.path.exists(PRICE_HISTORY_FILE):
+    with open(PRICE_HISTORY_FILE, 'w') as f:
+        json.dump([], f)
+
+@web_bp.route('/api/market/price/history', methods=['GET'])
+def get_price_history():
+    """Retourne l'historique des prix pour le graphique"""
+    try:
+        with open(PRICE_HISTORY_FILE, 'r') as f:
+            history = json.load(f)
+        return jsonify({'history': history[-50:]})
+    except Exception as e:
+        print(f"Erreur lecture historique: {e}")
+        return jsonify({'history': []})
+
+@web_bp.route('/api/market/price/record', methods=['POST'])
+def record_price():
+    """Enregistre un prix dans l'historique"""
+    try:
+        d = request.get_json()
+        price = d.get('price', 0.01)
+        
+        with open(PRICE_HISTORY_FILE, 'r') as f:
+            history = json.load(f)
+        
+        history.append({
+            'price': price,
+            'time': datetime.now().strftime('%H:%M:%S')
+        })
+        
+        if len(history) > 100:
+            history = history[-100:]
+        
+        with open(PRICE_HISTORY_FILE, 'w') as f:
+            json.dump(history, f, indent=2)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Erreur enregistrement prix: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+# ==================== BLOC GENESIS ====================
 if not os.path.exists(MINED_BLOCKS_FILE):
     genesis_block = {
         'index': 0, 'timestamp': time.time(), 'transactions': [], 'nonce': 0,
@@ -430,22 +433,19 @@ def submit_block():
         with open(MINED_BLOCKS_FILE, 'w') as f:
             json.dump(existing_blocks[-100:], f, indent=2)
         
-        # Récompense mineur
         w = VeilWallet(wallet)
         w.load_or_create()
         w.balance += 25
         w.save()
         active_wallets[wallet] = w
         
-        # Alimenter la pool avec 25 VEIL
         if pool:
             pool.pool_veil = getattr(pool, 'pool_veil', 0) + 25
         
-        # Reset anti-dump
         for wk in list(user_trade_count.keys()):
             user_trade_count[wk] = max(0, user_trade_count[wk] - 1)
         
-        return jsonify({'success': True, 'reward_miner': 25, 'new_balance': w.balance})
+        return jsonify({'success': True, 'reward_miner': 25, 'new_balance': w.balance, 'block_index': new_block['index']})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
