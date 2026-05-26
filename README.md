@@ -49,7 +49,7 @@ Toute reproduction ou distribution non autorisée est strictement interdite.
 |-----------|--------|
 | **Nom** | VeilCoin |
 | **Symbole** | VEIL |
-| **Supply maximale** | 25 000 000 VEIL |
+| **Supply maximale** | 1 000 000 000 VEIL |
 | **Récompense par bloc** | 50 VEIL |
 | **Halving** | Tous les 210 000 blocs |
 | **Temps de bloc cible** | ~2 minutes |
@@ -64,8 +64,6 @@ Toute reproduction ou distribution non autorisée est strictement interdite.
 | Service | URL |
 |---------|-----|
 | **Dashboard** | [veilcoin-fvzp.onrender.com](https://veilcoin-fvzp.onrender.com) |
-| **Wallet** | [veilcoin-fvzp.onrender.com/wallet](https://veilcoin-fvzp.onrender.com/wallet) |
-| **Mineur Web** | [veilcoin-fvzp.onrender.com/miner](https://veilcoin-fvzp.onrender.com/miner) |
 | **Marché P2P** | [veilcoin-fvzp.onrender.com/market](https://veilcoin-fvzp.onrender.com/market) |
 | **Blockchain Explorer** | [veilcoin-fvzp.onrender.com/blockchain](https://veilcoin-fvzp.onrender.com/blockchain) |
 
