@@ -111,16 +111,21 @@
     }
     
     // Récupérer l'historique des prix
-    async function getPriceHistory() {
-        try {
-            const res = await fetch('/api/market/price/history');
-            const data = await res.json();
-            return data.history || [];
-        } catch(e) {
-            console.error('Erreur historique:', e);
+   // Remplacer la fonction getPriceHistory par :
+async function getPriceHistory() {
+    try {
+        const res = await fetch('/api/market/price/history');
+        if (!res.ok) {
+            // Si la route n'existe pas, retourner un historique vide
             return [];
         }
+        const data = await res.json();
+        return data.history || [];
+    } catch(e) {
+        console.error('Erreur historique:', e);
+        return [];
     }
+}
     
     // Mettre à jour l'affichage
     async function updatePrice() {
