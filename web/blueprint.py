@@ -19,6 +19,48 @@ web_bp = Blueprint('web', __name__, template_folder='../templates')
 p2p_orders = {}
 p2p_counter = 0
 
+# ==================== HISTORIQUE DES PRIX ====================
+
+PRICE_HISTORY_FILE = os.path.join(DATA_DIR, "price_history.json")
+
+# Initialiser l'historique
+if not os.path.exists(PRICE_HISTORY_FILE):
+    with open(PRICE_HISTORY_FILE, 'w') as f:
+        json.dump([], f)
+
+@web_bp.route('/api/market/price/history', methods=['GET'])
+def get_price_history():
+    try:
+        with open(PRICE_HISTORY_FILE, 'r') as f:
+            history = json.load(f)
+        return jsonify({'history': history[-50:]})
+    except:
+        return jsonify({'history': []})
+
+@web_bp.route('/api/market/price/record', methods=['POST'])
+def record_price():
+    try:
+        d = request.get_json()
+        price = d.get('price', 0.01)
+        
+        with open(PRICE_HISTORY_FILE, 'r') as f:
+            history = json.load(f)
+        
+        history.append({
+            'price': price,
+            'time': datetime.now().strftime('%H:%M:%S')
+        })
+        
+        if len(history) > 100:
+            history = history[-100:]
+        
+        with open(PRICE_HISTORY_FILE, 'w') as f:
+            json.dump(history, f, indent=2)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 # ==================== ANTI-DUMP ====================
 MAX_TRADE_PERCENT = 5
 MIN_TRADE_INTERVAL = 60
