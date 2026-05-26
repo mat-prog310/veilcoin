@@ -62,6 +62,40 @@ MINED_BLOCKS_FILE = os.path.join(DATA_DIR, "mined_blocks.json")
 BURN_STATS_FILE = os.path.join(DATA_DIR, "burn_stats.json")
 os.makedirs(DATA_DIR, exist_ok=True)
 
+# ==================== PERSISTANCE P2P ====================
+P2P_ORDERS_FILE = os.path.join(DATA_DIR, "p2p_orders.json")
+
+def load_p2p_orders():
+    global p2p_orders, p2p_counter
+    if os.path.exists(P2P_ORDERS_FILE):
+        try:
+            with open(P2P_ORDERS_FILE, 'r') as f:
+                data = json.load(f)
+                p2p_orders = data.get('orders', {})
+                p2p_counter = data.get('counter', 0)
+                print(f"📦 Chargé {len(p2p_orders)} offres P2P")
+        except Exception as e:
+            print(f"Erreur chargement P2P: {e}")
+            p2p_orders = {}
+            p2p_counter = 0
+    else:
+        p2p_orders = {}
+        p2p_counter = 0
+        print("📦 Aucune offre P2P sauvegardée")
+
+def save_p2p_orders():
+    try:
+        with open(P2P_ORDERS_FILE, 'w') as f:
+            json.dump({
+                'orders': p2p_orders,
+                'counter': p2p_counter
+            }, f, indent=2)
+    except Exception as e:
+        print(f"Erreur sauvegarde P2P: {e}")
+
+# Charger les offres au démarrage
+load_p2p_orders()
+
 # ==================== HISTORIQUE DES PRIX ====================
 PRICE_HISTORY_FILE = os.path.join(DATA_DIR, "price_history.json")
 
@@ -71,39 +105,27 @@ if not os.path.exists(PRICE_HISTORY_FILE):
 
 @web_bp.route('/api/market/price/history', methods=['GET'])
 def get_price_history():
-    """Retourne l'historique des prix pour le graphique"""
     try:
         with open(PRICE_HISTORY_FILE, 'r') as f:
             history = json.load(f)
         return jsonify({'history': history[-50:]})
-    except Exception as e:
-        print(f"Erreur lecture historique: {e}")
+    except:
         return jsonify({'history': []})
 
 @web_bp.route('/api/market/price/record', methods=['POST'])
 def record_price():
-    """Enregistre un prix dans l'historique"""
     try:
         d = request.get_json()
         price = d.get('price', 0.01)
-        
         with open(PRICE_HISTORY_FILE, 'r') as f:
             history = json.load(f)
-        
-        history.append({
-            'price': price,
-            'time': datetime.now().strftime('%H:%M:%S')
-        })
-        
+        history.append({'price': price, 'time': datetime.now().strftime('%H:%M:%S')})
         if len(history) > 100:
             history = history[-100:]
-        
         with open(PRICE_HISTORY_FILE, 'w') as f:
             json.dump(history, f, indent=2)
-        
         return jsonify({'success': True})
     except Exception as e:
-        print(f"Erreur enregistrement prix: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 # ==================== BLOC GENESIS ====================
@@ -487,6 +509,8 @@ def p2p_create_order():
             'seller_confirmed': False, 'buyer_confirmed': False, 'created_at': time.time()
         }
         
+        save_p2p_orders()  # ✅ Sauvegarde après création
+        
         return jsonify({'success': True, 'order_id': order_id, 'order': p2p_orders[order_id]})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -521,6 +545,8 @@ def p2p_match_order():
         order['buyer_email'] = buyer_email
         order['status'] = 'matched'
         
+        save_p2p_orders()  # ✅ Sauvegarde après modification
+        
         return jsonify({'success': True, 'order_id': order_id, 
                        'seller_email': "Email révélé après paiement",
                        'amount_eur': order['total_eur']})
@@ -542,6 +568,9 @@ def p2p_confirm_payment():
             return jsonify({'success': False, 'error': 'Non autorisé'})
         
         order['status'] = 'paid'
+        
+        save_p2p_orders()  # ✅ Sauvegarde après modification
+        
         seller_wallet = active_wallets.get(order['seller'])
         seller_email = getattr(seller_wallet, 'email', 'vendeur@veilcoin.com')
         
@@ -576,6 +605,10 @@ def p2p_confirm_receipt():
             if buyer_wallet:
                 buyer_wallet.balance += order['amount_veil']
                 buyer_wallet.save()
+        
+        save_p2p_orders()  # ✅ Sauvegarde après modification
+        
+        if order['status'] == 'completed':
             return jsonify({'success': True, 'status': 'completed',
                            'message': f'Transaction complétée ! {order["amount_veil"]:.4f} VEIL transférés'})
         
@@ -605,6 +638,8 @@ def p2p_cancel_order():
             seller_wallet.save()
         
         del p2p_orders[order_id]
+        save_p2p_orders()  # ✅ Sauvegarde après suppression
+        
         return jsonify({'success': True, 'message': 'Offre annulée'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
