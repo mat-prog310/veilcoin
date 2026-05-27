@@ -461,8 +461,6 @@ def submit_block():
         w.save()
         active_wallets[wallet] = w
         
-  
-        
         for wk in list(user_trade_count.keys()):
             user_trade_count[wk] = max(0, user_trade_count[wk] - 1)
         
@@ -484,6 +482,7 @@ def p2p_create_order():
         wallet_name = d.get('wallet')
         amount_veil = float(d.get('amount_veil', 0))
         price_eur = float(d.get('price_eur', 0))
+        seller_email = d.get('seller_email', '')  # ✅ EMAIL DU VENDEUR
         
         w = active_wallets.get(wallet_name)
         if not w:
@@ -502,14 +501,21 @@ def p2p_create_order():
         order_id = f"P2P_{p2p_counter}"
         
         p2p_orders[order_id] = {
-            'id': order_id, 'seller': wallet_name, 'amount_veil': amount_veil,
-            'price_eur': price_eur, 'total_eur': amount_veil * price_eur,
-            'status': 'open', 'buyer': None, 'buyer_email': None,
-            'seller_confirmed': False, 'buyer_confirmed': False, 'created_at': time.time()
+            'id': order_id,
+            'seller': wallet_name,
+            'seller_email': seller_email,  # ✅ STOCKAGE EMAIL
+            'amount_veil': amount_veil,
+            'price_eur': price_eur,
+            'total_eur': amount_veil * price_eur,
+            'status': 'open',
+            'buyer': None,
+            'buyer_email': None,
+            'seller_confirmed': False,
+            'buyer_confirmed': False,
+            'created_at': time.time()
         }
         
-        save_p2p_orders()  # ✅ Sauvegarde après création
-        
+        save_p2p_orders()
         return jsonify({'success': True, 'order_id': order_id, 'order': p2p_orders[order_id]})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -544,7 +550,7 @@ def p2p_match_order():
         order['buyer_email'] = buyer_email
         order['status'] = 'matched'
         
-        save_p2p_orders()  # ✅ Sauvegarde après modification
+        save_p2p_orders()
         
         return jsonify({'success': True, 'order_id': order_id, 
                        'seller_email': "Email révélé après paiement",
@@ -567,11 +573,10 @@ def p2p_confirm_payment():
             return jsonify({'success': False, 'error': 'Non autorisé'})
         
         order['status'] = 'paid'
+        save_p2p_orders()
         
-        save_p2p_orders()  # ✅ Sauvegarde après modification
-        
-        seller_wallet = active_wallets.get(order['seller'])
-        seller_email = getattr(seller_wallet, 'email', 'vendeur@veilcoin.com')
+        # ✅ RÉCUPÉRATION DE L'EMAIL STOCKÉ
+        seller_email = order.get('seller_email', 'Email non renseigné')
         
         return jsonify({'success': True, 'seller_email': seller_email, 'amount_eur': order['total_eur']})
     except Exception as e:
@@ -605,7 +610,7 @@ def p2p_confirm_receipt():
                 buyer_wallet.balance += order['amount_veil']
                 buyer_wallet.save()
         
-        save_p2p_orders()  # ✅ Sauvegarde après modification
+        save_p2p_orders()
         
         if order['status'] == 'completed':
             return jsonify({'success': True, 'status': 'completed',
@@ -637,7 +642,7 @@ def p2p_cancel_order():
             seller_wallet.save()
         
         del p2p_orders[order_id]
-        save_p2p_orders()  # ✅ Sauvegarde après suppression
+        save_p2p_orders()
         
         return jsonify({'success': True, 'message': 'Offre annulée'})
     except Exception as e:
@@ -669,26 +674,20 @@ def health():
 
 @web_bp.route('/api/admin/burn', methods=['POST'])
 def admin_burn():
-    """
-    Commande admin pour brûler des VEIL
-    Seul l'admin avec la seed peut exécuter
-    """
     try:
         d = request.get_json()
         admin_seed = d.get('admin_seed', '')
-        wallet_to_burn = d.get('wallet', '')  # Wallet à brûler
+        wallet_to_burn = d.get('wallet', '')
         amount_to_burn = float(d.get('amount', 0))
         
-        # Vérification admin (à configurer dans les variables d'environnement)
         ADMIN_SEED = os.environ.get('ADMIN_SEED', 'ta_seed_admin_ici')
         
         if admin_seed != ADMIN_SEED:
-            return jsonify({'success': False, 'error': 'Non autorisé - Admin seed incorrecte'})
+            return jsonify({'success': False, 'error': 'Non autorisé'})
         
         if amount_to_burn <= 0:
             return jsonify({'success': False, 'error': 'Montant invalide'})
         
-        # Récupérer le wallet
         w = active_wallets.get(wallet_to_burn)
         if not w:
             w = VeilWallet(wallet_to_burn)
@@ -699,14 +698,12 @@ def admin_burn():
         if w.balance < amount_to_burn:
             return jsonify({'success': False, 'error': f'Solde insuffisant. Disponible: {w.balance:.4f} VEIL'})
         
-        # BRÛLER LES VEIL
         global total_burned
         old_balance = w.balance
         w.balance -= amount_to_burn
         total_burned += amount_to_burn
         w.save()
         
-        # Enregistrer la transaction de burn
         burn_tx = {
             'from': w.address,
             'to': 'BURN_ADDRESS',
@@ -716,7 +713,6 @@ def admin_burn():
             'type': 'BURN'
         }
         
-        # Sauvegarder dans l'historique des burns
         BURN_HISTORY_FILE = os.path.join(DATA_DIR, "burn_history.json")
         burn_history = []
         if os.path.exists(BURN_HISTORY_FILE):
@@ -746,7 +742,6 @@ def admin_burn():
 
 @web_bp.route('/api/admin/burn/stats', methods=['GET'])
 def admin_burn_stats():
-    """Voir les statistiques de burn (accessible à tous)"""
     return jsonify({
         'total_burned': total_burned,
         'max_supply': MAX_SUPPLY,
@@ -757,7 +752,6 @@ def admin_burn_stats():
 
 @web_bp.route('/api/admin/burn/history', methods=['GET'])
 def admin_burn_history():
-    """Historique des burns (admin uniquement)"""
     admin_seed = request.args.get('admin_seed', '')
     ADMIN_SEED = os.environ.get('ADMIN_SEED', 'ta_seed_admin_ici')
     
