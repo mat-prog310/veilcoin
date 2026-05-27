@@ -12,15 +12,12 @@
             <h4 style="color: #00ff88;">📈 Prix VEIL / EUR - Temps réel</h4>
         </div>
         <div class="card-body">
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="text-center mb-3">
-                        <h2 id="current-price" class="text-success">0.0000 EUR</h2>
-                        <span id="price-change" class="badge bg-secondary">0%</span>
-                    </div>
-                    <canvas id="price-chart" width="400" height="200"></canvas>
-                </div>
+            <div class="text-center mb-3">
+                <h2 id="current-price" class="text-success">0.0000 EUR</h2>
+                <span id="price-change" class="badge bg-secondary">0%</span>
+                <p class="text-muted mt-2">Prix basé sur les transactions P2P complétées</p>
             </div>
+            <canvas id="price-chart" width="400" height="200"></canvas>
         </div>
     </div>
     
@@ -104,10 +101,7 @@
     async function getCurrentPrice() {
         try {
             const res = await fetch('/api/market/price');
-            if (!res.ok) {
-                console.error('Erreur API prix:', res.status);
-                return 0.01;
-            }
+            if (!res.ok) return 0.01;
             const data = await res.json();
             return data.current_price || 0.01;
         } catch(e) {
@@ -120,10 +114,7 @@
     async function getPriceHistory() {
         try {
             const res = await fetch('/api/market/price/history');
-            if (!res.ok) {
-                console.error('Erreur API historique:', res.status);
-                return [];
-            }
+            if (!res.ok) return [];
             const data = await res.json();
             return data.history || [];
         } catch(e) {
@@ -145,7 +136,7 @@
             
             // Calculer la variation
             if (priceHistory.length >= 2) {
-                const oldPrice = priceHistory[0];
+                const oldPrice = priceHistory[priceHistory.length - 2];
                 const change = ((price - oldPrice) / oldPrice) * 100;
                 const changeEl = document.getElementById('price-change');
                 changeEl.innerText = (change > 0 ? '+' : '') + change.toFixed(2) + '%';
@@ -214,27 +205,11 @@
         });
     }
     
-    // Enregistrer le prix périodiquement
-    async function recordPrice() {
-        const price = await getCurrentPrice();
-        try {
-            await fetch('/api/market/price/record', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({price: price})
-            });
-        } catch(e) {
-            console.error('Erreur enregistrement:', e);
-        }
-    }
-    
     // Initialisation
     async function init() {
         await updatePrice();
-        // Rafraîchir le prix toutes les 10 secondes
-        setInterval(updatePrice, 10000);
-        // Enregistrer le prix toutes les minutes
-        setInterval(recordPrice, 60000);
+        // Rafraîchir toutes les 5 secondes
+        setInterval(updatePrice, 5000);
     }
     
     init();
