@@ -596,22 +596,36 @@ def p2p_confirm_payment():
         
         order = p2p_orders[order_id]
         
-        print(f"[DEBUG] pay - order_id: {order_id}")
-        print(f"[DEBUG] pay - status: {order['status']}")
-        print(f"[DEBUG] pay - seller_email dans order: {order.get('seller_email')}")
-        
         if order['status'] != 'matched' or order['buyer'] != buyer_name:
             return jsonify({'success': False, 'error': 'Non autorisé'})
         
-        order['status'] = 'paid'
+        # ✅ TRANSFERT AUTOMATIQUE DES VEIL
+        buyer_wallet = active_wallets.get(buyer_name)
+        if not buyer_wallet:
+            buyer_wallet = VeilWallet(buyer_name)
+            buyer_wallet.load_or_create()
+            active_wallets[buyer_name] = buyer_wallet
+        
+        seller_wallet = active_wallets.get(order['seller'])
+        if not seller_wallet:
+            seller_wallet = VeilWallet(order['seller'])
+            seller_wallet.load_or_create()
+            active_wallets[order['seller']] = seller_wallet
+        
+        # Transférer les VEIL du vendeur à l'acheteur
+        seller_wallet.balance -= order['amount_veil']
+        buyer_wallet.balance += order['amount_veil']
+        
+        seller_wallet.save()
+        buyer_wallet.save()
+        
+        order['status'] = 'completed'
+        order['completed_at'] = time.time()
         save_p2p_orders()
         
-        # 🔥 CORRECTION ICI : Récupérer l'email stocké
-        seller_email = order.get('seller_email', 'Email non renseigné')
-        
-        print(f"[DEBUG] pay - seller_email retourné: {seller_email}")
-        
-        return jsonify({'success': True, 'seller_email': seller_email, 'amount_eur': order['total_eur']})
+        return jsonify({'success': True, 
+                       'amount_veil': order['amount_veil'],
+                       'new_balance': buyer_wallet.balance})
     except Exception as e:
         print(f"[ERREUR] pay: {e}")
         return jsonify({'success': False, 'error': str(e)})
