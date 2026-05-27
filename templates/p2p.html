@@ -214,15 +214,30 @@ async function loadHistory() {
 
 // Charger les offres
 async function loadOrders() {
+    console.log("🔄 loadOrders appelée");
+    const tbody = document.getElementById('orders-list');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center">⏳ Chargement des offres...</td></tr>';
+    
     try {
-        const res = await fetch('/api/p2p/orders');
-        if (!res.ok) throw new Error('Erreur serveur');
-        const data = await res.json();
-        const tbody = document.getElementById('orders-list');
+        // Forcer un cache-buster pour éviter le cache
+        const url = '/api/p2p/orders?t=' + new Date().getTime();
+        console.log("📡 Appel API:", url);
+        
+        const response = await fetch(url);
+        console.log("📡 Status:", response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("📦 Données reçues:", data);
+        
         if (!data.orders || data.orders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">Aucune offre de vente</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">📭 Aucune offre de vente</td></tr>';
             return;
         }
+        
         tbody.innerHTML = data.orders.map(o => `
             <tr>
                 <td class="text-center">${o.id}</td>
@@ -232,8 +247,10 @@ async function loadOrders() {
                 <td class="text-center"><button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">🟢 Acheter</button></td>
             </tr>
         `).join('');
-    } catch(e) {
-        console.error(e);
+        
+    } catch(error) {
+        console.error("❌ Erreur:", error);
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center">⚠️ Erreur: ${error.message}<br><button onclick="loadOrders()" class="btn btn-sm btn-primary mt-2">🔄 Réessayer</button></td></tr>`;
     }
 }
 
