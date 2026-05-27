@@ -15,7 +15,451 @@
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#sell" type="button">🔴 VENDRE</button>
         </li>
+        <li class="nav-item">{% extends "base.html" %}
+
+{% block title %}Marché P2P VeilCoin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="text-center mb-4" style="color: #00ff88;">🤝 Marché P2P VeilCoin</h1>
+    <p class="text-center text-light">Achetez et vendez des VEIL directement entre utilisateurs avec PayPal</p>
+    
+    <!-- Onglets -->
+    <ul class="nav nav-tabs mb-4" id="p2pTab" role="tablist">
         <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#buy" type="button">🟢 ACHETER</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#sell" type="button">🔴 VENDRE</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#myorders" type="button">📦 Mes offres</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#history" type="button">📜 Historique</button>
+        </li>
+    </ul>
+    
+    <!-- Connexion -->
+    <div class="card bg-dark mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-5">
+                    <input type="text" id="wallet-name" class="form-control bg-dark text-white" placeholder="Nom wallet">
+                </div>
+                <div class="col-md-5">
+                    <input type="text" id="wallet-seed" class="form-control bg-dark text-white" placeholder="Seed phrase">
+                </div>
+                <div class="col-md-2">
+                    <button id="connect-btn" class="btn btn-success w-100">🔌 Connecter</button>
+                </div>
+            </div>
+            <div id="wallet-info" class="mt-3 text-center" style="display:none;">
+                <p>✅ Connecté: <strong id="connected-name"></strong> | 💰 Solde: <strong id="connected-balance"></strong> VEIL</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tab-content">
+        <!-- ONGLET ACHETER -->
+        <div class="tab-pane fade show active" id="buy" role="tabpanel">
+            <div class="card bg-dark">
+                <div class="card-header">
+                    <h4 style="color: #00ff88;">🟢 Offres de vente</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0">
+                            <thead>
+                                <tr><th>ID</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th><th>Action</th></tr>
+                            </thead>
+                            <tbody id="orders-list">
+                                <tr><td colspan="5" class="text-center">Chargement...<\/td><\/tr>
+                            </tbody>
+                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ONGLET VENDRE -->
+        <div class="tab-pane fade" id="sell" role="tabpanel">
+            <div class="card bg-dark">
+                <div class="card-header">
+                    <h4 style="color: #ff4444;">🔴 Vendre des VEIL</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label>💰 Montant VEIL</label>
+                            <input type="number" id="sell-amount" class="form-control bg-dark text-white" placeholder="Ex: 100">
+                        </div>
+                        <div class="col-md-4">
+                            <label>💶 Prix par VEIL (EUR)</label>
+                            <input type="number" id="sell-price" class="form-control bg-dark text-white" placeholder="Ex: 0.05" step="0.001">
+                        </div>
+                        <div class="col-md-4">
+                            <label>📧 Votre email PayPal (OBLIGATOIRE)</label>
+                            <input type="email" id="seller-email" class="form-control bg-dark text-white" placeholder="vendeur@email.com" required>
+                        </div>
+                    </div>
+                    <button id="create-offer-btn" class="btn btn-primary w-100 mt-3">📢 Créer l'offre</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ONGLET MES OFFRES -->
+        <div class="tab-pane fade" id="myorders" role="tabpanel">
+            <div class="card bg-dark">
+                <div class="card-header">
+                    <h4 style="color: #ffc107;">📦 Mes offres</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0">
+                            <thead>
+                                <tr><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Action</th></tr>
+                            </thead>
+                            <tbody id="my-orders-list">
+                                <tr><td colspan="6" class="text-center">Connectez-vous d'abord<\/td><\/tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ONGLET HISTORIQUE -->
+        <div class="tab-pane fade" id="history" role="tabpanel">
+            <div class="card bg-dark">
+                <div class="card-header">
+                    <h4 style="color: #00ff88;">📜 Historique des transactions</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0">
+                            <thead>
+                                <tr><th>Date</th><th>Vendeur</th><th>Acheteur</th><th>VEIL</th><th>Prix/VEIL</th><th>Total</th></tr>
+                            </thead>
+                            <tbody id="history-list">
+                                <td><td colspan="6" class="text-center">Chargement...<\/td><\/tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- POPUP ACHETER -->
+<div id="buy-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #00ff88;">
+    <h4 style="color:#00ff88;">🟢 Acheter des VEIL</h4>
+    <p id="buy-details" style="color:white;"></p>
+    <label style="color:white;">📧 Votre email PayPal (obligatoire)</label>
+    <input type="email" id="buyer-email" class="form-control bg-dark text-white mb-2" placeholder="votre@email.com" required>
+    <button id="confirm-buy-btn" class="btn btn-success w-100 mb-2">✅ Confirmer l'achat</button>
+    <button id="close-modal" class="btn btn-secondary w-100">❌ Fermer</button>
+</div>
+
+<!-- POPUP PAIEMENT -->
+<div id="pay-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #ffc107;">
+    <h4 style="color:#ffc107;">📧 Paiement PayPal</h4>
+    <p style="color:white;">📧 Email du vendeur : <strong id="seller-email-display" style="color:#00ff88;"></strong></p>
+    <p style="color:white;">💰 Montant à payer : <strong id="pay-amount" style="color:#00ff88;"></strong> EUR</p>
+    <p style="color:#ff8888; font-size:12px;">⚠️ Payez le vendeur via PayPal, puis cliquez ci-dessous</p>
+    <button id="confirm-payment-btn" class="btn btn-success w-100 mb-2">💸 J'ai payé</button>
+    <button id="close-pay-modal" class="btn btn-secondary w-100">❌ Fermer</button>
+</div>
+
+<script>
+let currentWallet = null, currentBalance = 0, currentOrderId = null;
+
+// Connexion
+document.getElementById('connect-btn').onclick = async () => {
+    const name = document.getElementById('wallet-name').value;
+    const seed = document.getElementById('wallet-seed').value;
+    if (!name || !seed) { alert('Entrez nom et seed'); return; }
+    
+    try {
+        const res = await fetch('/api/wallet/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, seed_phrase: seed})
+        });
+        const data = await res.json();
+        if (data.success) {
+            currentWallet = name;
+            currentBalance = data.balance;
+            document.getElementById('wallet-info').style.display = 'block';
+            document.getElementById('connected-name').innerText = name;
+            document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
+            loadOrders();
+            loadMyOrders();
+            loadHistory();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur de connexion: ' + e.message);
+    }
+};
+
+// Charger l'historique
+async function loadHistory() {
+    try {
+        const res = await fetch('/api/p2p/history');
+        if (!res.ok) throw new Error('Erreur serveur');
+        const data = await res.json();
+        const tbody = document.getElementById('history-list');
+        if (!data.transactions || data.transactions.length === 0) {
+            tbody.innerHTML = '<td><td colspan="6" class="text-center">Aucune transaction<\/td><\/tr>';
+            return;
+        }
+        tbody.innerHTML = data.transactions.map(tx => `
+            <tr>
+                <td class="small">${new Date(tx.timestamp * 1000).toLocaleString()}<\/td>
+                <td class="small">${tx.seller_masked}<\/td>
+                <td class="small">${tx.buyer_masked}<\/td>
+                <td class="text-center">${tx.amount_veil}<\/td>
+                <td class="text-center">${tx.price_eur} EUR<\/td>
+                <td class="text-center">${tx.total_eur} EUR<\/td>
+            <\/tr>
+        `).join('');
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+// Charger les offres
+async function loadOrders() {
+    try {
+        const res = await fetch('/api/p2p/orders?t=' + Date.now());
+        if (!res.ok) throw new Error('Erreur serveur');
+        const data = await res.json();
+        const tbody = document.getElementById('orders-list');
+        if (!data.orders || data.orders.length === 0) {
+            tbody.innerHTML = '<td><td colspan="5" class="text-center">Aucune offre de vente<\/td><\/tr>';
+            return;
+        }
+        tbody.innerHTML = data.orders.map(o => `
+            <tr>
+                <td class="text-center">${o.id}<\/td>
+                <td class="text-center">${o.amount_veil}<\/td>
+                <td class="text-center">${o.price_eur} EUR<\/td>
+                <td class="text-center">${o.total_eur} EUR<\/td>
+                <td class="text-center"><button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">🟢 Acheter<\/button><\/td>
+            <\/tr>
+        `).join('');
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+// Charger mes offres
+async function loadMyOrders() {
+    if (!currentWallet) return;
+    try {
+        const res = await fetch(`/api/p2p/my-orders?wallet=${currentWallet}`);
+        if (!res.ok) throw new Error('Erreur serveur');
+        const data = await res.json();
+        const tbody = document.getElementById('my-orders-list');
+        if (!data.orders || data.orders.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Aucune offre<\/td><\/tr>';
+            return;
+        }
+        tbody.innerHTML = data.orders.map(o => `
+            <tr>
+                <td class="text-center">${o.id}<\/td>
+                <td class="text-center">${o.amount_veil}<\/td>
+                <td class="text-center">${o.price_eur} EUR<\/td>
+                <td class="text-center">${o.total_eur} EUR<\/td>
+                <td class="text-center">
+                    <span class="badge ${o.status === 'open' ? 'bg-success' : (o.status === 'matched' ? 'bg-warning' : (o.status === 'paid' ? 'bg-info' : 'bg-secondary'))}">
+                        ${o.status === 'open' ? '📢 En vente' : (o.status === 'matched' ? '⏳ En attente' : (o.status === 'paid' ? '💸 Payé - En attente' : '✅ Vendu'))}
+                    </span>
+                <\/td>
+                <td class="text-center">
+                    ${o.status === 'paid' ? 
+                        `<button class="btn btn-sm btn-success" onclick="releaseVeil('${o.id}')">✅ Libérer les VEIL</button>` : 
+                        (o.status === 'matched' ? 
+                            `<button class="btn btn-sm btn-warning" onclick="confirmSeller('${o.id}')">Confirmer vente</button>` : 
+                            (o.status === 'open' ? 
+                                `<button class="btn btn-sm btn-danger" onclick="cancelOrder('${o.id}')">Annuler</button>` : 
+                                '✅ Terminé')
+                        )
+                    }
+                <\/td>
+            <\/tr>
+        `).join('');
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+// Créer offre
+document.getElementById('create-offer-btn').onclick = async () => {
+    if (!currentWallet) { alert('Connectez-vous'); return; }
+    const amount = parseFloat(document.getElementById('sell-amount').value);
+    const price = parseFloat(document.getElementById('sell-price').value);
+    const email = document.getElementById('seller-email').value;
+    if (!amount || !price) { alert('Entrez montant et prix'); return; }
+    if (!email) { alert('Entrez votre email PayPal'); return; }
+    
+    try {
+        const res = await fetch('/api/p2p/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({wallet: currentWallet, amount_veil: amount, price_eur: price, seller_email: email})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('Offre créée !');
+            loadOrders();
+            loadMyOrders();
+            document.getElementById('sell-amount').value = '';
+            document.getElementById('sell-price').value = '';
+            document.getElementById('seller-email').value = '';
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
+    }
+};
+
+// Acheter
+window.buyOrder = (orderId, amount, total) => {
+    currentOrderId = orderId;
+    document.getElementById('buy-details').innerHTML = `Achat de ${amount} VEIL pour ${total} EUR`;
+    document.getElementById('buyer-email').value = '';
+    document.getElementById('buy-modal').style.display = 'block';
+};
+
+document.getElementById('confirm-buy-btn').onclick = async () => {
+    const email = document.getElementById('buyer-email').value;
+    if (!email) { alert('Entrez votre email PayPal'); return; }
+    
+    try {
+        const res = await fetch('/api/p2p/match', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: currentOrderId, buyer: currentWallet, email: email})
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('buy-modal').style.display = 'none';
+            document.getElementById('seller-email-display').innerHTML = data.seller_email;
+            document.getElementById('pay-amount').innerHTML = data.amount_eur;
+            document.getElementById('pay-modal').style.display = 'block';
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
+    }
+};
+
+// Paiement
+document.getElementById('confirm-payment-btn').onclick = async () => {
+    try {
+        const res = await fetch('/api/p2p/pay', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: currentOrderId, buyer: currentWallet})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('✅ Paiement confirmé ! En attente de la libération par le vendeur');
+            document.getElementById('pay-modal').style.display = 'none';
+            loadMyOrders();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
+    }
+};
+
+// Libérer les VEIL (vendeur)
+window.releaseVeil = async (orderId) => {
+    if (!confirm('Confirmez-vous avoir reçu le paiement ? Les VEIL seront transférés à l\'acheteur.')) return;
+    try {
+        const res = await fetch('/api/p2p/release', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: orderId, seller: currentWallet})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`✅ ${data.amount_veil} VEIL ont été transférés à l'acheteur !`);
+            loadMyOrders();
+            loadOrders();
+            loadHistory();
+            const balanceRes = await fetch(`/api/wallet/${currentWallet}/balance`);
+            const balanceData = await balanceRes.json();
+            currentBalance = balanceData.balance_veil;
+            document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
+    }
+};
+
+// Confirmer vente (ancien)
+window.confirmSeller = async (orderId) => {
+    try {
+        const res = await fetch('/api/p2p/confirm', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: orderId, wallet: currentWallet, confirm_type: 'seller'})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(data.message);
+            loadMyOrders();
+            loadOrders();
+            loadHistory();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
+    }
+};
+
+// Annuler offre
+window.cancelOrder = async (orderId) => {
+    if (!confirm('Annuler cette offre ?')) return;
+    try {
+        const res = await fetch('/api/p2p/cancel', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: orderId, wallet: currentWallet})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('Offre annulée');
+            loadMyOrders();
+            loadOrders();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
+    }
+};
+
+// Fermer modales
+document.getElementById('close-modal').onclick = () => document.getElementById('buy-modal').style.display = 'none';
+document.getElementById('close-pay-modal').onclick = () => document.getElementById('pay-modal').style.display = 'none';
+
+// Auto-refresh
+setInterval(() => { if(currentWallet) { loadOrders(); loadMyOrders(); } }, 30000);
+</script>
+{% endblock %}
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#myorders" type="button">📦 Mes offres</button>
         </li>
         <li class="nav-item">
