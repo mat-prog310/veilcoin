@@ -596,20 +596,24 @@ def p2p_confirm_payment():
         
         order = p2p_orders[order_id]
         
+        print(f"[DEBUG] pay - order_id: {order_id}")
+        print(f"[DEBUG] pay - status: {order['status']}")
+        print(f"[DEBUG] pay - seller_email dans order: {order.get('seller_email')}")
+        
         if order['status'] != 'matched' or order['buyer'] != buyer_name:
             return jsonify({'success': False, 'error': 'Non autorisé'})
         
         order['status'] = 'paid'
         save_p2p_orders()
         
-        # ✅ RÉCUPÉRATION DE L'EMAIL STOCKÉ
-        seller_email = order.get('seller_email', 'Email non renseigné par le vendeur')
+        # 🔥 CORRECTION ICI : Récupérer l'email stocké
+        seller_email = order.get('seller_email', 'Email non renseigné')
         
-        print(f"[DEBUG] Paiement confirmé - Email vendeur: {seller_email}")
+        print(f"[DEBUG] pay - seller_email retourné: {seller_email}")
         
         return jsonify({'success': True, 'seller_email': seller_email, 'amount_eur': order['total_eur']})
     except Exception as e:
-        print(f"[ERREUR] {e}")
+        print(f"[ERREUR] pay: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @web_bp.route('/api/p2p/confirm', methods=['POST'])
