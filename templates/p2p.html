@@ -135,7 +135,7 @@
     </div>
 </div>
 
-<!-- POPUP ACHETER - DEMANDE EMAIL ACHETEUR -->
+<!-- POPUP ACHETER -->
 <div id="buy-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #00ff88;">
     <h4 style="color:#00ff88;">🟢 Acheter des VEIL</h4>
     <p id="buy-details" style="color:white;"></p>
@@ -145,7 +145,7 @@
     <button id="close-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
 
-<!-- POPUP PAIEMENT - AFFICHE EMAIL VENDEUR APRÈS PAIEMENT -->
+<!-- POPUP PAIEMENT -->
 <div id="pay-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #ffc107;">
     <h4 style="color:#ffc107;">📧 Paiement PayPal</h4>
     <p style="color:white;">📧 Email du vendeur : <strong id="seller-email" style="color:#00ff88;"></strong></p>
@@ -172,23 +172,27 @@ document.getElementById('connect-btn').onclick = async () => {
     const seed = document.getElementById('wallet-seed').value;
     if (!name || !seed) { alert('Entrez nom et seed'); return; }
     
-    const res = await fetch('/api/wallet/login', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name, seed_phrase: seed})
-    });
-    const data = await res.json();
-    if (data.success) {
-        currentWallet = name;
-        currentBalance = data.balance;
-        document.getElementById('wallet-info').style.display = 'block';
-        document.getElementById('connected-name').innerText = name;
-        document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
-        loadOrders();
-        loadMyOrders();
-        loadHistory();
-    } else {
-        alert('Erreur: ' + data.error);
+    try {
+        const res = await fetch('/api/wallet/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, seed_phrase: seed})
+        });
+        const data = await res.json();
+        if (data.success) {
+            currentWallet = name;
+            currentBalance = data.balance;
+            document.getElementById('wallet-info').style.display = 'block';
+            document.getElementById('connected-name').innerText = name;
+            document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
+            loadOrders();
+            loadMyOrders();
+            loadHistory();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur de connexion: ' + e.message);
     }
 };
 
@@ -196,6 +200,7 @@ document.getElementById('connect-btn').onclick = async () => {
 async function loadHistory() {
     try {
         const res = await fetch('/api/p2p/history');
+        if (!res.ok) throw new Error('Erreur serveur');
         const data = await res.json();
         const tbody = document.getElementById('history-list');
         if (!data.transactions || data.transactions.length === 0) {
@@ -212,19 +217,30 @@ async function loadHistory() {
                 <td class="text-center">${tx.total_eur} EUR</td>
             </tr>
         `).join('');
-    } catch(e) { console.error(e); }
+    } catch(e) {
+        console.error('Erreur loadHistory:', e);
+        document.getElementById('history-list').innerHTML = '<tr><td colspan="6" class="text-center">⚠️ Erreur de chargement</td></tr>';
+    }
 }
 
-// Charger les offres
+// Charger les offres avec timeout
 async function loadOrders() {
     try {
-        const res = await fetch('/api/p2p/orders');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const res = await fetch('/api/p2p/orders', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (!res.ok) throw new Error('Erreur serveur');
         const data = await res.json();
         const tbody = document.getElementById('orders-list');
+        
         if (!data.orders || data.orders.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center">Aucune offre de vente</td></tr>';
             return;
         }
+        
         tbody.innerHTML = data.orders.map(o => `
             <tr>
                 <td class="text-center">${o.id}</td>
@@ -234,7 +250,10 @@ async function loadOrders() {
                 <td class="text-center"><button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">🟢 Acheter</button></td>
             </tr>
         `).join('');
-    } catch(e) { console.error(e); }
+    } catch(e) {
+        console.error('Erreur loadOrders:', e);
+        document.getElementById('orders-list').innerHTML = '<tr><td colspan="5" class="text-center">⚠️ Erreur de chargement. <button onclick="loadOrders()" class="btn btn-sm btn-primary">🔄 Réessayer</button></td></tr>';
+    }
 }
 
 // Charger mes offres
@@ -242,6 +261,7 @@ async function loadMyOrders() {
     if (!currentWallet) return;
     try {
         const res = await fetch(`/api/p2p/my-orders?wallet=${currentWallet}`);
+        if (!res.ok) throw new Error('Erreur serveur');
         const data = await res.json();
         const tbody = document.getElementById('my-orders-list');
         if (!data.orders || data.orders.length === 0) {
@@ -258,7 +278,10 @@ async function loadMyOrders() {
                 <td class="text-center">${o.status === 'matched' ? `<button class="btn btn-sm btn-warning" onclick="confirmSeller('${o.id}')">Confirmer vente</button>` : (o.status === 'open' ? `<button class="btn btn-sm btn-danger" onclick="cancelOrder('${o.id}')">Annuler</button>` : '✅ Vendu')}</td>
             </tr>
         `).join('');
-    } catch(e) { console.error(e); }
+    } catch(e) {
+        console.error('Erreur loadMyOrders:', e);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">⚠️ Erreur de chargement</td></tr>';
+    }
 }
 
 // Créer offre
@@ -270,25 +293,29 @@ document.getElementById('create-offer-btn').onclick = async () => {
     if (!amount || !price) { alert('Entrez montant et prix'); return; }
     if (!email) { alert('Entrez votre email PayPal'); return; }
     
-    const res = await fetch('/api/p2p/create', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({wallet: currentWallet, amount_veil: amount, price_eur: price, seller_email: email})
-    });
-    const data = await res.json();
-    if (data.success) {
-        alert('Offre créée !');
-        loadOrders();
-        loadMyOrders();
-        document.getElementById('sell-amount').value = '';
-        document.getElementById('sell-price').value = '';
-        document.getElementById('seller-email').value = '';
-    } else {
-        alert('Erreur: ' + data.error);
+    try {
+        const res = await fetch('/api/p2p/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({wallet: currentWallet, amount_veil: amount, price_eur: price, seller_email: email})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('Offre créée !');
+            loadOrders();
+            loadMyOrders();
+            document.getElementById('sell-amount').value = '';
+            document.getElementById('sell-price').value = '';
+            document.getElementById('seller-email').value = '';
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
     }
 };
 
-// Acheter - DEMANDE EMAIL ACHETEUR
+// Acheter
 window.buyOrder = (orderId, amount, total) => {
     currentOrderId = orderId;
     document.getElementById('buy-details').innerHTML = `Achat de ${amount} VEIL pour ${total} EUR`;
@@ -300,92 +327,112 @@ document.getElementById('confirm-buy-btn').onclick = async () => {
     const email = document.getElementById('buyer-email').value;
     if (!email) { alert('Entrez votre email PayPal'); return; }
     
-    const res = await fetch('/api/p2p/match', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({order_id: currentOrderId, buyer: currentWallet, email: email})
-    });
-    const data = await res.json();
-    if (data.success) {
-        document.getElementById('buy-modal').style.display = 'none';
-        document.getElementById('seller-email').innerHTML = "Email révélé après paiement";
-        document.getElementById('pay-amount').innerHTML = data.amount_eur;
-        document.getElementById('pay-modal').style.display = 'block';
-    } else {
-        alert('Erreur: ' + data.error);
+    try {
+        const res = await fetch('/api/p2p/match', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: currentOrderId, buyer: currentWallet, email: email})
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('buy-modal').style.display = 'none';
+            document.getElementById('seller-email').innerHTML = "Email révélé après paiement";
+            document.getElementById('pay-amount').innerHTML = data.amount_eur;
+            document.getElementById('pay-modal').style.display = 'block';
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
     }
 };
 
-// Paiement - AFFICHE EMAIL VENDEUR
+// Paiement
 document.getElementById('confirm-payment-btn').onclick = async () => {
-    const res = await fetch('/api/p2p/pay', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({order_id: currentOrderId, buyer: currentWallet})
-    });
-    const data = await res.json();
-    if (data.success) {
-        document.getElementById('seller-email').innerHTML = data.seller_email;
-        document.getElementById('pay-amount').innerHTML = data.amount_eur;
-        alert('Paiement confirmé ! Attendez la confirmation du vendeur');
-        document.getElementById('confirm-modal').style.display = 'block';
-    } else {
-        alert('Erreur: ' + data.error);
+    try {
+        const res = await fetch('/api/p2p/pay', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: currentOrderId, buyer: currentWallet})
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('seller-email').innerHTML = data.seller_email;
+            document.getElementById('pay-amount').innerHTML = data.amount_eur;
+            alert('Paiement confirmé ! Attendez la confirmation du vendeur');
+            document.getElementById('confirm-modal').style.display = 'block';
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
     }
 };
 
 // Confirmation réception
 document.getElementById('confirm-receipt-btn').onclick = async () => {
-    const res = await fetch('/api/p2p/confirm', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({order_id: currentOrderId, wallet: currentWallet, confirm_type: 'buyer'})
-    });
-    const data = await res.json();
-    if (data.success) {
-        alert(data.message);
-        document.getElementById('confirm-modal').style.display = 'none';
-        loadOrders();
-        loadMyOrders();
-        loadHistory();
-    } else {
-        alert('Erreur: ' + data.error);
+    try {
+        const res = await fetch('/api/p2p/confirm', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: currentOrderId, wallet: currentWallet, confirm_type: 'buyer'})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(data.message);
+            document.getElementById('confirm-modal').style.display = 'none';
+            loadOrders();
+            loadMyOrders();
+            loadHistory();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
     }
 };
 
 // Confirmation vendeur
 window.confirmSeller = async (orderId) => {
-    const res = await fetch('/api/p2p/confirm', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({order_id: orderId, wallet: currentWallet, confirm_type: 'seller'})
-    });
-    const data = await res.json();
-    if (data.success) {
-        alert(data.message);
-        loadMyOrders();
-        loadOrders();
-        loadHistory();
-    } else {
-        alert('Erreur: ' + data.error);
+    try {
+        const res = await fetch('/api/p2p/confirm', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: orderId, wallet: currentWallet, confirm_type: 'seller'})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(data.message);
+            loadMyOrders();
+            loadOrders();
+            loadHistory();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
     }
 };
 
 // Annuler offre
 window.cancelOrder = async (orderId) => {
     if (!confirm('Annuler cette offre ?')) return;
-    const res = await fetch('/api/p2p/cancel', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({order_id: orderId, wallet: currentWallet})
-    });
-    const data = await res.json();
-    if (data.success) {
-        alert('Offre annulée');
-        loadMyOrders();
-        loadOrders();
-    } else {
-        alert('Erreur: ' + data.error);
+    try {
+        const res = await fetch('/api/p2p/cancel', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: orderId, wallet: currentWallet})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('Offre annulée');
+            loadMyOrders();
+            loadOrders();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) {
+        alert('Erreur: ' + e.message);
     }
 };
 
@@ -395,7 +442,6 @@ document.getElementById('close-pay-modal').onclick = () => document.getElementBy
 document.getElementById('close-confirm-modal').onclick = () => document.getElementById('confirm-modal').style.display = 'none';
 
 // Auto-refresh
-setInterval(() => { if(currentWallet) { loadOrders(); loadMyOrders(); loadHistory(); } }, 10000);
-loadHistory();
+setInterval(() => { if(currentWallet) { loadOrders(); loadMyOrders(); } }, 30000);
 </script>
 {% endblock %}
