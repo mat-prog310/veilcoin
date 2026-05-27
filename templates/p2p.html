@@ -54,10 +54,16 @@
                     <div class="table-responsive">
                         <table class="table table-dark table-hover mb-0">
                             <thead>
-                                <tr><th>ID</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th><th>Action</th></tr>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>VEIL</th>
+                                    <th>Prix/VEIL</th>
+                                    <th>Total EUR</th>
+                                    <th>Action</th>
+                                </tr>
                             </thead>
                             <tbody id="orders-list">
-                                <tr><td colspan="5" class="text-center">Chargement...</td></tr>
+                                <tr><td colspan="5" class="text-center">⏳ Chargement des offres...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -101,7 +107,14 @@
                     <div class="table-responsive">
                         <table class="table table-dark table-hover mb-0">
                             <thead>
-                                <tr><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Action</th></tr>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>VEIL</th>
+                                    <th>Prix</th>
+                                    <th>Total</th>
+                                    <th>Statut</th>
+                                    <th>Action</th>
+                                </tr>
                             </thead>
                             <tbody id="my-orders-list">
                                 <tr><td colspan="6" class="text-center">Connectez-vous d'abord</td></tr>
@@ -122,7 +135,14 @@
                     <div class="table-responsive">
                         <table class="table table-dark table-hover mb-0">
                             <thead>
-                                <tr><th>Date</th><th>Vendeur</th><th>Acheteur</th><th>VEIL</th><th>Prix/VEIL</th><th>Total</th></tr>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Vendeur</th>
+                                    <th>Acheteur</th>
+                                    <th>VEIL</th>
+                                    <th>Prix/VEIL</th>
+                                    <th>Total</th>
+                                </tr>
                             </thead>
                             <tbody id="history-list">
                                 <tr><td colspan="6" class="text-center">Chargement...</td></tr>
@@ -135,7 +155,7 @@
     </div>
 </div>
 
-<!-- POPUP ACHETER -->
+<!-- POPUPS -->
 <div id="buy-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #00ff88;">
     <h4 style="color:#00ff88;">🟢 Acheter des VEIL</h4>
     <p id="buy-details" style="color:white;"></p>
@@ -145,7 +165,6 @@
     <button id="close-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
 
-<!-- POPUP PAIEMENT -->
 <div id="pay-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #ffc107;">
     <h4 style="color:#ffc107;">📧 Paiement PayPal</h4>
     <p style="color:white;">📧 Email du vendeur : <strong id="seller-email" style="color:#00ff88;"></strong></p>
@@ -155,7 +174,6 @@
     <button id="close-pay-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
 
-<!-- POPUP CONFIRMATION -->
 <div id="confirm-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:300px; border:1px solid #00ff88;">
     <h4 style="color:#00ff88;">🔐 Confirmation</h4>
     <p style="color:white;">Confirmez-vous avoir reçu les VEIL ?</p>
@@ -223,21 +241,25 @@ async function loadHistory() {
     }
 }
 
-// Charger les offres avec timeout
+// Charger les offres - VERSION CORRIGÉE
 async function loadOrders() {
+    console.log("🔄 loadOrders appelée");
+    const tbody = document.getElementById('orders-list');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center">⏳ Chargement...</td></tr>';
+    
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const response = await fetch('/api/p2p/orders');
+        console.log("📡 Status:", response.status);
         
-        const res = await fetch('/api/p2p/orders', { signal: controller.signal });
-        clearTimeout(timeoutId);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
         
-        if (!res.ok) throw new Error('Erreur serveur');
-        const data = await res.json();
-        const tbody = document.getElementById('orders-list');
+        const data = await response.json();
+        console.log("📦 Données reçues:", data);
         
         if (!data.orders || data.orders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">Aucune offre de vente</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">📭 Aucune offre de vente</td></tr>';
             return;
         }
         
@@ -250,15 +272,17 @@ async function loadOrders() {
                 <td class="text-center"><button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">🟢 Acheter</button></td>
             </tr>
         `).join('');
-    } catch(e) {
-        console.error('Erreur loadOrders:', e);
-        document.getElementById('orders-list').innerHTML = '<tr><td colspan="5" class="text-center">⚠️ Erreur de chargement. <button onclick="loadOrders()" class="btn btn-sm btn-primary">🔄 Réessayer</button></td></tr>';
+        
+    } catch(error) {
+        console.error("❌ Erreur:", error);
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center">⚠️ Erreur: ${error.message}<br><button onclick="loadOrders()" class="btn btn-sm btn-primary mt-2">🔄 Réessayer</button></td></tr>`;
     }
 }
 
 // Charger mes offres
 async function loadMyOrders() {
     if (!currentWallet) return;
+    console.log("🔄 loadMyOrders appelée");
     try {
         const res = await fetch(`/api/p2p/my-orders?wallet=${currentWallet}`);
         if (!res.ok) throw new Error('Erreur serveur');
@@ -280,7 +304,6 @@ async function loadMyOrders() {
         `).join('');
     } catch(e) {
         console.error('Erreur loadMyOrders:', e);
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">⚠️ Erreur de chargement</td></tr>';
     }
 }
 
@@ -347,7 +370,6 @@ document.getElementById('confirm-buy-btn').onclick = async () => {
     }
 };
 
-// Paiement
 document.getElementById('confirm-payment-btn').onclick = async () => {
     try {
         const res = await fetch('/api/p2p/pay', {
@@ -369,7 +391,6 @@ document.getElementById('confirm-payment-btn').onclick = async () => {
     }
 };
 
-// Confirmation réception
 document.getElementById('confirm-receipt-btn').onclick = async () => {
     try {
         const res = await fetch('/api/p2p/confirm', {
@@ -392,7 +413,6 @@ document.getElementById('confirm-receipt-btn').onclick = async () => {
     }
 };
 
-// Confirmation vendeur
 window.confirmSeller = async (orderId) => {
     try {
         const res = await fetch('/api/p2p/confirm', {
@@ -414,7 +434,6 @@ window.confirmSeller = async (orderId) => {
     }
 };
 
-// Annuler offre
 window.cancelOrder = async (orderId) => {
     if (!confirm('Annuler cette offre ?')) return;
     try {
@@ -443,5 +462,9 @@ document.getElementById('close-confirm-modal').onclick = () => document.getEleme
 
 // Auto-refresh
 setInterval(() => { if(currentWallet) { loadOrders(); loadMyOrders(); } }, 30000);
+
+// Chargement initial
+console.log("Page P2P chargée, lancement loadOrders()");
+loadOrders();
 </script>
 {% endblock %}
