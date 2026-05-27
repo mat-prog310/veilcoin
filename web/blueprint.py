@@ -93,7 +93,6 @@ def save_p2p_orders():
     except Exception as e:
         print(f"Erreur sauvegarde P2P: {e}")
 
-# Charger les offres au démarrage
 load_p2p_orders()
 
 # ==================== HISTORIQUE DES PRIX ====================
@@ -415,19 +414,8 @@ def market_sell():
 
 @web_bp.route('/api/market/price')
 def api_price():
-    # Calculer le prix moyen des offres P2P
-    avg_p2p_price = 0.01
-    open_orders = [o for o in p2p_orders.values() if o['status'] == 'open']
-    if open_orders:
-        total_price = sum(o['price_eur'] for o in open_orders)
-        avg_p2p_price = total_price / len(open_orders)
-    
-    return jsonify({
-        'current_price': avg_p2p_price,
-        'pool_veil': pool.pool_veil if pool else 0,
-        'pool_eur': pool.pool_eur if pool else 0,
-        'p2p_orders_count': len(open_orders)
-    })
+    return jsonify({'current_price': pool.get_veil_price() if pool else 0.01})
+
 # ==================== API MINER ====================
 
 @web_bp.route('/api/miner/submit_block', methods=['POST'])
@@ -493,7 +481,12 @@ def p2p_create_order():
         wallet_name = d.get('wallet')
         amount_veil = float(d.get('amount_veil', 0))
         price_eur = float(d.get('price_eur', 0))
-        seller_email = d.get('seller_email', '')  # ✅ EMAIL DU VENDEUR
+        seller_email = d.get('seller_email', '')
+        
+        print(f"[DEBUG] Création offre - Email reçu: {seller_email}")
+        
+        if not seller_email:
+            return jsonify({'success': False, 'error': 'Email PayPal obligatoire pour vendre'})
         
         w = active_wallets.get(wallet_name)
         if not w:
@@ -514,7 +507,7 @@ def p2p_create_order():
         p2p_orders[order_id] = {
             'id': order_id,
             'seller': wallet_name,
-            'seller_email': seller_email,  # ✅ STOCKAGE EMAIL
+            'seller_email': seller_email,
             'amount_veil': amount_veil,
             'price_eur': price_eur,
             'total_eur': amount_veil * price_eur,
@@ -526,9 +519,12 @@ def p2p_create_order():
             'created_at': time.time()
         }
         
+        print(f"[DEBUG] Offre créée - Email stocké: {p2p_orders[order_id]['seller_email']}")
+        
         save_p2p_orders()
         return jsonify({'success': True, 'order_id': order_id, 'order': p2p_orders[order_id]})
     except Exception as e:
+        print(f"[ERREUR] {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @web_bp.route('/api/p2p/orders', methods=['GET'])
@@ -541,6 +537,25 @@ def p2p_my_orders():
     wallet = request.args.get('wallet')
     my_orders = [o for o in p2p_orders.values() if o.get('seller') == wallet]
     return jsonify({'orders': my_orders})
+
+@web_bp.route('/api/p2p/history', methods=['GET'])
+def p2p_history():
+    """Historique des transactions complétées (anonymisé)"""
+    completed_orders = [o for o in p2p_orders.values() if o['status'] == 'completed']
+    
+    anonymized = []
+    for o in completed_orders:
+        anonymized.append({
+            'timestamp': o.get('completed_at', o.get('created_at', time.time())),
+            'seller_masked': o.get('seller', '???')[:4] + '...' + o.get('seller', '???')[-2:] if len(o.get('seller', '')) > 6 else 'Vendeur',
+            'buyer_masked': o.get('buyer', '???')[:4] + '...' + o.get('buyer', '???')[-2:] if len(o.get('buyer', '')) > 6 else 'Acheteur',
+            'amount_veil': o.get('amount_veil', 0),
+            'price_eur': o.get('price_eur', 0),
+            'total_eur': o.get('total_eur', 0)
+        })
+    
+    anonymized.sort(key=lambda x: x['timestamp'], reverse=True)
+    return jsonify({'transactions': anonymized, 'count': len(anonymized)})
 
 @web_bp.route('/api/p2p/match', methods=['POST'])
 def p2p_match_order():
@@ -580,6 +595,7 @@ def p2p_confirm_payment():
             return jsonify({'success': False, 'error': 'Offre introuvable'})
         
         order = p2p_orders[order_id]
+        
         if order['status'] != 'matched' or order['buyer'] != buyer_name:
             return jsonify({'success': False, 'error': 'Non autorisé'})
         
@@ -587,10 +603,13 @@ def p2p_confirm_payment():
         save_p2p_orders()
         
         # ✅ RÉCUPÉRATION DE L'EMAIL STOCKÉ
-        seller_email = order.get('seller_email', 'Email non renseigné')
+        seller_email = order.get('seller_email', 'Email non renseigné par le vendeur')
+        
+        print(f"[DEBUG] Paiement confirmé - Email vendeur: {seller_email}")
         
         return jsonify({'success': True, 'seller_email': seller_email, 'amount_eur': order['total_eur']})
     except Exception as e:
+        print(f"[ERREUR] {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @web_bp.route('/api/p2p/confirm', methods=['POST'])
@@ -616,6 +635,7 @@ def p2p_confirm_receipt():
         
         if order['seller_confirmed'] and order['buyer_confirmed']:
             order['status'] = 'completed'
+            order['completed_at'] = time.time()
             buyer_wallet = active_wallets.get(order['buyer'])
             if buyer_wallet:
                 buyer_wallet.balance += order['amount_veil']
