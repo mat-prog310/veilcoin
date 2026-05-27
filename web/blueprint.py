@@ -98,6 +98,46 @@ load_p2p_orders()
 # ==================== HISTORIQUE DES PRIX ====================
 PRICE_HISTORY_FILE = os.path.join(DATA_DIR, "price_history.json")
 
+def get_current_price():
+    """Calcule le prix actuel basé sur TOUTES les transactions complétées"""
+    completed_orders = [o for o in p2p_orders.values() if o['status'] == 'completed']
+    
+    if completed_orders:
+        # Moyenne pondérée par le montant des transactions complétées
+        total_value = sum(o['total_eur'] for o in completed_orders)
+        total_veil = sum(o['amount_veil'] for o in completed_orders)
+        price = total_value / total_veil if total_veil > 0 else 0.01
+    else:
+        # Fallback: prix des offres ouvertes
+        open_orders = [o for o in p2p_orders.values() if o['status'] == 'open']
+        if open_orders:
+            total_value = sum(o['total_eur'] for o in open_orders)
+            total_veil = sum(o['amount_veil'] for o in open_orders)
+            price = total_value / total_veil if total_veil > 0 else 0.01
+        else:
+            price = 0.01
+    return price
+
+def record_price(price):
+    try:
+        history = []
+        if os.path.exists(PRICE_HISTORY_FILE):
+            with open(PRICE_HISTORY_FILE, 'r') as f:
+                history = json.load(f)
+        
+        history.append({
+            'price': price,
+            'time': datetime.now().strftime('%H:%M:%S')
+        })
+        
+        if len(history) > 100:
+            history = history[-100:]
+        
+        with open(PRICE_HISTORY_FILE, 'w') as f:
+            json.dump(history, f, indent=2)
+    except:
+        pass
+
 if not os.path.exists(PRICE_HISTORY_FILE):
     with open(PRICE_HISTORY_FILE, 'w') as f:
         json.dump([], f)
@@ -112,17 +152,11 @@ def get_price_history():
         return jsonify({'history': []})
 
 @web_bp.route('/api/market/price/record', methods=['POST'])
-def record_price():
+def record_price_api():
     try:
         d = request.get_json()
         price = d.get('price', 0.01)
-        with open(PRICE_HISTORY_FILE, 'r') as f:
-            history = json.load(f)
-        history.append({'price': price, 'time': datetime.now().strftime('%H:%M:%S')})
-        if len(history) > 100:
-            history = history[-100:]
-        with open(PRICE_HISTORY_FILE, 'w') as f:
-            json.dump(history, f, indent=2)
+        record_price(price)
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -248,13 +282,7 @@ def blockchain_page():
 
 @web_bp.route('/market')
 def market_page():
-    open_orders = [o for o in p2p_orders.values() if o['status'] == 'open']
-    if open_orders:
-        total_value = sum(o['total_eur'] for o in open_orders)
-        total_veil = sum(o['amount_veil'] for o in open_orders)
-        price = total_value / total_veil if total_veil > 0 else 0.01
-    else:
-        price = 0.01
+    price = get_current_price()
     return render_template('market.html', price=round(price, 4))
 
 @web_bp.route('/p2p')
@@ -302,7 +330,7 @@ def api_balance(name):
             if not w.load_or_create():
                 return jsonify({'balance_veil': 0})
             active_wallets[name] = w
-        price = pool.get_veil_price() if pool else 0.01
+        price = get_current_price()
         return jsonify({'name': name, 'balance_veil': w.balance, 
                        'balance_eur': round(w.balance * price, 6), 'veil_price': price})
     except:
@@ -341,19 +369,17 @@ def api_send(name):
 
 @web_bp.route('/api/market/price')
 def api_price():
-    open_orders = [o for o in p2p_orders.values() if o['status'] == 'open']
-    if open_orders:
-        total_value = sum(o['total_eur'] for o in open_orders)
-        total_veil = sum(o['amount_veil'] for o in open_orders)
-        avg_price = total_value / total_veil if total_veil > 0 else 0.01
-    else:
-        avg_price = 0.01
+    price = get_current_price()
+    # Enregistrer pour l'historique
+    record_price(price)
     
+    open_orders = [o for o in p2p_orders.values() if o['status'] == 'open']
     return jsonify({
-        'current_price': avg_price,
+        'current_price': price,
         'pool_veil': pool.pool_veil if pool else 0,
         'pool_eur': pool.pool_eur if pool else 0,
-        'p2p_orders_count': len(open_orders)
+        'p2p_orders_count': len(open_orders),
+        'completed_count': len([o for o in p2p_orders.values() if o['status'] == 'completed'])
     })
 
 # ==================== API MINER ====================
@@ -458,6 +484,10 @@ def p2p_create_order():
         }
         
         save_p2p_orders()
+        # Mettre à jour le prix après création
+        new_price = get_current_price()
+        record_price(new_price)
+        
         return jsonify({'success': True, 'order_id': order_id, 'order': p2p_orders[order_id]})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -475,14 +505,14 @@ def p2p_my_orders():
 
 @web_bp.route('/api/p2p/history', methods=['GET'])
 def p2p_history():
+    """Historique public de TOUTES les transactions complétées (visible par tous sans connexion)"""
     completed_orders = [o for o in p2p_orders.values() if o['status'] == 'completed']
     
+    # Anonymiser complètement (pas de noms)
     anonymized = []
     for o in completed_orders:
         anonymized.append({
             'timestamp': o.get('completed_at', o.get('created_at', time.time())),
-            'seller_masked': o.get('seller', '???')[:4] + '...' + o.get('seller', '???')[-2:] if len(o.get('seller', '')) > 6 else 'Vendeur',
-            'buyer_masked': o.get('buyer', '???')[:4] + '...' + o.get('buyer', '???')[-2:] if len(o.get('buyer', '')) > 6 else 'Acheteur',
             'amount_veil': o.get('amount_veil', 0),
             'price_eur': o.get('price_eur', 0),
             'total_eur': o.get('total_eur', 0)
@@ -585,11 +615,16 @@ def p2p_release_veil():
         order['completed_at'] = time.time()
         save_p2p_orders()
         
+        # Mettre à jour le prix après la transaction
+        new_price = get_current_price()
+        record_price(new_price)
+        
         return jsonify({
             'success': True, 
             'amount_veil': order['amount_veil'],
             'new_balance_buyer': buyer_wallet.balance,
-            'new_balance_seller': seller_wallet.balance
+            'new_balance_seller': seller_wallet.balance,
+            'new_price': new_price
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -617,6 +652,10 @@ def p2p_cancel_order():
         
         del p2p_orders[order_id]
         save_p2p_orders()
+        
+        # Mettre à jour le prix après annulation
+        new_price = get_current_price()
+        record_price(new_price)
         
         return jsonify({'success': True, 'message': 'Offre annulée'})
     except Exception as e:
