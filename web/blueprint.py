@@ -415,8 +415,19 @@ def market_sell():
 
 @web_bp.route('/api/market/price')
 def api_price():
-    return jsonify({'current_price': pool.get_veil_price() if pool else 0.01})
-
+    # Calculer le prix moyen des offres P2P
+    avg_p2p_price = 0.01
+    open_orders = [o for o in p2p_orders.values() if o['status'] == 'open']
+    if open_orders:
+        total_price = sum(o['price_eur'] for o in open_orders)
+        avg_p2p_price = total_price / len(open_orders)
+    
+    return jsonify({
+        'current_price': avg_p2p_price,
+        'pool_veil': pool.pool_veil if pool else 0,
+        'pool_eur': pool.pool_eur if pool else 0,
+        'p2p_orders_count': len(open_orders)
+    })
 # ==================== API MINER ====================
 
 @web_bp.route('/api/miner/submit_block', methods=['POST'])
