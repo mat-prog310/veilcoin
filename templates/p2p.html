@@ -18,6 +18,9 @@
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#myorders" type="button">📦 Mes offres</button>
         </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#history" type="button">📜 Historique</button>
+        </li>
     </ul>
     
     <!-- Connexion -->
@@ -62,7 +65,7 @@
             </div>
         </div>
         
-        <!-- ONGLET VENDRE - AVEC EMAIL OBLIGATOIRE -->
+        <!-- ONGLET VENDRE -->
         <div class="tab-pane fade" id="sell" role="tabpanel">
             <div class="card bg-dark">
                 <div class="card-header">
@@ -97,8 +100,32 @@
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-dark table-hover mb-0">
-                            <thead><tr><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Action</th></tr></thead>
-                            <tbody id="my-orders-list"></tr><td colspan="6" class="text-center">Connectez-vous d'abord</td></tr>
+                            <thead>
+                                <tr><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Action</th></tr>
+                            </thead>
+                            <tbody id="my-orders-list">
+                                <tr><td colspan="6" class="text-center">Connectez-vous d'abord</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ONGLET HISTORIQUE -->
+        <div class="tab-pane fade" id="history" role="tabpanel">
+            <div class="card bg-dark">
+                <div class="card-header">
+                    <h4 style="color: #00ff88;">📜 Historique des transactions</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0">
+                            <thead>
+                                <tr><th>Date</th><th>Vendeur</th><th>Acheteur</th><th>VEIL</th><th>Prix/VEIL</th><th>Total</th></tr>
+                            </thead>
+                            <tbody id="history-list">
+                                <tr><td colspan="6" class="text-center">Chargement...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -108,28 +135,29 @@
     </div>
 </div>
 
-<!-- Popup pour acheter -->
-<div id="buy-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:300px; border:1px solid #00ff88;">
+<!-- POPUP ACHETER - DEMANDE EMAIL ACHETEUR -->
+<div id="buy-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #00ff88;">
     <h4 style="color:#00ff88;">🟢 Acheter des VEIL</h4>
     <p id="buy-details" style="color:white;"></p>
-    <input type="email" id="buyer-email" class="form-control bg-dark text-white mb-2" placeholder="Votre email PayPal" required>
+    <label style="color:white;">📧 Votre email PayPal (obligatoire)</label>
+    <input type="email" id="buyer-email" class="form-control bg-dark text-white mb-2" placeholder="votre@email.com" required>
     <button id="confirm-buy-btn" class="btn btn-success w-100 mb-2">✅ Confirmer l'achat</button>
     <button id="close-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
 
-<!-- Popup pour paiement - Affiche l'email du vendeur -->
+<!-- POPUP PAIEMENT - AFFICHE EMAIL VENDEUR APRÈS PAIEMENT -->
 <div id="pay-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #ffc107;">
     <h4 style="color:#ffc107;">📧 Paiement PayPal</h4>
-    <p style="color:white;">Contactez le vendeur : <strong id="seller-email" style="color:#00ff88;"></strong></p>
-    <p style="color:white;">Montant à payer : <strong id="pay-amount" style="color:#00ff88;"></strong> EUR</p>
-    <p style="color:#ff8888; font-size:12px;">⚠️ Après paiement, cliquez sur "J'ai payé"</p>
+    <p style="color:white;">📧 Email du vendeur : <strong id="seller-email" style="color:#00ff88;"></strong></p>
+    <p style="color:white;">💰 Montant à payer : <strong id="pay-amount" style="color:#00ff88;"></strong> EUR</p>
+    <p style="color:#ff8888; font-size:12px;">⚠️ Après avoir payé sur PayPal, cliquez sur "J'ai payé"</p>
     <button id="confirm-payment-btn" class="btn btn-warning w-100 mb-2">💸 J'ai payé</button>
     <button id="close-pay-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
 
-<!-- Popup pour confirmer réception -->
+<!-- POPUP CONFIRMATION -->
 <div id="confirm-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:300px; border:1px solid #00ff88;">
-    <h4 style="color:#00ff88;">🔐 Confirmation réception</h4>
+    <h4 style="color:#00ff88;">🔐 Confirmation</h4>
     <p style="color:white;">Confirmez-vous avoir reçu les VEIL ?</p>
     <button id="confirm-receipt-btn" class="btn btn-success w-100 mb-2">✅ Oui, j'ai reçu</button>
     <button id="close-confirm-modal" class="btn btn-secondary w-100">❌ Fermer</button>
@@ -158,10 +186,34 @@ document.getElementById('connect-btn').onclick = async () => {
         document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
         loadOrders();
         loadMyOrders();
+        loadHistory();
     } else {
         alert('Erreur: ' + data.error);
     }
 };
+
+// Charger l'historique
+async function loadHistory() {
+    try {
+        const res = await fetch('/api/p2p/history');
+        const data = await res.json();
+        const tbody = document.getElementById('history-list');
+        if (!data.transactions || data.transactions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Aucune transaction</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.transactions.map(tx => `
+            <tr>
+                <td class="small">${new Date(tx.timestamp * 1000).toLocaleString()}</td>
+                <td class="small">${tx.seller_masked}</td>
+                <td class="small">${tx.buyer_masked}</td>
+                <td class="text-center">${tx.amount_veil}</td>
+                <td class="text-center">${tx.price_eur} EUR</td>
+                <td class="text-center">${tx.total_eur} EUR</td>
+            </tr>
+        `).join('');
+    } catch(e) { console.error(e); }
+}
 
 // Charger les offres
 async function loadOrders() {
@@ -169,12 +221,10 @@ async function loadOrders() {
         const res = await fetch('/api/p2p/orders');
         const data = await res.json();
         const tbody = document.getElementById('orders-list');
-        
         if (!data.orders || data.orders.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center">Aucune offre de vente</td></tr>';
             return;
         }
-        
         tbody.innerHTML = data.orders.map(o => `
             <tr>
                 <td class="text-center">${o.id}</td>
@@ -184,9 +234,7 @@ async function loadOrders() {
                 <td class="text-center"><button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">🟢 Acheter</button></td>
             </tr>
         `).join('');
-    } catch(e) {
-        console.error('Erreur loadOrders:', e);
-    }
+    } catch(e) { console.error(e); }
 }
 
 // Charger mes offres
@@ -196,12 +244,10 @@ async function loadMyOrders() {
         const res = await fetch(`/api/p2p/my-orders?wallet=${currentWallet}`);
         const data = await res.json();
         const tbody = document.getElementById('my-orders-list');
-        
         if (!data.orders || data.orders.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center">Aucune offre</td></tr>';
             return;
         }
-        
         tbody.innerHTML = data.orders.map(o => `
             <tr>
                 <td class="text-center">${o.id}</td>
@@ -212,20 +258,17 @@ async function loadMyOrders() {
                 <td class="text-center">${o.status === 'matched' ? `<button class="btn btn-sm btn-warning" onclick="confirmSeller('${o.id}')">Confirmer vente</button>` : (o.status === 'open' ? `<button class="btn btn-sm btn-danger" onclick="cancelOrder('${o.id}')">Annuler</button>` : '✅ Vendu')}</td>
             </tr>
         `).join('');
-    } catch(e) {
-        console.error('Erreur loadMyOrders:', e);
-    }
+    } catch(e) { console.error(e); }
 }
 
-// Créer offre - AVEC EMAIL OBLIGATOIRE
+// Créer offre
 document.getElementById('create-offer-btn').onclick = async () => {
     if (!currentWallet) { alert('Connectez-vous'); return; }
     const amount = parseFloat(document.getElementById('sell-amount').value);
     const price = parseFloat(document.getElementById('sell-price').value);
     const email = document.getElementById('seller-email').value;
-    
     if (!amount || !price) { alert('Entrez montant et prix'); return; }
-    if (!email) { alert('Entrez votre email PayPal (obligatoire)'); return; }
+    if (!email) { alert('Entrez votre email PayPal'); return; }
     
     const res = await fetch('/api/p2p/create', {
         method: 'POST',
@@ -245,10 +288,11 @@ document.getElementById('create-offer-btn').onclick = async () => {
     }
 };
 
-// Acheter
+// Acheter - DEMANDE EMAIL ACHETEUR
 window.buyOrder = (orderId, amount, total) => {
     currentOrderId = orderId;
     document.getElementById('buy-details').innerHTML = `Achat de ${amount} VEIL pour ${total} EUR`;
+    document.getElementById('buyer-email').value = '';
     document.getElementById('buy-modal').style.display = 'block';
 };
 
@@ -264,7 +308,6 @@ document.getElementById('confirm-buy-btn').onclick = async () => {
     const data = await res.json();
     if (data.success) {
         document.getElementById('buy-modal').style.display = 'none';
-        // L'email du vendeur sera révélé après paiement
         document.getElementById('seller-email').innerHTML = "Email révélé après paiement";
         document.getElementById('pay-amount').innerHTML = data.amount_eur;
         document.getElementById('pay-modal').style.display = 'block';
@@ -273,6 +316,7 @@ document.getElementById('confirm-buy-btn').onclick = async () => {
     }
 };
 
+// Paiement - AFFICHE EMAIL VENDEUR
 document.getElementById('confirm-payment-btn').onclick = async () => {
     const res = await fetch('/api/p2p/pay', {
         method: 'POST',
@@ -281,7 +325,6 @@ document.getElementById('confirm-payment-btn').onclick = async () => {
     });
     const data = await res.json();
     if (data.success) {
-        // Afficher l'email du vendeur
         document.getElementById('seller-email').innerHTML = data.seller_email;
         document.getElementById('pay-amount').innerHTML = data.amount_eur;
         alert('Paiement confirmé ! Attendez la confirmation du vendeur');
@@ -291,6 +334,7 @@ document.getElementById('confirm-payment-btn').onclick = async () => {
     }
 };
 
+// Confirmation réception
 document.getElementById('confirm-receipt-btn').onclick = async () => {
     const res = await fetch('/api/p2p/confirm', {
         method: 'POST',
@@ -303,11 +347,13 @@ document.getElementById('confirm-receipt-btn').onclick = async () => {
         document.getElementById('confirm-modal').style.display = 'none';
         loadOrders();
         loadMyOrders();
+        loadHistory();
     } else {
         alert('Erreur: ' + data.error);
     }
 };
 
+// Confirmation vendeur
 window.confirmSeller = async (orderId) => {
     const res = await fetch('/api/p2p/confirm', {
         method: 'POST',
@@ -319,11 +365,13 @@ window.confirmSeller = async (orderId) => {
         alert(data.message);
         loadMyOrders();
         loadOrders();
+        loadHistory();
     } else {
         alert('Erreur: ' + data.error);
     }
 };
 
+// Annuler offre
 window.cancelOrder = async (orderId) => {
     if (!confirm('Annuler cette offre ?')) return;
     const res = await fetch('/api/p2p/cancel', {
@@ -347,6 +395,7 @@ document.getElementById('close-pay-modal').onclick = () => document.getElementBy
 document.getElementById('close-confirm-modal').onclick = () => document.getElementById('confirm-modal').style.display = 'none';
 
 // Auto-refresh
-setInterval(() => { if(currentWallet) { loadOrders(); loadMyOrders(); } }, 10000);
+setInterval(() => { if(currentWallet) { loadOrders(); loadMyOrders(); loadHistory(); } }, 10000);
+loadHistory();
 </script>
 {% endblock %}
