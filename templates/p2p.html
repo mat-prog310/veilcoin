@@ -54,7 +54,7 @@
                                 <tr><th>ID</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th><th>Action</th></tr>
                             </thead>
                             <tbody id="orders-list">
-                                <tr><td colspan="5" class="text-center" id="loading-msg">Chargement des offres...</td></tr>
+                                <tr><td colspan="5" class="text-center">Chargement...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -62,7 +62,7 @@
             </div>
         </div>
         
-        <!-- ONGLET VENDRE -->
+        <!-- ONGLET VENDRE - AVEC EMAIL OBLIGATOIRE -->
         <div class="tab-pane fade" id="sell" role="tabpanel">
             <div class="card bg-dark">
                 <div class="card-header">
@@ -79,8 +79,8 @@
                             <input type="number" id="sell-price" class="form-control bg-dark text-white" placeholder="Ex: 0.05" step="0.001">
                         </div>
                         <div class="col-md-4">
-                            <label>📧 Email PayPal</label>
-                            <input type="email" id="seller-email" class="form-control bg-dark text-white" placeholder="votre@email.com">
+                            <label>📧 Votre email PayPal (OBLIGATOIRE)</label>
+                            <input type="email" id="seller-email" class="form-control bg-dark text-white" placeholder="vendeur@email.com" required>
                         </div>
                     </div>
                     <button id="create-offer-btn" class="btn btn-primary w-100 mt-3">📢 Créer l'offre</button>
@@ -98,7 +98,8 @@
                     <div class="table-responsive">
                         <table class="table table-dark table-hover mb-0">
                             <thead><tr><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Action</th></tr></thead>
-                            <tbody id="my-orders-list"><tr><td colspan="6" class="text-center">Connectez-vous d'abord</td></tr></tbody>
+                            <tbody id="my-orders-list"></tr><td colspan="6" class="text-center">Connectez-vous d'abord</td></tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -107,26 +108,29 @@
     </div>
 </div>
 
-<!-- Popups -->
+<!-- Popup pour acheter -->
 <div id="buy-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:300px; border:1px solid #00ff88;">
-    <h4>🟢 Acheter des VEIL</h4>
-    <p id="buy-details"></p>
-    <input type="email" id="buyer-email" class="form-control bg-dark text-white mb-2" placeholder="Votre email PayPal">
+    <h4 style="color:#00ff88;">🟢 Acheter des VEIL</h4>
+    <p id="buy-details" style="color:white;"></p>
+    <input type="email" id="buyer-email" class="form-control bg-dark text-white mb-2" placeholder="Votre email PayPal" required>
     <button id="confirm-buy-btn" class="btn btn-success w-100 mb-2">✅ Confirmer l'achat</button>
     <button id="close-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
 
+<!-- Popup pour paiement - Affiche l'email du vendeur -->
 <div id="pay-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #ffc107;">
-    <h4>📧 Paiement PayPal</h4>
-    <p>Contactez le vendeur : <strong id="seller-email"></strong></p>
-    <p>Montant : <strong id="pay-amount"></strong> EUR</p>
+    <h4 style="color:#ffc107;">📧 Paiement PayPal</h4>
+    <p style="color:white;">Contactez le vendeur : <strong id="seller-email" style="color:#00ff88;"></strong></p>
+    <p style="color:white;">Montant à payer : <strong id="pay-amount" style="color:#00ff88;"></strong> EUR</p>
+    <p style="color:#ff8888; font-size:12px;">⚠️ Après paiement, cliquez sur "J'ai payé"</p>
     <button id="confirm-payment-btn" class="btn btn-warning w-100 mb-2">💸 J'ai payé</button>
     <button id="close-pay-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
 
+<!-- Popup pour confirmer réception -->
 <div id="confirm-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:300px; border:1px solid #00ff88;">
-    <h4>🔐 Confirmation</h4>
-    <p>Confirmez-vous avoir reçu les VEIL ?</p>
+    <h4 style="color:#00ff88;">🔐 Confirmation réception</h4>
+    <p style="color:white;">Confirmez-vous avoir reçu les VEIL ?</p>
     <button id="confirm-receipt-btn" class="btn btn-success w-100 mb-2">✅ Oui, j'ai reçu</button>
     <button id="close-confirm-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
@@ -173,11 +177,11 @@ async function loadOrders() {
         
         tbody.innerHTML = data.orders.map(o => `
             <tr>
-                <td>${o.id}</td>
-                <td>${o.amount_veil}</td>
-                <td>${o.price_eur} EUR</td>
-                <td>${o.total_eur} EUR</td>
-                <td><button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">🟢 Acheter</button></td>
+                <td class="text-center">${o.id}</td>
+                <td class="text-center">${o.amount_veil}</td>
+                <td class="text-center">${o.price_eur} EUR</td>
+                <td class="text-center">${o.total_eur} EUR</td>
+                <td class="text-center"><button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">🟢 Acheter</button></td>
             </tr>
         `).join('');
     } catch(e) {
@@ -200,12 +204,12 @@ async function loadMyOrders() {
         
         tbody.innerHTML = data.orders.map(o => `
             <tr>
-                <td>${o.id}</td>
-                <td>${o.amount_veil}</td>
-                <td>${o.price_eur} EUR</td>
-                <td>${o.total_eur} EUR</td>
-                <td><span class="badge ${o.status === 'open' ? 'bg-success' : (o.status === 'matched' ? 'bg-warning' : 'bg-secondary')}">${o.status === 'open' ? '📢 En vente' : (o.status === 'matched' ? '⏳ En attente' : '✅ Vendue')}</span></td>
-                <td>${o.status === 'matched' ? `<button class="btn btn-sm btn-warning" onclick="confirmSeller('${o.id}')">Confirmer vente</button>` : (o.status === 'open' ? `<button class="btn btn-sm btn-danger" onclick="cancelOrder('${o.id}')">Annuler</button>` : '✅ Vendu')}</td>
+                <td class="text-center">${o.id}</td>
+                <td class="text-center">${o.amount_veil}</td>
+                <td class="text-center">${o.price_eur} EUR</td>
+                <td class="text-center">${o.total_eur} EUR</td>
+                <td class="text-center"><span class="badge ${o.status === 'open' ? 'bg-success' : (o.status === 'matched' ? 'bg-warning' : 'bg-secondary')}">${o.status === 'open' ? '📢 En vente' : (o.status === 'matched' ? '⏳ En attente' : '✅ Vendue')}</span></td>
+                <td class="text-center">${o.status === 'matched' ? `<button class="btn btn-sm btn-warning" onclick="confirmSeller('${o.id}')">Confirmer vente</button>` : (o.status === 'open' ? `<button class="btn btn-sm btn-danger" onclick="cancelOrder('${o.id}')">Annuler</button>` : '✅ Vendu')}</td>
             </tr>
         `).join('');
     } catch(e) {
@@ -213,7 +217,7 @@ async function loadMyOrders() {
     }
 }
 
-// Créer offre
+// Créer offre - AVEC EMAIL OBLIGATOIRE
 document.getElementById('create-offer-btn').onclick = async () => {
     if (!currentWallet) { alert('Connectez-vous'); return; }
     const amount = parseFloat(document.getElementById('sell-amount').value);
@@ -221,7 +225,7 @@ document.getElementById('create-offer-btn').onclick = async () => {
     const email = document.getElementById('seller-email').value;
     
     if (!amount || !price) { alert('Entrez montant et prix'); return; }
-    if (!email) { alert('Entrez votre email PayPal'); return; }
+    if (!email) { alert('Entrez votre email PayPal (obligatoire)'); return; }
     
     const res = await fetch('/api/p2p/create', {
         method: 'POST',
@@ -250,7 +254,7 @@ window.buyOrder = (orderId, amount, total) => {
 
 document.getElementById('confirm-buy-btn').onclick = async () => {
     const email = document.getElementById('buyer-email').value;
-    if (!email) { alert('Entrez email PayPal'); return; }
+    if (!email) { alert('Entrez votre email PayPal'); return; }
     
     const res = await fetch('/api/p2p/match', {
         method: 'POST',
@@ -260,7 +264,8 @@ document.getElementById('confirm-buy-btn').onclick = async () => {
     const data = await res.json();
     if (data.success) {
         document.getElementById('buy-modal').style.display = 'none';
-        document.getElementById('seller-email').innerHTML = data.seller_email;
+        // L'email du vendeur sera révélé après paiement
+        document.getElementById('seller-email').innerHTML = "Email révélé après paiement";
         document.getElementById('pay-amount').innerHTML = data.amount_eur;
         document.getElementById('pay-modal').style.display = 'block';
     } else {
@@ -276,7 +281,9 @@ document.getElementById('confirm-payment-btn').onclick = async () => {
     });
     const data = await res.json();
     if (data.success) {
-        document.getElementById('pay-modal').style.display = 'none';
+        // Afficher l'email du vendeur
+        document.getElementById('seller-email').innerHTML = data.seller_email;
+        document.getElementById('pay-amount').innerHTML = data.amount_eur;
         alert('Paiement confirmé ! Attendez la confirmation du vendeur');
         document.getElementById('confirm-modal').style.display = 'block';
     } else {
@@ -339,11 +346,7 @@ document.getElementById('close-modal').onclick = () => document.getElementById('
 document.getElementById('close-pay-modal').onclick = () => document.getElementById('pay-modal').style.display = 'none';
 document.getElementById('close-confirm-modal').onclick = () => document.getElementById('confirm-modal').style.display = 'none';
 
-// Rafraîchissement auto
-setInterval(() => { if(currentWallet) loadOrders(); }, 10000);
-setInterval(() => { if(currentWallet) loadMyOrders(); }, 10000);
-
-// Chargement initial
-loadOrders();
+// Auto-refresh
+setInterval(() => { if(currentWallet) { loadOrders(); loadMyOrders(); } }, 10000);
 </script>
 {% endblock %}
