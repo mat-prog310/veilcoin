@@ -26,6 +26,11 @@ COOLDOWN_BLOCKS = 10
 user_last_trade = {}
 user_trade_count = {}
 
+# ==================== PROTECTION PRIX ====================
+MAX_PRICE_CHANGE_PERCENT = 10  # Max 10% de variation par transaction
+MIN_PRICE = 0.005  # Prix minimum (0.005 EUR)
+MAX_PRICE = 1.0    # Prix maximum (1 EUR)
+
 # ==================== INITIALISATION ====================
 try:
     from core.blockchain import Blockchain
@@ -99,16 +104,10 @@ load_p2p_orders()
 PRICE_HISTORY_FILE = os.path.join(DATA_DIR, "price_history.json")
 
 def get_current_price():
-    """Calcule le prix actuel basé sur TOUTES les transactions complétées"""
+    """Calcule le prix avec moyenne mobile pour éviter les pics"""
     completed_orders = [o for o in p2p_orders.values() if o['status'] == 'completed']
     
-    if completed_orders:
-        # Moyenne pondérée par le montant des transactions complétées
-        total_value = sum(o['total_eur'] for o in completed_orders)
-        total_veil = sum(o['amount_veil'] for o in completed_orders)
-        price = total_value / total_veil if total_veil > 0 else 0.01
-    else:
-        # Fallback: prix des offres ouvertes
+    if not completed_orders:
         open_orders = [o for o in p2p_orders.values() if o['status'] == 'open']
         if open_orders:
             total_value = sum(o['total_eur'] for o in open_orders)
@@ -116,7 +115,37 @@ def get_current_price():
             price = total_value / total_veil if total_veil > 0 else 0.01
         else:
             price = 0.01
+    else:
+        # Moyenne des 10 dernières transactions
+        last_10 = completed_orders[-10:]
+        total_value = sum(o['total_eur'] for o in last_10)
+        total_veil = sum(o['amount_veil'] for o in last_10)
+        price = total_value / total_veil if total_veil > 0 else 0.01
+    
+    # Limiter le prix
+    if price < MIN_PRICE:
+        price = MIN_PRICE
+    if price > MAX_PRICE:
+        price = MAX_PRICE
+    
     return price
+
+def check_price_change(new_price, old_price):
+    """Empêche les variations trop brutales"""
+    if old_price <= 0:
+        return True, "OK"
+    
+    change_percent = abs((new_price - old_price) / old_price) * 100
+    if change_percent > MAX_PRICE_CHANGE_PERCENT:
+        return False, f"Variation trop brutale ({change_percent:.1f}% > {MAX_PRICE_CHANGE_PERCENT}%)"
+    
+    if new_price < MIN_PRICE:
+        return False, f"Prix minimum: {MIN_PRICE} EUR"
+    
+    if new_price > MAX_PRICE:
+        return False, f"Prix maximum: {MAX_PRICE} EUR"
+    
+    return True, "OK"
 
 def record_price(price):
     try:
@@ -370,7 +399,6 @@ def api_send(name):
 @web_bp.route('/api/market/price')
 def api_price():
     price = get_current_price()
-    # Enregistrer pour l'historique
     record_price(price)
     
     open_orders = [o for o in p2p_orders.values() if o['status'] == 'open']
@@ -452,6 +480,17 @@ def p2p_create_order():
         if not seller_email:
             return jsonify({'success': False, 'error': 'Email PayPal obligatoire pour vendre'})
         
+        # ✅ Vérification des limites de prix par rapport au prix actuel
+        current_price = get_current_price()
+        max_allowed_price = current_price * 1.2  # +20% max
+        min_allowed_price = current_price * 0.8  # -20% max
+        
+        if price_eur > max_allowed_price:
+            return jsonify({'success': False, 'error': f'Prix trop élevé. Maximum: {max_allowed_price:.4f} EUR'})
+        
+        if price_eur < min_allowed_price:
+            return jsonify({'success': False, 'error': f'Prix trop bas. Minimum: {min_allowed_price:.4f} EUR'})
+        
         w = active_wallets.get(wallet_name)
         if not w:
             w = VeilWallet(wallet_name)
@@ -484,9 +523,6 @@ def p2p_create_order():
         }
         
         save_p2p_orders()
-        # Mettre à jour le prix après création
-        new_price = get_current_price()
-        record_price(new_price)
         
         return jsonify({'success': True, 'order_id': order_id, 'order': p2p_orders[order_id]})
     except Exception as e:
@@ -505,10 +541,8 @@ def p2p_my_orders():
 
 @web_bp.route('/api/p2p/history', methods=['GET'])
 def p2p_history():
-    """Historique public de TOUTES les transactions complétées (visible par tous sans connexion)"""
     completed_orders = [o for o in p2p_orders.values() if o['status'] == 'completed']
     
-    # Anonymiser complètement (pas de noms)
     anonymized = []
     for o in completed_orders:
         anonymized.append({
@@ -593,6 +627,9 @@ def p2p_release_veil():
         if order['status'] != 'paid':
             return jsonify({'success': False, 'error': 'Le paiement n\'a pas encore été confirmé'})
         
+        # Calculer l'ancien prix
+        old_price = get_current_price()
+        
         buyer_wallet = active_wallets.get(order['buyer'])
         if not buyer_wallet:
             buyer_wallet = VeilWallet(order['buyer'])
@@ -615,8 +652,21 @@ def p2p_release_veil():
         order['completed_at'] = time.time()
         save_p2p_orders()
         
-        # Mettre à jour le prix après la transaction
+        # Vérifier la variation de prix
         new_price = get_current_price()
+        allowed, msg = check_price_change(new_price, old_price)
+        
+        if not allowed:
+            # Annuler le transfert si variation trop forte
+            seller_wallet.balance += order['amount_veil']
+            buyer_wallet.balance -= order['amount_veil']
+            seller_wallet.save()
+            buyer_wallet.save()
+            order['status'] = 'paid'
+            save_p2p_orders()
+            return jsonify({'success': False, 'error': msg})
+        
+        # Enregistrer le nouveau prix
         record_price(new_price)
         
         return jsonify({
@@ -624,7 +674,8 @@ def p2p_release_veil():
             'amount_veil': order['amount_veil'],
             'new_balance_buyer': buyer_wallet.balance,
             'new_balance_seller': seller_wallet.balance,
-            'new_price': new_price
+            'new_price': new_price,
+            'old_price': old_price
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -652,10 +703,6 @@ def p2p_cancel_order():
         
         del p2p_orders[order_id]
         save_p2p_orders()
-        
-        # Mettre à jour le prix après annulation
-        new_price = get_current_price()
-        record_price(new_price)
         
         return jsonify({'success': True, 'message': 'Offre annulée'})
     except Exception as e:
