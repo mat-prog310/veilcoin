@@ -19,12 +19,15 @@
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#myorders" type="button">📦 Mes offres</button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#history" type="button">📜 Historique</button>
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#history" type="button">📜 Historique public</button>
         </li>
     </ul>
     
-    <!-- Connexion -->
+    <!-- Connexion (optionnelle, pour vendre et voir mes offres) -->
     <div class="card bg-dark mb-4">
+        <div class="card-header">
+            <h4 style="color: #00ff88;">👛 Connexion (pour vendre ou gérer vos offres)</h4>
+        </div>
         <div class="card-body">
             <div class="row">
                 <div class="col-md-5">
@@ -34,7 +37,7 @@
                     <input type="text" id="wallet-seed" class="form-control bg-dark text-white" placeholder="Seed phrase">
                 </div>
                 <div class="col-md-2">
-                    <button id="connect-btn" class="btn btn-success w-100">🔌 Connecter</button>
+                    <button id="connect-btn" class="btn btn-success w-100">🔌 Se connecter</button>
                 </div>
             </div>
             <div id="wallet-info" class="mt-3 text-center" style="display:none;">
@@ -44,11 +47,12 @@
     </div>
     
     <div class="tab-content">
-        <!-- ONGLET ACHETER -->
+        <!-- ONGLET ACHETER (public) -->
         <div class="tab-pane fade show active" id="buy" role="tabpanel">
             <div class="card bg-dark">
                 <div class="card-header">
                     <h4 style="color: #00ff88;">🟢 Offres de vente</h4>
+                    <p class="text-muted small mb-0">Connectez-vous pour acheter</p>
                 </div>
                 <div class="card-body">
                     <div id="orders-container" class="text-center">
@@ -58,37 +62,27 @@
             </div>
         </div>
         
-        <!-- ONGLET VENDRE -->
+        <!-- ONGLET VENDRE (nécessite connexion) -->
         <div class="tab-pane fade" id="sell" role="tabpanel">
             <div class="card bg-dark">
                 <div class="card-header">
                     <h4 style="color: #ff4444;">🔴 Vendre des VEIL</h4>
+                    <p class="text-muted small mb-0">Connectez-vous d'abord</p>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <label>💰 Montant VEIL</label>
-                            <input type="number" id="sell-amount" class="form-control bg-dark text-white" placeholder="Ex: 100">
-                        </div>
-                        <div class="col-md-4">
-                            <label>💶 Prix par VEIL (EUR)</label>
-                            <input type="number" id="sell-price" class="form-control bg-dark text-white" placeholder="Ex: 0.05" step="0.001">
-                        </div>
-                        <div class="col-md-4">
-                            <label>📧 Votre email PayPal (OBLIGATOIRE)</label>
-                            <input type="email" id="seller-email" class="form-control bg-dark text-white" placeholder="vendeur@email.com" required>
-                        </div>
+                    <div id="sell-container" class="text-center">
+                        <p>Connectez-vous pour vendre des VEIL</p>
                     </div>
-                    <button id="create-offer-btn" class="btn btn-primary w-100 mt-3">📢 Créer l'offre</button>
                 </div>
             </div>
         </div>
         
-        <!-- ONGLET MES OFFRES -->
+        <!-- ONGLET MES OFFRES (nécessite connexion) -->
         <div class="tab-pane fade" id="myorders" role="tabpanel">
             <div class="card bg-dark">
                 <div class="card-header">
                     <h4 style="color: #ffc107;">📦 Mes offres</h4>
+                    <p class="text-muted small mb-0">Connectez-vous pour voir vos offres</p>
                 </div>
                 <div class="card-body">
                     <div id="myorders-container" class="text-center">
@@ -98,30 +92,16 @@
             </div>
         </div>
         
-        <!-- ONGLET HISTORIQUE -->
+        <!-- ONGLET HISTORIQUE PUBLIC (visible sans connexion) -->
         <div class="tab-pane fade" id="history" role="tabpanel">
             <div class="card bg-dark">
                 <div class="card-header">
-                    <h4 style="color: #00ff88;">📜 Historique des transactions</h4>
+                    <h4 style="color: #00ff88;">📜 Historique public des transactions</h4>
+                    <p class="text-muted small mb-0">Toutes les transactions complétées - Données anonymes</p>
                 </div>
                 <div class="card-body">
                     <div id="history-container" class="text-center">
-                        <p>Chargement...</p>
-
-                        <!-- ONGLET HISTORIQUE - Public (visible par tous sans connexion) -->
-<div class="tab-pane fade" id="history" role="tabpanel">
-    <div class="card bg-dark">
-        <div class="card-header">
-            <h4 style="color: #00ff88;">📜 Historique public des transactions</h4>
-        </div>
-        <div class="card-body">
-            <div id="history-container" class="text-center">
-                <p>Chargement...</p>
-            </div>
-            <p class="text-muted text-center mt-3 small">Transactions P2P complétées - Données anonymes</p>
-        </div>
-    </div>
-</div>
+                        <p>Chargement de l'historique...</p>
                     </div>
                 </div>
             </div>
@@ -129,7 +109,7 @@
     </div>
 </div>
 
-<!-- POPUPS -->
+<!-- POPUPS (inchangés) -->
 <div id="buy-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #00ff88;">
     <h4 style="color:#00ff88;">🟢 Acheter des VEIL</h4>
     <p id="buy-details" style="color:white;"></p>
@@ -150,71 +130,72 @@
 <script>
 let currentWallet = null, currentBalance = 0, currentOrderId = null;
 
-document.getElementById('connect-btn').onclick = async () => {
-    const name = document.getElementById('wallet-name').value;
-    const seed = document.getElementById('wallet-seed').value;
-    if (!name || !seed) { alert('Entrez nom et seed'); return; }
-    
-    try {
-        const res = await fetch('/api/wallet/login', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name, seed_phrase: seed})
-        });
-        const data = await res.json();
-        if (data.success) {
-            currentWallet = name;
-            currentBalance = data.balance;
-            document.getElementById('wallet-info').style.display = 'block';
-            document.getElementById('connected-name').innerText = name;
-            document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
-            loadOrders();
-            loadMyOrders();
-            loadHistory();
-        } else {
-            alert('Erreur: ' + data.error);
-        }
-    } catch(e) {
-        alert('Erreur de connexion: ' + e.message);
-    }
-};
+// ==================== CHARGEMENT PUBLIC (sans connexion) ====================
 
+// Charger l'historique public (visible par tous)
 async function loadHistory() {
     try {
         const res = await fetch('/api/p2p/history');
         const data = await res.json();
         const container = document.getElementById('history-container');
+        
         if (!data.transactions || data.transactions.length === 0) {
-            container.innerHTML = '<p>Aucune transaction</p>';
+            container.innerHTML = '<p>Aucune transaction pour le moment</p>';
             return;
         }
-        let html = '<div class="table-responsive"><table class="table table-dark"><thead><tr><th>Date</th><th>Vendeur</th><th>Acheteur</th><th>VEIL</th><th>Prix/VEIL</th><th>Total</th></tr></thead><tbody>';
+        
+        let html = '<div class="table-responsive"><table class="table table-dark">';
+        html += '<thead><tr><th>Date</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th></tr></thead><tbody>';
         for (let tx of data.transactions) {
-            html += `<tr><td>${new Date(tx.timestamp * 1000).toLocaleString()}</td><td>${tx.seller_masked}</td><td>${tx.buyer_masked}</td><td>${tx.amount_veil}</td><td>${tx.price_eur} EUR</td><td>${tx.total_eur} EUR</td></tr>`;
+            html += `<td>
+                <td class="small">${new Date(tx.timestamp * 1000).toLocaleString()}</td>
+                <td class="text-center">${tx.amount_veil}</td>
+                <td class="text-center">${tx.price_eur} EUR</td>
+                <td class="text-center">${tx.total_eur} EUR</td>
+             </tr>`;
         }
         html += '</tbody></table></div>';
         container.innerHTML = html;
-    } catch(e) { console.error(e); }
+    } catch(e) { 
+        console.error(e);
+        document.getElementById('history-container').innerHTML = '<p>Erreur de chargement de l\'historique</p>';
+    }
 }
 
+// Charger les offres (public)
 async function loadOrders() {
     try {
         const res = await fetch('/api/p2p/orders');
         const data = await res.json();
         const container = document.getElementById('orders-container');
+        
         if (!data.orders || data.orders.length === 0) {
-            container.innerHTML = '<p>Aucune offre de vente</p>';
+            container.innerHTML = '<p>Aucune offre de vente</p><p class="text-muted small">Connectez-vous pour créer une offre</p>';
             return;
         }
-        let html = '<div class="table-responsive"><table class="table table-dark"><thead><tr><th>ID</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th><th>Action</th></tr></thead><tbody>';
+        
+        let html = '<div class="table-responsive"><table class="table table-dark">';
+        html += '<thead><tr><th>ID</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th><th>Action</th></tr></thead><tbody>';
         for (let o of data.orders) {
-            html += `<tr><td>${o.id}</td><td>${o.amount_veil}</td><td>${o.price_eur} EUR</td><td>${o.total_eur} EUR</td><td><button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">🟢 Acheter</button></td></tr>`;
+            html += `<tr>
+                <td class="text-center">${o.id}</td>
+                <td class="text-center">${o.amount_veil}</td>
+                <td class="text-center">${o.price_eur} EUR</td>
+                <td class="text-center">${o.total_eur} EUR</td>
+                <td class="text-center">${currentWallet ? `<button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">🟢 Acheter</button>` : '<span class="text-muted">Connectez-vous pour acheter</span>'}</td>
+            </tr>`;
         }
         html += '</tbody></table></div>';
         container.innerHTML = html;
-    } catch(e) { console.error(e); }
+    } catch(e) { 
+        console.error(e);
+        document.getElementById('orders-container').innerHTML = '<p>Erreur de chargement des offres</p>';
+    }
 }
 
+// ==================== CHARGEMENT AVEC CONNEXION ====================
+
+// Charger mes offres
 async function loadMyOrders() {
     if (!currentWallet) {
         document.getElementById('myorders-container').innerHTML = '<p>Connectez-vous pour voir vos offres</p>';
@@ -224,11 +205,14 @@ async function loadMyOrders() {
         const res = await fetch(`/api/p2p/my-orders?wallet=${currentWallet}`);
         const data = await res.json();
         const container = document.getElementById('myorders-container');
+        
         if (!data.orders || data.orders.length === 0) {
             container.innerHTML = '<p>Aucune offre</p>';
             return;
         }
-        let html = '<div class="table-responsive"><table class="table table-dark"><thead><tr><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Action</th></tr></thead><tbody>';
+        
+        let html = '<div class="table-responsive"><table class="table table-dark">';
+        html += '<thead><tr><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Action</th></tr></thead><tbody>';
         for (let o of data.orders) {
             let statusText = '', actionButton = '';
             if (o.status === 'open') {
@@ -244,14 +228,52 @@ async function loadMyOrders() {
                 statusText = '✅ Vendu';
                 actionButton = '✅ Terminé';
             }
-            html += `<tr><td>${o.id}</td><td>${o.amount_veil}</td><td>${o.price_eur} EUR</td><td>${o.total_eur} EUR</td><td>${statusText}</td><td>${actionButton}</td></tr>`;
+            html += `<tr>
+                <td class="text-center">${o.id}</td>
+                <td class="text-center">${o.amount_veil}</td>
+                <td class="text-center">${o.price_eur} EUR</td>
+                <td class="text-center">${o.total_eur} EUR</td>
+                <td class="text-center">${statusText}</td>
+                <td class="text-center">${actionButton}</td>
+            </tr>`;
         }
         html += '</tbody></table></div>';
         container.innerHTML = html;
-    } catch(e) { console.error(e); }
+    } catch(e) { 
+        console.error(e);
+        document.getElementById('myorders-container').innerHTML = '<p>Erreur de chargement</p>';
+    }
 }
 
-document.getElementById('create-offer-btn').onclick = async () => {
+// Remplir l'onglet VENDRE (formulaire)
+function loadSellForm() {
+    if (!currentWallet) {
+        document.getElementById('sell-container').innerHTML = '<p>Connectez-vous pour vendre des VEIL</p>';
+        return;
+    }
+    
+    document.getElementById('sell-container').innerHTML = `
+        <div class="row">
+            <div class="col-md-4">
+                <label>💰 Montant VEIL</label>
+                <input type="number" id="sell-amount" class="form-control bg-dark text-white" placeholder="Ex: 100">
+            </div>
+            <div class="col-md-4">
+                <label>💶 Prix par VEIL (EUR)</label>
+                <input type="number" id="sell-price" class="form-control bg-dark text-white" placeholder="Ex: 0.05" step="0.001">
+            </div>
+            <div class="col-md-4">
+                <label>📧 Votre email PayPal (OBLIGATOIRE)</label>
+                <input type="email" id="seller-email" class="form-control bg-dark text-white" placeholder="vendeur@email.com" required>
+            </div>
+        </div>
+        <button id="create-offer-btn" class="btn btn-primary w-100 mt-3">📢 Créer l'offre</button>
+    `;
+    
+    document.getElementById('create-offer-btn').onclick = createOffer;
+}
+
+async function createOffer() {
     if (!currentWallet) { alert('Connectez-vous'); return; }
     const amount = parseFloat(document.getElementById('sell-amount').value);
     const price = parseFloat(document.getElementById('sell-price').value);
@@ -270,16 +292,45 @@ document.getElementById('create-offer-btn').onclick = async () => {
             alert('Offre créée !');
             loadOrders();
             loadMyOrders();
-            document.getElementById('sell-amount').value = '';
-            document.getElementById('sell-price').value = '';
-            document.getElementById('seller-email').value = '';
         } else {
             alert('Erreur: ' + data.error);
         }
     } catch(e) { alert('Erreur: ' + e.message); }
+}
+
+// ==================== CONNEXION ====================
+
+document.getElementById('connect-btn').onclick = async () => {
+    const name = document.getElementById('wallet-name').value;
+    const seed = document.getElementById('wallet-seed').value;
+    if (!name || !seed) { alert('Entrez nom et seed'); return; }
+    
+    try {
+        const res = await fetch('/api/wallet/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, seed_phrase: seed})
+        });
+        const data = await res.json();
+        if (data.success) {
+            currentWallet = name;
+            currentBalance = data.balance;
+            document.getElementById('wallet-info').style.display = 'block';
+            document.getElementById('connected-name').innerText = name;
+            document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
+            loadMyOrders();
+            loadSellForm();
+            loadOrders(); // Recharge avec boutons actifs
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch(e) { alert('Erreur de connexion: ' + e.message); }
 };
 
+// ==================== ACTIONS (inchangées) ====================
+
 window.buyOrder = (orderId, amount, total) => {
+    if (!currentWallet) { alert('Connectez-vous pour acheter'); return; }
     currentOrderId = orderId;
     document.getElementById('buy-details').innerHTML = `Achat de ${amount} VEIL pour ${total} EUR`;
     document.getElementById('buyer-email').value = '';
@@ -339,7 +390,7 @@ window.releaseVeil = async (orderId) => {
             alert(`✅ ${data.amount_veil} VEIL ont été transférés à l'acheteur !`);
             loadMyOrders();
             loadOrders();
-            loadHistory();
+            loadHistory(); // Recharge l'historique
             const balanceRes = await fetch(`/api/wallet/${currentWallet}/balance`);
             const balanceData = await balanceRes.json();
             currentBalance = balanceData.balance_veil;
@@ -390,6 +441,18 @@ window.cancelOrder = async (orderId) => {
 document.getElementById('close-modal').onclick = () => document.getElementById('buy-modal').style.display = 'none';
 document.getElementById('close-pay-modal').onclick = () => document.getElementById('pay-modal').style.display = 'none';
 
-setInterval(() => { if(currentWallet) { loadOrders(); loadMyOrders(); } }, 30000);
+// ==================== INITIALISATION ====================
+// Chargement public dès l'arrivée sur la page
+loadHistory();
+loadOrders();
+
+// Si connecté, charger les éléments supplémentaires
+if (currentWallet) {
+    loadMyOrders();
+    loadSellForm();
+}
+
+// Auto-refresh public
+setInterval(() => { loadHistory(); loadOrders(); }, 30000);
 </script>
 {% endblock %}
