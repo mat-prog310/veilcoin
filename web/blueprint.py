@@ -414,7 +414,9 @@ def market_sell():
 
 @web_bp.route('/api/market/price')
 def api_price():
-    return jsonify({'current_price': pool.get_veil_price() if pool else 0.01})
+    price = get_current_price()
+    record_price(price)
+    return jsonify({'current_price': price})
 
 # ==================== API MINER ====================
 
