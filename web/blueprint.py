@@ -15,7 +15,6 @@ from config import Config
 
 web_bp = Blueprint('web', __name__, template_folder='../templates')
 
-
 # ==================== P2P ESCROW ====================
 p2p_orders = {}
 p2p_counter = 0
@@ -95,16 +94,6 @@ def save_p2p_orders():
         print(f"Erreur sauvegarde P2P: {e}")
 
 load_p2p_orders()
-
-
-def get_current_price():
-    completed_orders = [o for o in p2p_orders.values() if o['status'] == 'completed']
-    if not completed_orders:
-        return 0.01
-    last_10 = completed_orders[-10:]
-    total_value = sum(o['total_eur'] for o in last_10)
-    total_veil = sum(o['amount_veil'] for o in last_10)
-    return total_value / total_veil if total_veil > 0 else 0.01
 
 # ==================== HISTORIQUE DES PRIX ====================
 PRICE_HISTORY_FILE = os.path.join(DATA_DIR, "price_history.json")
@@ -425,9 +414,7 @@ def market_sell():
 
 @web_bp.route('/api/market/price')
 def api_price():
-    price = get_current_price()
-    record_price(price)
-    return jsonify({'current_price': price})
+    return jsonify({'current_price': pool.get_veil_price() if pool else 0.01})
 
 # ==================== API MINER ====================
 
