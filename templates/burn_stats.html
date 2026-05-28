@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Burn Stats - VeilCoin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="text-center mb-4" style="color: #00ff88;">🔥 Statistiques de Burn</h1>
+    
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center">
+                    <h5>🔥 Total brûlé</h5>
+                    <h2 id="total-burned" class="text-danger">Chargement...</h2>
+                    
+                    <h5 class="mt-3">📦 Supply maximum</h5>
+                    <h3>1 000 000 000 VEIL</h3>
+                    
+                    <h5 class="mt-3">💧 Supply restant</h5>
+                    <h3 id="remaining-supply" class="text-success">Chargement...</h3>
+                    
+                    <h5 class="mt-3">📉 Pourcentage brûlé</h5>
+                    <h3 id="burn-percentage">Chargement...</h3>
+                    
+                    <button id="refresh-btn" class="btn btn-primary mt-3">🔄 Rafraîchir</button>
+                    <a href="/" class="btn btn-secondary mt-3">🏠 Retour</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadStats() {
+    try {
+        const res = await fetch('/api/admin/burn/stats');
+        const data = await res.json();
+        document.getElementById('total-burned').innerText = data.total_burned.toFixed(2) + ' VEIL';
+        document.getElementById('remaining-supply').innerText = data.remaining_supply.toLocaleString() + ' VEIL';
+        document.getElementById('burn-percentage').innerHTML = data.burn_percentage + '%';
+    } catch(e) {
+        console.error(e);
+    }
+}
+document.getElementById('refresh-btn').onclick = loadStats;
+loadStats();
+</script>
+{% endblock %}
