@@ -733,13 +733,13 @@ def health():
 
 @web_bp.route('/api/admin/burn', methods=['POST'])
 def admin_burn():
+    """Brûle des VEIL directement depuis la supply totale (pas depuis un wallet)"""
     try:
         d = request.get_json()
         admin_seed = d.get('admin_seed', '')
-        wallet_to_burn = d.get('wallet', '')
         amount_to_burn = float(d.get('amount', 0))
         
-        ADMIN_SEED = os.environ.get('ADMIN_SEED', 'ta_seed_admin_ici')
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
         
         if admin_seed != ADMIN_SEED:
             return jsonify({'success': False, 'error': 'Non autorisé'})
@@ -747,29 +747,24 @@ def admin_burn():
         if amount_to_burn <= 0:
             return jsonify({'success': False, 'error': 'Montant invalide'})
         
-        w = active_wallets.get(wallet_to_burn)
-        if not w:
-            w = VeilWallet(wallet_to_burn)
-            if not w.load_or_create():
-                return jsonify({'success': False, 'error': 'Wallet non trouvé'})
-            active_wallets[wallet_to_burn] = w
-        
-        if w.balance < amount_to_burn:
-            return jsonify({'success': False, 'error': f'Solde insuffisant. Disponible: {w.balance:.4f} VEIL'})
-        
+        # Vérifier qu'on ne brûle pas plus que le supply restant
         global total_burned
-        old_balance = w.balance
-        w.balance -= amount_to_burn
-        total_burned += amount_to_burn
-        w.save()
+        remaining_supply = MAX_SUPPLY - total_burned
         
+        if amount_to_burn > remaining_supply:
+            return jsonify({'success': False, 'error': f'Montant trop élevé. Supply restant: {remaining_supply} VEIL'})
+        
+        # Brûler directement depuis la supply
+        total_burned += amount_to_burn
+        save_burn_stats()
+        
+        # Enregistrer la transaction
         burn_tx = {
-            'from': w.address,
+            'from': 'SUPPLY_BURN',
             'to': 'BURN_ADDRESS',
             'amount': amount_to_burn,
             'timestamp': time.time(),
-            'admin': True,
-            'type': 'BURN'
+            'type': 'ADMIN_BURN'
         }
         
         BURN_HISTORY_FILE = os.path.join(DATA_DIR, "burn_history.json")
@@ -782,23 +777,19 @@ def admin_burn():
         with open(BURN_HISTORY_FILE, 'w') as f:
             json.dump(burn_history[-100:], f, indent=2)
         
-        save_burn_stats()
-        
         return jsonify({
             'success': True,
             'burned': amount_to_burn,
-            'wallet': wallet_to_burn,
-            'old_balance': old_balance,
-            'new_balance': w.balance,
+            'source': 'SUPPLY_TOTAL',
             'total_burned_since_start': total_burned,
             'remaining_supply': MAX_SUPPLY - total_burned,
             'burn_percentage': round((total_burned / MAX_SUPPLY) * 100, 4),
-            'message': f'🔥 {amount_to_burn:.4f} VEIL brûlés de {wallet_to_burn}'
+            'message': f'🔥 {amount_to_burn} VEIL brûlés depuis la supply totale'
         })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
-
+        
 @web_bp.route('/api/admin/burn/stats', methods=['GET'])
 def admin_burn_stats():
     return jsonify({
