@@ -414,7 +414,17 @@ def market_sell():
 
 @web_bp.route('/api/market/price')
 def api_price():
-    return jsonify({'current_price': pool.get_veil_price() if pool else 0.01})
+    # Prix basé sur les transactions P2P complétées
+    completed_orders = [o for o in p2p_orders.values() if o['status'] == 'completed']
+    if completed_orders:
+        last_10 = completed_orders[-10:]
+        total_value = sum(o['total_eur'] for o in last_10)
+        total_veil = sum(o['amount_veil'] for o in last_10)
+        price = total_value / total_veil if total_veil > 0 else 0.01
+    else:
+        price = 0.01
+    
+    return jsonify({'current_price': price})
 
 # ==================== API MINER ====================
 
