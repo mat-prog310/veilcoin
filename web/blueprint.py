@@ -871,3 +871,26 @@ def admin_burn_history():
 @web_bp.route('/burn/stats')
 def burn_stats_page():
     return render_template('burn_stats.html')
+
+
+@web_bp.route('/api/admin/force_history', methods=['POST'])
+def force_history():
+    try:
+        admin_seed = request.get_json().get('admin_seed', '')
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'error': 'Non autorisé'}), 403
+        
+        # Force l'enregistrement du prix actuel
+        price = get_current_price()
+        record_price(price)
+        
+        # Enregistre aussi les prix des transactions passées
+        completed = [o for o in p2p_orders.values() if o['status'] == 'completed']
+        for o in completed:
+            record_price(o.get('price_eur', 0.01))
+        
+        return jsonify({'success': True, 'history_size': len(completed) + 1})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
