@@ -209,25 +209,25 @@ def update_trade_record(wallet):
     user_trade_count[wallet] = user_trade_count.get(wallet, 0) + 1
 
 def get_blockchain_stats():
-    stats = {'height': 0, 'difficulty': 5, 'total_supply': 0, 'total_burned': total_burned,
-             'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0,
-             'remaining_supply': MAX_SUPPLY - total_burned, 'mempool_size': len(mempool)}
-    
-    # ✅ FORCER LA LECTURE DIRECTE
-    mined_file = os.path.join(DATA_DIR, "mined_blocks.json")
-    if os.path.exists(mined_file):
+    # Force la hauteur depuis le fichier
+    height = 0
+    if os.path.exists(MINED_BLOCKS_FILE):
         try:
-            with open(mined_file, 'r') as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    stats['height'] = len(data)
-                else:
-                    stats['height'] = 0
-                print(f"[DEBUG] Hauteur depuis mined_blocks.json: {stats['height']}")
-        except Exception as e:
-            print(f"[ERROR] Lecture mined_blocks.json: {e}")
-            stats['height'] = 0
+            with open(MINED_BLOCKS_FILE, 'r') as f:
+                all_blocks = json.load(f)
+                height = len(all_blocks)
+        except:
+            pass
     
+    stats = {
+        'height': height,  # ← Utilise la hauteur réelle
+        'difficulty': 5,
+        'total_supply': 0,
+        'total_burned': total_burned,
+        'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0,
+        'remaining_supply': MAX_SUPPLY - total_burned,
+        'mempool_size': len(mempool)
+    }
     return stats
 
 def get_recent_blocks(n=1000):
