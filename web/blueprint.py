@@ -250,7 +250,7 @@ def format_datetime(timestamp):
 @web_bp.route('/')
 def index():
     stats = get_blockchain_stats()
-    blocks = get_recent_blocks(10)
+    blocks = get_recent_blocks(1000)
     return render_template('index.html', stats=stats, blocks=blocks)
 
 @web_bp.route('/wallet')
