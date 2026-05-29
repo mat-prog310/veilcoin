@@ -220,7 +220,7 @@ def get_blockchain_stats():
             pass
     return stats
 
-def get_recent_blocks(n=20):
+def get_recent_blocks(n=1000):
     blocks = []
     if os.path.exists(MINED_BLOCKS_FILE):
         try:
@@ -259,7 +259,7 @@ def wallet_page():
 
 @web_bp.route('/blockchain')
 def blockchain_page():
-    blocks = get_recent_blocks(20)
+    blocks = get_recent_blocks(1000)
     stats = get_blockchain_stats()
     return render_template('blockchain.html', blocks=blocks, stats=stats)
 
