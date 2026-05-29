@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Login{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-4 mx-auto">
+            <div class="card bg-dark text-white">
+                <div class="card-header text-center">
+                    <h3>🛡️ Admin Access</h3>
+                </div>
+                <div class="card-body">
+                    <input type="password" id="admin-seed" class="form-control mb-3" placeholder="Admin Seed">
+                    <button id="login-btn" class="btn btn-primary w-100">🔐 Se connecter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('login-btn').onclick = () => {
+    const seed = document.getElementById('admin-seed').value;
+    if (seed) {
+        // Stocker dans sessionStorage
+        sessionStorage.setItem('admin_seed', seed);
+        window.location.href = '/admin/proofs';
+    } else {
+        alert('Entrez la seed admin');
+    }
+};
+</script>
+{% endblock %}
