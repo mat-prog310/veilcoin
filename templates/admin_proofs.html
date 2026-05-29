@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Admin - Preuves P2P{% endblock %}
+{% block title %}Admin - Preuves{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -9,9 +9,10 @@
     <div class="card bg-dark">
         <div class="card-header">
             <h4>📸 Preuves en attente</h4>
+            <button id="logout-btn" class="btn btn-sm btn-danger float-end">Déconnexion</button>
         </div>
         <div class="card-body">
-            <div id="proofs-list">
+            <div id="proofs-list" class="text-center">
                 <p>Chargement...</p>
             </div>
         </div>
@@ -19,37 +20,55 @@
 </div>
 
 <script>
+const adminSeed = sessionStorage.getItem('admin_seed');
+if (!adminSeed) {
+    window.location.href = '/admin/login';
+}
+
 async function loadProofs() {
-    const adminSeed = prompt("Seed admin :");
-    const res = await fetch('/api/p2p/orders?admin_seed=' + adminSeed);
+    const res = await fetch('/api/admin/pending_proofs?admin_seed=' + adminSeed);
     const data = await res.json();
     
     const container = document.getElementById('proofs-list');
-    let html = '<div class="table-responsive"><table class="table table-dark">';
-    html += '<thead><tr><th>ID</th><th>Offre</th><th>Preuve</th><th>Action</th></tr></thead><tbody>';
+    if (!data.orders || data.orders.length === 0) {
+        container.innerHTML = '<p>Aucune preuve en attente</p>';
+        return;
+    }
     
-    for (let order of data.orders) {
-        if (order.payment_proof) {
-            html += `<tr>
-                <td>${order.id}</td>
-                <td>${order.amount_veil} VEIL</td>
-                <td><a href="/api/admin/view_proof/${order.payment_proof}?admin_seed=${adminSeed}" target="_blank">📸 Voir</a></td>
-                <td><button class="btn btn-sm btn-success" onclick="validate('${order.id}')">✅ Valider</button></td>
-            </tr>`;
-        }
+    let html = '<div class="table-responsive"><table class="table table-dark">';
+    html += '<thead><tr><th>ID</th><th>VEIL</th><th>Total EUR</th><th>Buyer</th><th>Seller</th><th>Preuve</th><th>Action</th></tr></thead><tbody>';
+    
+    for (let o of data.orders) {
+        html += `<tr>
+            <td>${o.id}</td>
+            <td>${o.amount_veil}</td>
+            <td>${o.total_eur} EUR</td>
+            <td>${o.buyer}</td>
+            <td>${o.seller}</td>
+            <td><a href="/api/admin/view_proof/${o.payment_proof}?admin_seed=${adminSeed}" target="_blank" class="btn btn-sm btn-info">📸 Voir</a></td>
+            <td><button class="btn btn-sm btn-success" onclick="validateProof('${o.id}', 'accept')">✅ Valider</button>
+            <button class="btn btn-sm btn-danger" onclick="validateProof('${o.id}', 'reject')">❌ Rejeter</button></td>
+        </tr>`;
     }
     html += '</tbody></table></div>';
     container.innerHTML = html;
 }
 
-function validate(orderId) {
-    const adminSeed = prompt("Seed admin :");
-    fetch('/api/admin/validate_proof', {
+async function validateProof(orderId, action) {
+    const res = await fetch('/api/admin/validate_proof', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({admin_seed: adminSeed, order_id: orderId, action: 'accept'})
-    }).then(r => r.json()).then(data => alert(data.message));
+        body: JSON.stringify({admin_seed: adminSeed, order_id: orderId, action: action})
+    });
+    const data = await res.json();
+    alert(data.message);
+    loadProofs();
 }
+
+document.getElementById('logout-btn').onclick = () => {
+    sessionStorage.removeItem('admin_seed');
+    window.location.href = '/admin/login';
+};
 
 loadProofs();
 </script>
