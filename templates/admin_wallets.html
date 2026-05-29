@@ -99,21 +99,24 @@ async function loadWallets() {
     }
 }
 
-// Récupérer TOUS les VEIL d'un wallet (depuis le tableau)
 async function recoverWallet(walletName) {
     const toWallet = prompt("Wallet destination (ex: treasury):", "treasury");
     if (!toWallet) return;
     
+    const amount = prompt("Montant à récupérer (VEIL):", "0");
+    if (!amount || parseFloat(amount) <= 0) return;
+    
     const reason = prompt("Raison:", "Récupération admin");
     if (!reason) return;
     
-    const res = await fetch('/api/admin/recover_veil', {
+    const res = await fetch('/api/admin/recover_amount', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             admin_seed: adminSeed,
             from_wallet: walletName,
             to_wallet: toWallet,
+            amount: parseFloat(amount),
             reason: reason
         })
     });
