@@ -943,51 +943,6 @@ def admin_burn_history():
 def burn_stats_page():
     return render_template('burn_stats.html')
 
-@web_bp.route('/api/admin/validate_proof', methods=['POST'])
-def admin_validate_proof():
-    try:
-        d = request.get_json()
-        admin_seed = d.get('admin_seed', '')
-        order_id = d.get('order_id')
-        action = d.get('action')
-        
-        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
-        
-        if admin_seed != ADMIN_SEED:
-            return jsonify({'success': False, 'error': 'Non autorisé'})
-        
-        if order_id not in p2p_orders:
-            return jsonify({'success': False, 'error': 'Offre introuvable'})
-        
-        order = p2p_orders[order_id]
-        
-        if action == 'accept':
-            # Forcer le transfert
-            buyer_wallet = active_wallets.get(order['buyer'])
-            if not buyer_wallet:
-                buyer_wallet = VeilWallet(order['buyer'])
-                buyer_wallet.load_or_create()
-                active_wallets[order['buyer']] = buyer_wallet
-            
-            seller_wallet = active_wallets.get(order['seller'])
-            if not seller_wallet:
-                seller_wallet = VeilWallet(order['seller'])
-                seller_wallet.load_or_create()
-                active_wallets[order['seller']] = seller_wallet
-            
-            buyer_wallet.balance += order['amount_veil']
-            buyer_wallet.save()
-            seller_wallet.save()
-            
-            order['status'] = 'completed'
-            order['admin_validated'] = True
-            save_p2p_orders()
-            
-            return jsonify({'success': True, 'message': 'Transaction validée'})
-        
-        return jsonify({'success': False, 'error': 'Action inconnue'})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
 
 @web_bp.route('/admin/login')
 def admin_login_page():
