@@ -988,3 +988,76 @@ def admin_validate_proof():
         return jsonify({'success': False, 'error': 'Action inconnue'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/admin/login')
+def admin_login_page():
+    return render_template('admin_login.html')
+
+@web_bp.route('/admin/proofs')
+def admin_proofs_page():
+    return render_template('admin_proofs.html')
+
+@web_bp.route('/api/admin/pending_proofs', methods=['GET'])
+def admin_pending_proofs():
+    try:
+        admin_seed = request.args.get('admin_seed', '')
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'error': 'Non autorisé'}), 403
+        
+        pending_orders = [o for o in p2p_orders.values() if o.get('payment_proof') and o.get('status') == 'paid']
+        return jsonify({'orders': pending_orders})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@web_bp.route('/api/admin/validate_proof', methods=['POST'])
+def admin_validate_proof():
+    try:
+        d = request.get_json()
+        admin_seed = d.get('admin_seed', '')
+        order_id = d.get('order_id')
+        action = d.get('action')
+        
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'success': False, 'error': 'Non autorisé'})
+        
+        if order_id not in p2p_orders:
+            return jsonify({'success': False, 'error': 'Offre introuvable'})
+        
+        order = p2p_orders[order_id]
+        
+        if action == 'accept':
+            buyer_wallet = active_wallets.get(order['buyer'])
+            if not buyer_wallet:
+                buyer_wallet = VeilWallet(order['buyer'])
+                buyer_wallet.load_or_create()
+                active_wallets[order['buyer']] = buyer_wallet
+            
+            seller_wallet = active_wallets.get(order['seller'])
+            if not seller_wallet:
+                seller_wallet = VeilWallet(order['seller'])
+                seller_wallet.load_or_create()
+                active_wallets[order['seller']] = seller_wallet
+            
+            buyer_wallet.balance += order['amount_veil']
+            buyer_wallet.save()
+            seller_wallet.save()
+            
+            order['status'] = 'completed'
+            order['admin_validated'] = True
+            save_p2p_orders()
+            
+            return jsonify({'success': True, 'message': '✅ Transaction validée'})
+        
+        elif action == 'reject':
+            order['payment_proof'] = None
+            order['proof_uploaded'] = False
+            save_p2p_orders()
+            return jsonify({'success': True, 'message': '❌ Preuve rejetée'})
+        
+        return jsonify({'success': False, 'error': 'Action inconnue'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
