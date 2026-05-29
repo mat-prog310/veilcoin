@@ -473,16 +473,16 @@ def submit_block():
             with open(MINED_BLOCKS_FILE, 'r') as f:
                 existing_blocks = json.load(f)
         
-        # ✅ LIMITE PAR WALLET : MAX 10 000 BLOCKS PAR WALLET
-        MAX_BLOCKS_PER_WALLET = 5000  # 5 000 blocs maximum par wallet
+        # ✅ LIMITE PAR WALLET : 1 000 BLOCS MAXIMUM
+        MAX_BLOCKS_PER_WALLET = 1000
         
-        # Compter combien de blocs ce wallet a déjà minés
+        # Compter les blocs de ce wallet
         user_blocks = [b for b in existing_blocks if b.get('miner') == wallet]
         
         if len(user_blocks) >= MAX_BLOCKS_PER_WALLET:
             return jsonify({
                 'success': False, 
-                'error': f'Limite atteinte ! Ce wallet a déjà miné {MAX_BLOCKS_PER_WALLET} blocs maximum.'
+                'error': f'❌ Limite atteinte ! Ce wallet a déjà miné {MAX_BLOCKS_PER_WALLET} blocs maximum.'
             })
         
         last_index = existing_blocks[-1].get('index', 0) if existing_blocks else 0
@@ -511,7 +511,7 @@ def submit_block():
         active_wallets[wallet] = w
         
         # Blocs restants pour ce wallet
-        remaining = MAX_BLOCKS_PER_WALLET - len(user_blocks) - 1
+        remaining_blocks = MAX_BLOCKS_PER_WALLET - len(user_blocks) - 1
         
         return jsonify({
             'success': True, 
@@ -519,8 +519,8 @@ def submit_block():
             'new_balance': w.balance, 
             'block_index': new_block['index'],
             'blocks_mined_by_this_wallet': len(user_blocks) + 1,
-            'blocks_left_for_this_wallet': remaining,
-            'message': f'Bloc #{new_block["index"]} - Plus que {remaining} blocs à miner pour ce wallet !'
+            'blocks_left_for_this_wallet': remaining_blocks,
+            'message': f'✅ Bloc #{new_block["index"]} - Plus que {remaining_blocks} blocs à miner pour ce wallet !'
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
