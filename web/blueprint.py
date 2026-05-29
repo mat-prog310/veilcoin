@@ -212,12 +212,22 @@ def get_blockchain_stats():
     stats = {'height': 0, 'difficulty': 5, 'total_supply': 0, 'total_burned': total_burned,
              'burn_percentage': (total_burned / MAX_SUPPLY) * 100 if MAX_SUPPLY > 0 else 0,
              'remaining_supply': MAX_SUPPLY - total_burned, 'mempool_size': len(mempool)}
-    if os.path.exists(MINED_BLOCKS_FILE):
+    
+    # ✅ FORCER LA LECTURE DIRECTE
+    mined_file = os.path.join(DATA_DIR, "mined_blocks.json")
+    if os.path.exists(mined_file):
         try:
-            with open(MINED_BLOCKS_FILE, 'r') as f:
-                stats['height'] = len(json.load(f))
-        except:
-            pass
+            with open(mined_file, 'r') as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    stats['height'] = len(data)
+                else:
+                    stats['height'] = 0
+                print(f"[DEBUG] Hauteur depuis mined_blocks.json: {stats['height']}")
+        except Exception as e:
+            print(f"[ERROR] Lecture mined_blocks.json: {e}")
+            stats['height'] = 0
+    
     return stats
 
 def get_recent_blocks(n=1000):
