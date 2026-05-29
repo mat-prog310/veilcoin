@@ -130,4 +130,24 @@ document.getElementById('logout-btn').onclick = () => {
 loadWallets();
 setInterval(loadWallets, 30000);
 </script>
+
+<button class="btn btn-sm btn-warning" onclick="recoverVeil('${w.name}')">💰 Récupérer</button>
+
+<script>
+async function recoverVeil(wallet) {
+    const adminSeed = prompt("Seed admin:");
+    const toWallet = prompt("Wallet destination (ex: treasury):", "treasury");
+    const reason = prompt("Raison:");
+    if (!adminSeed || !toWallet) return;
+    
+    const res = await fetch('/api/admin/recover_veil', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({admin_seed: adminSeed, from_wallet: wallet, to_wallet: toWallet, reason: reason})
+    });
+    const data = await res.json();
+    alert(data.message);
+    loadWallets();
+}
+</script>
 {% endblock %}
