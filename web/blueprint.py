@@ -588,14 +588,94 @@ def p2p_match_order():
         
         save_p2p_orders()
         
-        # ✅ AJOUTE CETTE LIGNE POUR RÉCUPÉRER L'EMAIL
+        # Récupérer l'email du vendeur
         seller_email = order.get('seller_email', 'Email non renseigné')
         
         return jsonify({
             'success': True, 
             'order_id': order_id, 
-            'seller_email': seller_email,  # ← ICI !
+            'seller_email': seller_email,
             'amount_eur': order['total_eur']
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+# ==================== AJOUT : ROUTE PAIEMENT ====================
+
+@web_bp.route('/api/p2p/pay', methods=['POST'])
+def p2p_confirm_payment():
+    """L'acheteur confirme le paiement - passage en statut 'paid'"""
+    try:
+        d = request.get_json()
+        order_id = d.get('order_id')
+        buyer_name = d.get('buyer')
+        
+        if order_id not in p2p_orders:
+            return jsonify({'success': False, 'error': 'Offre introuvable'})
+        
+        order = p2p_orders[order_id]
+        
+        if order['status'] != 'matched' or order['buyer'] != buyer_name:
+            return jsonify({'success': False, 'error': 'Non autorisé'})
+        
+        # Passage en statut "payé" (en attente validation vendeur)
+        order['status'] = 'paid'
+        save_p2p_orders()
+        
+        return jsonify({'success': True, 'message': 'Paiement confirmé, attente validation vendeur'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+# ==================== AJOUT : ROUTE LIBÉRATION ====================
+
+@web_bp.route('/api/p2p/release', methods=['POST'])
+def p2p_release_veil():
+    """Le vendeur confirme la réception du paiement et libère les VEIL"""
+    try:
+        d = request.get_json()
+        order_id = d.get('order_id')
+        seller_name = d.get('seller')
+        
+        if order_id not in p2p_orders:
+            return jsonify({'success': False, 'error': 'Offre introuvable'})
+        
+        order = p2p_orders[order_id]
+        
+        if order['seller'] != seller_name:
+            return jsonify({'success': False, 'error': 'Non autorisé'})
+        
+        if order['status'] != 'paid':
+            return jsonify({'success': False, 'error': 'Le paiement n\'a pas encore été confirmé'})
+        
+        # TRANSFERT DES VEIL (vendeur → acheteur)
+        buyer_wallet = active_wallets.get(order['buyer'])
+        if not buyer_wallet:
+            buyer_wallet = VeilWallet(order['buyer'])
+            buyer_wallet.load_or_create()
+            active_wallets[order['buyer']] = buyer_wallet
+        
+        seller_wallet = active_wallets.get(order['seller'])
+        if not seller_wallet:
+            seller_wallet = VeilWallet(order['seller'])
+            seller_wallet.load_or_create()
+            active_wallets[order['seller']] = seller_wallet
+        
+        seller_wallet.balance -= order['amount_veil']
+        buyer_wallet.balance += order['amount_veil']
+        
+        seller_wallet.save()
+        buyer_wallet.save()
+        
+        order['status'] = 'completed'
+        order['completed_at'] = time.time()
+        save_p2p_orders()
+        
+        return jsonify({
+            'success': True,
+            'amount_veil': order['amount_veil'],
+            'new_balance_buyer': buyer_wallet.balance,
+            'new_balance_seller': seller_wallet.balance,
+            'message': f'✅ {order["amount_veil"]} VEIL transférés à l\'acheteur'
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -778,4 +858,3 @@ def admin_burn_history():
 @web_bp.route('/burn/stats')
 def burn_stats_page():
     return render_template('burn_stats.html')
-
