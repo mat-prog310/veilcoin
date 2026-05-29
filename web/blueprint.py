@@ -525,6 +525,16 @@ def submit_block():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@web_bp.route('/api/miner/user_blocks', methods=['GET'])
+def get_user_blocks():
+    wallet = request.args.get('wallet')
+    if os.path.exists(MINED_BLOCKS_FILE):
+        with open(MINED_BLOCKS_FILE, 'r') as f:
+            blocks = json.load(f)
+            user_blocks = [b for b in blocks if b.get('miner') == wallet]
+            return jsonify({'mined': len(user_blocks), 'max': 10000})
+    return jsonify({'mined': 0, 'max': 10000})
+
 @web_bp.route('/api/miner/mempool', methods=['GET'])
 def get_mempool():
     return jsonify({'transactions': mempool, 'count': len(mempool)})
