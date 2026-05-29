@@ -1017,7 +1017,11 @@ def admin_validate_proof():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 # ==================== ADMIN WALLETS MANAGEMENT ====================
-
+@web_bp.route('/admin/wallets')
+def admin_wallets_page():
+    """Page admin pour voir tous les wallets"""
+    return render_template('admin_wallets.html')
+    
 @web_bp.route('/api/admin/wallets', methods=['GET'])
 def admin_list_all_wallets():
     """Liste tous les wallets (admin seulement)"""
