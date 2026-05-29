@@ -669,6 +669,9 @@ def p2p_release_veil():
         order['status'] = 'completed'
         order['completed_at'] = time.time()
         save_p2p_orders()
+# Mettre à jour le prix après la transaction
+new_price = get_current_price()
+record_price(new_price)
         
         return jsonify({
             'success': True,
