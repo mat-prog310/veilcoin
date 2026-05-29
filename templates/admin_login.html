@@ -13,7 +13,18 @@
                 <div class="card-body">
                     <input type="password" id="admin-seed" class="form-control mb-3" placeholder="Admin Seed">
                     <button id="login-btn" class="btn btn-primary w-100">🔐 Se connecter</button>
-                </div>
+                </div><!-- Après connexion, rediriger vers /admin/wallets -->
+<script>
+document.getElementById('login-btn').onclick = () => {
+    const seed = document.getElementById('admin-seed').value;
+    if (seed) {
+        sessionStorage.setItem('admin_seed', seed);
+        window.location.href = '/admin/wallets';  // ← Changé
+    } else {
+        alert('Entrez la seed admin');
+    }
+};
+</script>
             </div>
         </div>
     </div>
