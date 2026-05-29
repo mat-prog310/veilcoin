@@ -26,67 +26,80 @@ if (!adminSeed) {
 }
 
 async function loadWallets() {
-    const res = await fetch('/api/admin/wallets?admin_seed=' + adminSeed);
-    const data = await res.json();
-    
-    const container = document.getElementById('wallets-list');
-    if (!data.wallets || data.wallets.length === 0) {
-        container.innerHTML = '<p>Aucun wallet</p>';
-        return;
-    }
-    
-    let html = '<div class="table-responsive"><table class="table table-dark">';
-    html += '<thead><tr><th>Wallet</th><th>Balance</th><th>Score</th><th>Statut</th><th>Succès</th><th>Échecs</th><th>Reports</th><th>Actions</th></tr></thead><tbody>';
-    
-    for (let w of data.wallets) {
-        let statusClass = '';
-        if (w.reputation_score >= 70) statusClass = 'text-success';
-        else if (w.reputation_score >= 50) statusClass = 'text-warning';
-        else statusClass = 'text-danger';
+    try {
+        const res = await fetch('/api/admin/wallets?admin_seed=' + adminSeed);
+        const data = await res.json();
         
-        html += `<tr>
-            <td><strong>${w.name}</strong><br><small class="text-muted">${w.address.substring(0, 20)}...</small></td>
-            <td>${w.balance.toFixed(2)} VEIL</td>
-            <td class="${statusClass}">${w.reputation_score}</td>
-            <td class="${statusClass}">${w.reputation_status}</td>
-            <td>${w.completed_trades}</td>
-            <td class="text-danger">${w.failed_trades}</td>
-            <td class="text-warning">${w.reports}</td>
-            <td>
-                <button class="btn btn-sm btn-success" onclick="updateRep('${w.name}', 'add_success')">+2</button>
-                <button class="btn btn-sm btn-danger" onclick="updateRep('${w.name}', 'add_failure')">-25</button>
-                <button class="btn btn-sm btn-warning" onclick="updateRep('${w.name}', 'add_report')">-15</button>
-                <button class="btn btn-sm btn-dark" onclick="setScore('${w.name}')">🎯 Score</button>
-                <button class="btn btn-sm btn-danger" onclick="banWallet('${w.name}')">🚫 Ban</button>
-            </td>
-        </tr>`;
+        const container = document.getElementById('wallets-list');
+        if (!data.wallets || data.wallets.length === 0) {
+            container.innerHTML = '<p>Aucun wallet</p>';
+            return;
+        }
+        
+        let html = '<div class="table-responsive"><table class="table table-dark">';
+        html += '<thead><tr><th>Wallet</th><th>Balance</th><th>Score</th><th>Statut</th><th>Succès</th><th>Échecs</th><th>Reports</th><th>Actions</th></tr></thead><tbody>';
+        
+        for (let w of data.wallets) {
+            let statusClass = '';
+            if (w.reputation_score >= 70) statusClass = 'text-success';
+            else if (w.reputation_score >= 50) statusClass = 'text-warning';
+            else statusClass = 'text-danger';
+            
+            html += `<tr>
+                <td><strong>${w.name}</strong><br><small class="text-muted">${w.address ? w.address.substring(0, 20) + '...' : 'N/A'}</small></td>
+                <td>${w.balance.toFixed(2)} VEIL</td>
+                <td class="${statusClass}">${w.reputation_score}</td>
+                <td class="${statusClass}">${w.reputation_status}</td>
+                <td>${w.completed_trades}</td>
+                <td class="text-danger">${w.failed_trades}</td>
+                <td class="text-warning">${w.reports}</td>
+                <td>
+                    <button class="btn btn-sm btn-success" onclick="updateRep('${w.name}', 'add_success')" title="+2 points">➕</button>
+                    <button class="btn btn-sm btn-danger" onclick="updateRep('${w.name}', 'add_failure')" title="-25 points">➖</button>
+                    <button class="btn btn-sm btn-warning" onclick="updateRep('${w.name}', 'add_report')" title="-15 points">⚠️</button>
+                    <button class="btn btn-sm btn-info" onclick="setScore('${w.name}')" title="Définir score">🎯</button>
+                    <button class="btn btn-sm btn-dark" onclick="banWallet('${w.name}')" title="Bannir">🚫</button>
+                </td>
+            </tr>`;
+        }
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    } catch(e) {
+        console.error(e);
+        document.getElementById('wallets-list').innerHTML = '<p class="text-danger">Erreur de chargement</p>';
     }
-    html += '</tbody></tr></div>';
-    container.innerHTML = html;
 }
 
 async function updateRep(wallet, action) {
-    const res = await fetch('/api/admin/update_reputation', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, action: action})
-    });
-    const data = await res.json();
-    alert(data.message);
-    loadWallets();
+    try {
+        const res = await fetch('/api/admin/update_reputation', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, action: action})
+        });
+        const data = await res.json();
+        alert(data.message);
+        loadWallets();
+    } catch(e) {
+        alert('Erreur: ' + e.message);
+    }
 }
 
 async function setScore(wallet) {
     const score = prompt("Nouveau score (0-100):", "50");
     if (score !== null) {
-        const res = await fetch('/api/admin/update_reputation', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, action: 'set_score', value: parseInt(score)})
-        });
-        const data = await res.json();
-        alert(data.message);
-        loadWallets();
+        try {
+            const res = await fetch('/api/admin/update_reputation', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, action: 'set_score', value: parseInt(score)})
+            });
+            const data = await res.json();
+            alert(data.message);
+            loadWallets();
+        } catch(e) {
+            alert('Erreur: ' + e.message);
+        }
     }
 }
 
@@ -95,14 +108,18 @@ async function banWallet(wallet) {
     const reason = prompt("Raison du bannissement:");
     if (!reason) return;
     
-    const res = await fetch('/api/admin/ban_wallet', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, reason: reason})
-    });
-    const data = await res.json();
-    alert(data.message);
-    loadWallets();
+    try {
+        const res = await fetch('/api/admin/ban_wallet', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, reason: reason})
+        });
+        const data = await res.json();
+        alert(data.message);
+        loadWallets();
+    } catch(e) {
+        alert('Erreur: ' + e.message);
+    }
 }
 
 document.getElementById('logout-btn').onclick = () => {
