@@ -647,7 +647,7 @@ def p2p_release_veil():
         if order['status'] != 'paid':
             return jsonify({'success': False, 'error': 'Le paiement n\'a pas encore été confirmé'})
         
-        # TRANSFERT DES VEIL (vendeur → acheteur)
+        # ✅ RÉCUPÉRER LES WALLETS
         buyer_wallet = active_wallets.get(order['buyer'])
         if not buyer_wallet:
             buyer_wallet = VeilWallet(order['buyer'])
@@ -660,24 +660,27 @@ def p2p_release_veil():
             seller_wallet.load_or_create()
             active_wallets[order['seller']] = seller_wallet
         
-        seller_wallet.balance -= order['amount_veil']
+        # ✅ TRANSFERT DES VEIL (l'escrow est déjà déduit à la création)
+        # On ne redéduit PAS le vendeur ! On ajoute juste à l'acheteur.
         buyer_wallet.balance += order['amount_veil']
         
-        seller_wallet.save()
         buyer_wallet.save()
+        seller_wallet.save()  # Le vendeur a déjà été déduit à la création
         
         order['status'] = 'completed'
         order['completed_at'] = time.time()
         save_p2p_orders()
-# Mettre à jour le prix après la transaction
-new_price = get_current_price()
-record_price(new_price)
+        
+        # Mettre à jour le prix
+        new_price = get_current_price()
+        record_price(new_price)
         
         return jsonify({
             'success': True,
             'amount_veil': order['amount_veil'],
             'new_balance_buyer': buyer_wallet.balance,
             'new_balance_seller': seller_wallet.balance,
+            'new_price': new_price,
             'message': f'✅ {order["amount_veil"]} VEIL transférés à l\'acheteur'
         })
     except Exception as e:
