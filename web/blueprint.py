@@ -1208,3 +1208,66 @@ def admin_all_orders():
     except Exception as e:
         print(f"Erreur admin_all_orders: {e}")
         return jsonify({'error': str(e)}), 500
+@web_bp.route('/api/admin/report_wallet', methods=['POST'])
+def admin_report_wallet():
+    """Signaler un wallet (admin seulement)"""
+    try:
+        d = request.get_json()
+        admin_seed = d.get('admin_seed', '')
+        wallet_name = d.get('wallet')
+        reason = d.get('reason', 'Comportement suspect')
+        
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'success': False, 'error': 'Non autorisé'})
+        
+        if not wallet_name:
+            return jsonify({'success': False, 'error': 'Wallet non spécifié'})
+        
+        # Ajouter un signalement via le système de réputation
+        from core.reputation import ReputationSystem
+        rep = ReputationSystem(DATA_DIR)
+        rep.add_report(wallet_name, f"Admin report: {reason}")
+        
+        return jsonify({'success': True, 'message': f'Signalement ajouté à {wallet_name}'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/admin/ban_wallet', methods=['POST'])
+def admin_ban_wallet():
+    """Bannir un wallet (admin seulement)"""
+    try:
+        d = request.get_json()
+        admin_seed = d.get('admin_seed', '')
+        wallet_name = d.get('wallet')
+        reason = d.get('reason', 'Violation des règles')
+        
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'success': False, 'error': 'Non autorisé'})
+        
+        if not wallet_name:
+            return jsonify({'success': False, 'error': 'Wallet non spécifié'})
+        
+        # Bannir via le système de réputation
+        from core.reputation import ReputationSystem
+        rep = ReputationSystem(DATA_DIR)
+        
+        # Mettre le score à 0
+        rep_data = rep.get(wallet_name)
+        rep_data['score'] = 0
+        rep_data['failed_trades'] = max(rep_data.get('failed_trades', 0), 3)
+        rep.reputation[wallet_name] = rep_data
+        rep.save()
+        
+        # Ajouter à la blacklist
+        blacklist = load_blacklist()
+        if wallet_name not in blacklist['wallets']:
+            blacklist['wallets'].append(wallet_name)
+        save_blacklist(blacklist)
+        
+        return jsonify({'success': True, 'message': f'Wallet {wallet_name} banni'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
