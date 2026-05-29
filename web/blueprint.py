@@ -539,6 +539,22 @@ def get_user_blocks():
 def get_mempool():
     return jsonify({'transactions': mempool, 'count': len(mempool)})
 
+@web_bp.route('/api/miner/user_stats', methods=['GET'])
+def get_user_stats():
+    wallet = request.args.get('wallet')
+    MAX_BLOCKS_PER_WALLET = 1000
+    
+    if os.path.exists(MINED_BLOCKS_FILE):
+        with open(MINED_BLOCKS_FILE, 'r') as f:
+            blocks = json.load(f)
+            user_blocks = [b for b in blocks if b.get('miner') == wallet]
+            return jsonify({
+                'blocks_mined': len(user_blocks),
+                'blocks_left': max(0, MAX_BLOCKS_PER_WALLET - len(user_blocks)),
+                'max_blocks': MAX_BLOCKS_PER_WALLET
+            })
+    return jsonify({'blocks_mined': 0, 'blocks_left': MAX_BLOCKS_PER_WALLET, 'max_blocks': MAX_BLOCKS_PER_WALLET})
+
 # ==================== API P2P ====================
 
 @web_bp.route('/api/p2p/create', methods=['POST'])
