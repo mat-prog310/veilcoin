@@ -76,11 +76,11 @@
                         <tbody>
                             {% for block in blocks %}
                             <tr>
-                                <td class="text-center">{{ block.index }}</td>
-                                <td><code class="small">{{ block.hash }}</code></td>
-                                <td><small>{{ block.miner }}</small></td>
-                                <td class="text-center">{{ block.tx_count }}</td>
-                                <td><small>{{ block.timestamp|datetime }}</small></td>
+                                <td class="text-center">{{ block.index }}<\/td>
+                                <td><code class="small">{{ block.hash }}</code><\/td>
+                                <td><small>{{ block.miner }}</small><\/td>
+                                <td class="text-center">{{ block.tx_count }}<\/td>
+                                <td><small>{{ block.timestamp|datetime }}</small><\/td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -94,8 +94,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     let priceChart = null;
-    let priceHistory = [];
-    let timeLabels = [];
     
     // Récupérer le prix actuel
     async function getCurrentPrice() {
@@ -123,32 +121,39 @@
         }
     }
     
-    // Mettre à jour l'affichage
-    async function updatePrice() {
+    // Mettre à jour l'affichage et le graphique
+    async function updateDisplay() {
+        // Prix en haut
         const price = await getCurrentPrice();
         document.getElementById('current-price').innerText = price.toFixed(6) + ' EUR';
         
-        // Récupérer l'historique
+        // Historique pour le graphique
         const history = await getPriceHistory();
+        
         if (history && history.length > 0) {
-            priceHistory = history.map(h => h.price);
-            timeLabels = history.map(h => h.time);
+            const labels = history.map(h => h.time);
+            const prices = history.map(h => h.price);
             
             // Calculer la variation
-            if (priceHistory.length >= 2) {
-                const oldPrice = priceHistory[priceHistory.length - 2];
+            if (prices.length >= 2) {
+                const oldPrice = prices[prices.length - 2];
                 const change = ((price - oldPrice) / oldPrice) * 100;
                 const changeEl = document.getElementById('price-change');
                 changeEl.innerText = (change > 0 ? '+' : '') + change.toFixed(2) + '%';
                 changeEl.className = change >= 0 ? 'badge bg-success' : 'badge bg-danger';
+            } else if (prices.length === 1) {
+                document.getElementById('price-change').innerText = '0%';
             }
             
-            updateChart();
+            updateChart(labels, prices);
+        } else {
+            // Pas d'historique, graphique vide
+            updateChart([], []);
         }
     }
     
     // Créer/mettre à jour le graphique
-    function updateChart() {
+    function updateChart(labels, prices) {
         const ctx = document.getElementById('price-chart').getContext('2d');
         
         if (priceChart) {
@@ -158,10 +163,10 @@
         priceChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: timeLabels,
+                labels: labels,
                 datasets: [{
                     label: 'Prix VEIL (EUR)',
-                    data: priceHistory,
+                    data: prices,
                     borderColor: '#00ff88',
                     backgroundColor: 'rgba(0, 255, 136, 0.1)',
                     borderWidth: 2,
@@ -207,9 +212,9 @@
     
     // Initialisation
     async function init() {
-        await updatePrice();
-        // Rafraîchir toutes les 5 secondes
-        setInterval(updatePrice, 5000);
+        await updateDisplay();
+        // Rafraîchir toutes les 10 secondes
+        setInterval(updateDisplay, 10000);
     }
     
     init();
