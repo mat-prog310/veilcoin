@@ -4,14 +4,14 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1 class="text-center mb-4">⛓️ Blockchain VeilCoin</h1>
+    <h1 class="text-center mb-4" style="color: #00ff88;">⛓️ Blockchain VeilCoin</h1>
     
     <div class="row mb-4">
         <div class="col-md-4">
             <div class="card bg-dark text-white">
                 <div class="card-body text-center">
                     <h5>📦 Hauteur</h5>
-                    <h2>{{ stats.height }}</h2>
+                    <h2 id="block-height">{{ stats.height }}</h2>
                 </div>
             </div>
         </div>
@@ -19,7 +19,7 @@
             <div class="card bg-dark text-white">
                 <div class="card-body text-center">
                     <h5>🎯 Difficulté</h5>
-                    <h2>{{ stats.difficulty }}</h2>
+                    <h2 id="difficulty">{{ stats.difficulty }}</h2>
                 </div>
             </div>
         </div>
@@ -27,7 +27,7 @@
             <div class="card bg-dark text-white">
                 <div class="card-body text-center">
                     <h5>🔥 Brûlé</h5>
-                    <h2>{{ "%.2f"|format(stats.total_burned) }} VEIL</h2>
+                    <h2 id="burned">{{ "%.2f"|format(stats.total_burned) }} VEIL</h2>
                 </div>
             </div>
         </div>
@@ -35,23 +35,31 @@
     
     <div class="card bg-dark">
         <div class="card-header">
-            <h4>📋 Derniers blocs</h4>
+            <h4 style="color: #00ff88;">📋 Derniers blocs</h4>
+            <button id="refresh-btn" class="btn btn-sm btn-primary float-end">🔄 Rafraîchir</button>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-dark table-hover mb-0">
                     <thead>
-                        <tr><th>#</th><th>Hash</th><th>Mineur</th><th>TX</th><th>Nonce</th><th>Temps</th></tr>
+                        <tr>
+                            <th>#</th>
+                            <th>Hash</th>
+                            <th>Mineur</th>
+                            <th>TX</th>
+                            <th>Nonce</th>
+                            <th>Temps</th>
+                        </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="blocks-list">
                         {% for block in blocks %}
                         <tr>
-                            <td class="text-center">{{ block.index }}</td>
-                            <td><code class="small">{{ block.hash }}</code></td>
-                            <td><small>{{ block.miner }}</small></td>
-                            <td class="text-center">{{ block.tx_count }}</td>
-                            <td>{{ block.nonce }}</td>
-                            <td><small>{{ block.timestamp|datetime }}</small></td>
+                            <td class="text-center">{{ block.index }}<\/td>
+                            <td><code class="small">{{ block.hash }}</code><\/td>
+                            <td><small>{{ block.miner }}</small><\/td>
+                            <td class="text-center">{{ block.tx_count }}<\/td>
+                            <td>{{ block.nonce }}<\/td>
+                            <td><small>{{ block.timestamp|datetime }}</small><\/td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -60,4 +68,48 @@
         </div>
     </div>
 </div>
+
+<script>
+    async function refreshBlockchain() {
+        try {
+            // Mettre à jour les stats
+            const statsRes = await fetch('/api/stats');
+            const statsData = await statsRes.json();
+            
+            document.getElementById('block-height').innerText = statsData.height || 0;
+            document.getElementById('difficulty').innerText = statsData.difficulty || 5;
+            document.getElementById('burned').innerText = (statsData.total_burned || 0).toFixed(2) + ' VEIL';
+            
+            // Mettre à jour les blocs
+            const blocksRes = await fetch('/api/blockchain/blocks');
+            const blocksData = await blocksRes.json();
+            
+            const tbody = document.getElementById('blocks-list');
+            if (!blocksData.blocks || blocksData.blocks.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center">Aucun bloc<\/td><\/tr>';
+                return;
+            }
+            
+            tbody.innerHTML = blocksData.blocks.map(block => `
+                <tr>
+                    <td class="text-center">${block.index}<\/td>
+                    <td class="text-center"><code class="small">${block.hash.substring(0, 20)}...<\/code><\/td>
+                    <td class="text-center"><small>${block.miner || 'unknown'}<\/small><\/td>
+                    <td class="text-center">${block.tx_count || 0}<\/td>
+                    <td class="text-center">${block.nonce || 0}<\/td>
+                    <td class="text-center"><small>${new Date(block.timestamp * 1000).toLocaleString()}<\/small><\/td>
+                </tr>
+            `).join('');
+            
+        } catch(e) {
+            console.error('Erreur refresh:', e);
+        }
+    }
+    
+    // Bouton manuel
+    document.getElementById('refresh-btn').onclick = refreshBlockchain;
+    
+    // Auto-refresh toutes les 30 secondes
+    setInterval(refreshBlockchain, 30000);
+</script>
 {% endblock %}
