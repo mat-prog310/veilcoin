@@ -95,6 +95,23 @@ def save_p2p_orders():
 
 load_p2p_orders()
 
+# ==================== PRIX BASÉ SUR TRANSACTIONS P2P ====================
+
+def get_current_price():
+    """Calcule le prix basé sur les transactions P2P complétées (status 'completed')"""
+    completed_orders = [o for o in p2p_orders.values() if o['status'] == 'completed']
+    
+    if not completed_orders:
+        return 0.01
+    
+    # Moyenne des 10 dernières transactions
+    last_10 = completed_orders[-10:]
+    total_value = sum(o['total_eur'] for o in last_10)
+    total_veil = sum(o['amount_veil'] for o in last_10)
+    price = total_value / total_veil if total_veil > 0 else 0.01
+    
+    return price
+
 # ==================== HISTORIQUE DES PRIX ====================
 PRICE_HISTORY_FILE = os.path.join(DATA_DIR, "price_history.json")
 
@@ -414,16 +431,7 @@ def market_sell():
 
 @web_bp.route('/api/market/price')
 def api_price():
-    # Prix basé sur les transactions P2P complétées
-    completed_orders = [o for o in p2p_orders.values() if o['status'] == 'completed']
-    if completed_orders:
-        last_10 = completed_orders[-10:]
-        total_value = sum(o['total_eur'] for o in last_10)
-        total_veil = sum(o['amount_veil'] for o in last_10)
-        price = total_value / total_veil if total_veil > 0 else 0.01
-    else:
-        price = 0.01
-    
+    price = get_current_price()
     return jsonify({'current_price': price})
 
 # ==================== API MINER ====================
@@ -647,7 +655,7 @@ def p2p_release_veil():
         if order['status'] != 'paid':
             return jsonify({'success': False, 'error': 'Le paiement n\'a pas encore été confirmé'})
         
-        # ✅ RÉCUPÉRER LES WALLETS
+        # RÉCUPÉRER LES WALLETS
         buyer_wallet = active_wallets.get(order['buyer'])
         if not buyer_wallet:
             buyer_wallet = VeilWallet(order['buyer'])
@@ -660,12 +668,11 @@ def p2p_release_veil():
             seller_wallet.load_or_create()
             active_wallets[order['seller']] = seller_wallet
         
-        # ✅ TRANSFERT DES VEIL (l'escrow est déjà déduit à la création)
-        # On ne redéduit PAS le vendeur ! On ajoute juste à l'acheteur.
+        # TRANSFERT DES VEIL (l'escrow est déjà déduit à la création)
         buyer_wallet.balance += order['amount_veil']
         
         buyer_wallet.save()
-        seller_wallet.save()  # Le vendeur a déjà été déduit à la création
+        seller_wallet.save()
         
         order['status'] = 'completed'
         order['completed_at'] = time.time()
