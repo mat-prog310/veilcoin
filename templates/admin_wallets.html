@@ -6,10 +6,38 @@
 <div class="container mt-4">
     <h1 class="text-center mb-4">🛡️ Administration - Wallets</h1>
     
+    <!-- Formulaire de récupération rapide -->
+    <div class="card bg-dark mb-4">
+        <div class="card-header">
+            <h4>💰 Récupération rapide de VEIL</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Wallet source</label>
+                    <input type="text" id="recover-from" class="form-control bg-dark text-white" placeholder="ex: mauvais_vendeur">
+                </div>
+                <div class="col-md-4">
+                    <label>Wallet destination</label>
+                    <input type="text" id="recover-to" class="form-control bg-dark text-white" placeholder="ex: treasury" value="treasury">
+                </div>
+                <div class="col-md-4">
+                    <label>Raison</label>
+                    <input type="text" id="recover-reason" class="form-control bg-dark text-white" placeholder="ex: Fraude">
+                </div>
+            </div>
+            <button id="recover-btn" class="btn btn-warning w-100 mt-3">💰 Récupérer TOUS les VEIL</button>
+        </div>
+    </div>
+    
+    <!-- Liste des wallets -->
     <div class="card bg-dark">
         <div class="card-header">
             <h4>👛 Tous les wallets</h4>
-            <button id="logout-btn" class="btn btn-sm btn-danger float-end">Déconnexion</button>
+            <div class="float-end">
+                <a href="/admin/proofs" class="btn btn-sm btn-info me-2">📸 Preuves</a>
+                <button id="logout-btn" class="btn btn-sm btn-danger">Déconnexion</button>
+            </div>
         </div>
         <div class="card-body">
             <div id="wallets-list" class="text-center">
@@ -50,7 +78,7 @@ async function loadWallets() {
                 <td>${w.balance.toFixed(2)} VEIL</td>
                 <td class="${statusClass}">${w.reputation_score}</td>
                 <td class="${statusClass}">${w.reputation_status}</td>
-                <td>${w.completed_trades}</td>
+                <td class="text-center">${w.completed_trades}</td>
                 <td class="text-danger">${w.failed_trades}</td>
                 <td class="text-warning">${w.reports}</td>
                 <td>
@@ -59,6 +87,7 @@ async function loadWallets() {
                     <button class="btn btn-sm btn-warning" onclick="updateRep('${w.name}', 'add_report')" title="-15 points">⚠️</button>
                     <button class="btn btn-sm btn-info" onclick="setScore('${w.name}')" title="Définir score">🎯</button>
                     <button class="btn btn-sm btn-dark" onclick="banWallet('${w.name}')" title="Bannir">🚫</button>
+                    <button class="btn btn-sm btn-warning" onclick="recoverWallet('${w.name}')" title="Récupérer VEIL">💰 Récupérer</button>
                 </td>
             </tr>`;
         }
@@ -69,6 +98,59 @@ async function loadWallets() {
         document.getElementById('wallets-list').innerHTML = '<p class="text-danger">Erreur de chargement</p>';
     }
 }
+
+// Récupérer TOUS les VEIL d'un wallet (depuis le tableau)
+async function recoverWallet(walletName) {
+    const toWallet = prompt("Wallet destination (ex: treasury):", "treasury");
+    if (!toWallet) return;
+    
+    const reason = prompt("Raison:", "Récupération admin");
+    if (!reason) return;
+    
+    const res = await fetch('/api/admin/recover_veil', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            admin_seed: adminSeed,
+            from_wallet: walletName,
+            to_wallet: toWallet,
+            reason: reason
+        })
+    });
+    const data = await res.json();
+    alert(data.message);
+    if (data.success) loadWallets();
+}
+
+// Récupération depuis le formulaire
+document.getElementById('recover-btn').onclick = async () => {
+    const fromWallet = document.getElementById('recover-from').value;
+    const toWallet = document.getElementById('recover-to').value;
+    const reason = document.getElementById('recover-reason').value;
+    
+    if (!fromWallet) {
+        alert("Entrez le wallet source");
+        return;
+    }
+    
+    const res = await fetch('/api/admin/recover_veil', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            admin_seed: adminSeed,
+            from_wallet: fromWallet,
+            to_wallet: toWallet,
+            reason: reason || "Récupération admin"
+        })
+    });
+    const data = await res.json();
+    alert(data.message);
+    if (data.success) {
+        loadWallets();
+        document.getElementById('recover-from').value = '';
+        document.getElementById('recover-reason').value = '';
+    }
+};
 
 async function updateRep(wallet, action) {
     try {
@@ -129,25 +211,5 @@ document.getElementById('logout-btn').onclick = () => {
 
 loadWallets();
 setInterval(loadWallets, 30000);
-</script>
-
-<button class="btn btn-sm btn-warning" onclick="recoverVeil('${w.name}')">💰 Récupérer</button>
-
-<script>
-async function recoverVeil(wallet) {
-    const adminSeed = prompt("Seed admin:");
-    const toWallet = prompt("Wallet destination (ex: treasury):", "treasury");
-    const reason = prompt("Raison:");
-    if (!adminSeed || !toWallet) return;
-    
-    const res = await fetch('/api/admin/recover_veil', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({admin_seed: adminSeed, from_wallet: wallet, to_wallet: toWallet, reason: reason})
-    });
-    const data = await res.json();
-    alert(data.message);
-    loadWallets();
-}
 </script>
 {% endblock %}
