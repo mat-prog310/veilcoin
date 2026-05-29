@@ -63,6 +63,19 @@ MINED_BLOCKS_FILE = os.path.join(DATA_DIR, "mined_blocks.json")
 BURN_STATS_FILE = os.path.join(DATA_DIR, "burn_stats.json")
 os.makedirs(DATA_DIR, exist_ok=True)
 
+# ==================== BLACKLIST ====================
+BLACKLIST_FILE = os.path.join(DATA_DIR, "blacklist.json")
+
+def load_blacklist():
+    if os.path.exists(BLACKLIST_FILE):
+        with open(BLACKLIST_FILE, 'r') as f:
+            return json.load(f)
+    return {'wallets': [], 'ips': [], 'users': []}
+
+def save_blacklist(blacklist):
+    with open(BLACKLIST_FILE, 'w') as f:
+        json.dump(blacklist, f, indent=2)
+        
 # ==================== IMPORT DES MODULES APRÈS DATA_DIR ====================
 from core.reputation import ReputationSystem
 from core.secure_storage import SecureStorage
