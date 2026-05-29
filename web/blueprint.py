@@ -1175,3 +1175,36 @@ def admin_ban_wallet():
         return jsonify({'success': True, 'message': f'Wallet {wallet_name} banni'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/admin/all_orders', methods=['GET'])
+def admin_all_orders():
+    """Toutes les offres avec wallets (admin seulement)"""
+    try:
+        admin_seed = request.args.get('admin_seed', '')
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'error': 'Non autorisé'}), 403
+        
+        all_orders = []
+        for o in p2p_orders.values():
+            all_orders.append({
+                'id': o.get('id'),
+                'seller': o.get('seller'),
+                'seller_email': o.get('seller_email'),
+                'amount_veil': o.get('amount_veil'),
+                'price_eur': o.get('price_eur'),
+                'total_eur': o.get('total_eur'),
+                'status': o.get('status'),
+                'buyer': o.get('buyer'),
+                'buyer_email': o.get('buyer_email'),
+                'created_at': o.get('created_at')
+            })
+        
+        # Trier par date de création (plus récent d'abord)
+        all_orders.sort(key=lambda x: x.get('created_at', 0), reverse=True)
+        
+        return jsonify({'orders': all_orders, 'count': len(all_orders)})
+    except Exception as e:
+        print(f"Erreur admin_all_orders: {e}")
+        return jsonify({'error': str(e)}), 500
