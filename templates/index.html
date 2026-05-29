@@ -27,7 +27,7 @@
             <div class="card bg-dark border-primary h-100">
                 <div class="card-body text-center">
                     <h5 class="text-primary">📦 Hauteur</h5>
-                    <h2>{{ stats.height }}</h2>
+                    <h2 id="block-height">{{ stats.height }}</h2>
                 </div>
             </div>
         </div>
@@ -35,7 +35,7 @@
             <div class="card bg-dark border-success h-100">
                 <div class="card-body text-center">
                     <h5 class="text-success">🎯 Difficulté</h5>
-                    <h2>{{ stats.difficulty }}</h2>
+                    <h2 id="difficulty">{{ stats.difficulty }}</h2>
                 </div>
             </div>
         </div>
@@ -43,7 +43,7 @@
             <div class="card bg-dark border-warning h-100">
                 <div class="card-body text-center">
                     <h5 class="text-warning">🔥 Brûlé</h5>
-                    <h2>{{ "%.2f"|format(stats.total_burned) }} VEIL</h2>
+                    <h2 id="burned">{{ "%.2f"|format(stats.total_burned) }} VEIL</h2>
                 </div>
             </div>
         </div>
@@ -51,7 +51,7 @@
             <div class="card bg-dark border-info h-100">
                 <div class="card-body text-center">
                     <h5 class="text-info">⏳ Mempool</h5>
-                    <h2>{{ stats.mempool_size }}</h2>
+                    <h2 id="mempool-size">{{ stats.mempool_size }}</h2>
                 </div>
             </div>
         </div>
@@ -73,7 +73,7 @@
                             <th>TX</th>
                             <th>Temps</th>
                         </thead>
-                        <tbody>
+                        <tbody id="blocks-list">
                             {% for block in blocks %}
                             <tr>
                                 <td class="text-center">{{ block.index }}<\/td>
@@ -95,7 +95,7 @@
 <script>
     let priceChart = null;
     
-    // Récupérer le prix actuel
+    // ==================== PRIX ====================
     async function getCurrentPrice() {
         try {
             const res = await fetch('/api/market/price');
@@ -103,12 +103,10 @@
             const data = await res.json();
             return data.current_price || 0.01;
         } catch(e) {
-            console.error('Erreur prix:', e);
             return 0.01;
         }
     }
     
-    // Récupérer l'historique des prix
     async function getPriceHistory() {
         try {
             const res = await fetch('/api/market/price/history');
@@ -116,49 +114,46 @@
             const data = await res.json();
             return data.history || [];
         } catch(e) {
-            console.error('Erreur historique:', e);
             return [];
         }
     }
     
-    // Mettre à jour l'affichage et le graphique
-    async function updateDisplay() {
-        // Prix en haut
+    async function recordCurrentPrice() {
+        const price = await getCurrentPrice();
+        try {
+            await fetch('/api/market/price/record', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({price: price})
+            });
+            console.log('Prix enregistré:', price);
+        } catch(e) {}
+    }
+    
+    async function updatePriceDisplay() {
         const price = await getCurrentPrice();
         document.getElementById('current-price').innerText = price.toFixed(6) + ' EUR';
         
-        // Historique pour le graphique
         const history = await getPriceHistory();
-        
         if (history && history.length > 0) {
             const labels = history.map(h => h.time);
             const prices = history.map(h => h.price);
             
-            // Calculer la variation
             if (prices.length >= 2) {
                 const oldPrice = prices[prices.length - 2];
                 const change = ((price - oldPrice) / oldPrice) * 100;
                 const changeEl = document.getElementById('price-change');
                 changeEl.innerText = (change > 0 ? '+' : '') + change.toFixed(2) + '%';
                 changeEl.className = change >= 0 ? 'badge bg-success' : 'badge bg-danger';
-            } else if (prices.length === 1) {
-                document.getElementById('price-change').innerText = '0%';
             }
             
             updateChart(labels, prices);
-        } else {
-            // Pas d'historique, graphique vide
-            updateChart([], []);
         }
     }
     
-    // Créer/mettre à jour le graphique
     function updateChart(labels, prices) {
         const ctx = document.getElementById('price-chart').getContext('2d');
-        
-        if (priceChart) {
-            priceChart.destroy();
-        }
+        if (priceChart) priceChart.destroy();
         
         priceChart = new Chart(ctx, {
             type: 'line',
@@ -180,41 +175,71 @@
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: {
-                        labels: { color: '#ffffff' }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return context.parsed.y.toFixed(6) + ' EUR';
-                            }
-                        }
-                    }
+                    legend: { labels: { color: '#ffffff' } },
+                    tooltip: { callbacks: { label: (ctx) => ctx.parsed.y.toFixed(6) + ' EUR' } }
                 },
                 scales: {
-                    x: {
-                        ticks: { color: '#ffffff', maxRotation: 45, minRotation: 45 },
-                        grid: { color: '#333333' }
-                    },
-                    y: {
-                        ticks: { 
-                            color: '#ffffff',
-                            callback: function(value) {
-                                return value.toFixed(6) + ' EUR';
-                            }
-                        },
-                        grid: { color: '#333333' }
-                    }
+                    x: { ticks: { color: '#ffffff' }, grid: { color: '#333333' } },
+                    y: { ticks: { color: '#ffffff', callback: (v) => v.toFixed(6) + ' EUR' }, grid: { color: '#333333' } }
                 }
             }
         });
     }
     
-    // Initialisation
+    // ==================== STATS ====================
+    async function updateStats() {
+        try {
+            const res = await fetch('/api/stats');
+            if (!res.ok) return;
+            const data = await res.json();
+            
+            document.getElementById('block-height').innerText = data.height || 0;
+            document.getElementById('difficulty').innerText = data.difficulty || 5;
+            document.getElementById('burned').innerText = (data.total_burned || 0).toFixed(2) + ' VEIL';
+            document.getElementById('mempool-size').innerText = data.mempool_size || 0;
+        } catch(e) {
+            console.error('Erreur stats:', e);
+        }
+    }
+    
+    // ==================== BLOCS ====================
+    async function updateBlocks() {
+        try {
+            const res = await fetch('/api/blockchain/blocks');
+            if (!res.ok) return;
+            const data = await res.json();
+            
+            const tbody = document.getElementById('blocks-list');
+            if (!data.blocks || data.blocks.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Aucun bloc<\/td><\/tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.blocks.map(block => `
+                <tr>
+                    <td class="text-center">${block.index}<\/td>
+                    <td class="text-center"><code class="small">${block.hash.substring(0, 20)}...<\/code><\/td>
+                    <td class="text-center"><small>${block.miner || 'unknown'}<\/small><\/td>
+                    <td class="text-center">${block.tx_count || 0}<\/td>
+                    <td class="text-center"><small>${new Date(block.timestamp * 1000).toLocaleString()}<\/small><\/td>
+                </tr>
+            `).join('');
+        } catch(e) {
+            console.error('Erreur blocs:', e);
+        }
+    }
+    
+    // ==================== INIT ====================
     async function init() {
-        await updateDisplay();
-        // Rafraîchir toutes les 10 secondes
-        setInterval(updateDisplay, 10000);
+        await updatePriceDisplay();
+        await updateStats();
+        await updateBlocks();
+        await recordCurrentPrice();
+        
+        setInterval(updatePriceDisplay, 10000);
+        setInterval(updateStats, 15000);
+        setInterval(updateBlocks, 30000);
+        setInterval(recordCurrentPrice, 60000);
     }
     
     init();
