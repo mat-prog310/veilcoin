@@ -474,7 +474,7 @@ def submit_block():
                 existing_blocks = json.load(f)
         
         # ✅ LIMITE PAR WALLET : MAX 10 000 BLOCKS PAR WALLET
-        MAX_BLOCKS_PER_WALLET = 10000  # 10 000 blocs maximum par wallet
+        MAX_BLOCKS_PER_WALLET = 5000  # 5 000 blocs maximum par wallet
         
         # Compter combien de blocs ce wallet a déjà minés
         user_blocks = [b for b in existing_blocks if b.get('miner') == wallet]
