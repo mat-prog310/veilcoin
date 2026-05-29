@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Wallets{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="text-center mb-4">🛡️ Administration - Wallets</h1>
+    
+    <div class="card bg-dark">
+        <div class="card-header">
+            <h4>👛 Tous les wallets</h4>
+            <button id="logout-btn" class="btn btn-sm btn-danger float-end">Déconnexion</button>
+        </div>
+        <div class="card-body">
+            <div id="wallets-list" class="text-center">
+                <p>Chargement...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const adminSeed = sessionStorage.getItem('admin_seed');
+if (!adminSeed) {
+    window.location.href = '/admin/login';
+}
+
+async function loadWallets() {
+    const res = await fetch('/api/admin/wallets?admin_seed=' + adminSeed);
+    const data = await res.json();
+    
+    const container = document.getElementById('wallets-list');
+    if (!data.wallets || data.wallets.length === 0) {
+        container.innerHTML = '<p>Aucun wallet</p>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive"><table class="table table-dark">';
+    html += '<thead><tr><th>Wallet</th><th>Balance</th><th>Score</th><th>Statut</th><th>Succès</th><th>Échecs</th><th>Reports</th><th>Actions</th></tr></thead><tbody>';
+    
+    for (let w of data.wallets) {
+        let statusClass = '';
+        if (w.reputation_score >= 70) statusClass = 'text-success';
+        else if (w.reputation_score >= 50) statusClass = 'text-warning';
+        else statusClass = 'text-danger';
+        
+        html += `<tr>
+            <td><strong>${w.name}</strong><br><small class="text-muted">${w.address.substring(0, 20)}...</small></td>
+            <td>${w.balance.toFixed(2)} VEIL</td>
+            <td class="${statusClass}">${w.reputation_score}</td>
+            <td class="${statusClass}">${w.reputation_status}</td>
+            <td>${w.completed_trades}</td>
+            <td class="text-danger">${w.failed_trades}</td>
+            <td class="text-warning">${w.reports}</td>
+            <td>
+                <button class="btn btn-sm btn-success" onclick="updateRep('${w.name}', 'add_success')">+2</button>
+                <button class="btn btn-sm btn-danger" onclick="updateRep('${w.name}', 'add_failure')">-25</button>
+                <button class="btn btn-sm btn-warning" onclick="updateRep('${w.name}', 'add_report')">-15</button>
+                <button class="btn btn-sm btn-dark" onclick="setScore('${w.name}')">🎯 Score</button>
+                <button class="btn btn-sm btn-danger" onclick="banWallet('${w.name}')">🚫 Ban</button>
+            </td>
+        </tr>`;
+    }
+    html += '</tbody></tr></div>';
+    container.innerHTML = html;
+}
+
+async function updateRep(wallet, action) {
+    const res = await fetch('/api/admin/update_reputation', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, action: action})
+    });
+    const data = await res.json();
+    alert(data.message);
+    loadWallets();
+}
+
+async function setScore(wallet) {
+    const score = prompt("Nouveau score (0-100):", "50");
+    if (score !== null) {
+        const res = await fetch('/api/admin/update_reputation', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, action: 'set_score', value: parseInt(score)})
+        });
+        const data = await res.json();
+        alert(data.message);
+        loadWallets();
+    }
+}
+
+async function banWallet(wallet) {
+    if (!confirm(`Bannir définitivement ${wallet} ?`)) return;
+    const reason = prompt("Raison du bannissement:");
+    if (!reason) return;
+    
+    const res = await fetch('/api/admin/ban_wallet', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, reason: reason})
+    });
+    const data = await res.json();
+    alert(data.message);
+    loadWallets();
+}
+
+document.getElementById('logout-btn').onclick = () => {
+    sessionStorage.removeItem('admin_seed');
+    window.location.href = '/admin/login';
+};
+
+loadWallets();
+setInterval(loadWallets, 30000);
+</script>
+{% endblock %}
