@@ -1234,20 +1234,24 @@ def admin_report_wallet():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-@web_bp.route('/api/admin/recover_veil', methods=['POST'])
-def admin_recover_veil():
-    """Récupérer TOUS les VEIL d'un wallet (admin seulement)"""
+@web_bp.route('/api/admin/recover_amount', methods=['POST'])
+def admin_recover_amount():
+    """Récupérer un montant spécifique d'un wallet (admin seulement)"""
     try:
         d = request.get_json()
         admin_seed = d.get('admin_seed', '')
         from_wallet = d.get('from_wallet')
         to_wallet = d.get('to_wallet', 'treasury')
+        amount = float(d.get('amount', 0))
         reason = d.get('reason', 'Récupération admin')
         
         ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
         
         if admin_seed != ADMIN_SEED:
             return jsonify({'success': False, 'error': 'Non autorisé'})
+        
+        if amount <= 0:
+            return jsonify({'success': False, 'error': 'Montant invalide'})
         
         # Récupérer le wallet source
         source_w = active_wallets.get(from_wallet)
@@ -1264,26 +1268,14 @@ def admin_recover_veil():
             dest_w.load_or_create()
             active_wallets[to_wallet] = dest_w
         
-        amount = source_w.balance
+        if source_w.balance < amount:
+            return jsonify({'success': False, 'error': f'Solde insuffisant: {source_w.balance} VEIL'})
         
-        if amount <= 0:
-            return jsonify({'success': False, 'error': 'Aucun VEIL à récupérer'})
-        
-        # Transfert forcé
-        source_w.balance = 0
+        # Transfert
+        source_w.balance -= amount
         dest_w.balance += amount
-        
         source_w.save()
         dest_w.save()
-        
-        # Sanctionner le wallet
-        reputation.add_failure(from_wallet)
-        
-        # Ajouter à la blacklist
-        blacklist = load_blacklist()
-        if from_wallet not in blacklist['wallets']:
-            blacklist['wallets'].append(from_wallet)
-        save_blacklist(blacklist)
         
         return jsonify({
             'success': True,
@@ -1291,6 +1283,8 @@ def admin_recover_veil():
             'from_wallet': from_wallet,
             'to_wallet': to_wallet,
             'reason': reason,
+            'new_balance_from': source_w.balance,
+            'new_balance_to': dest_w.balance,
             'message': f'✅ {amount} VEIL récupérés de {from_wallet} vers {to_wallet}'
         })
     except Exception as e:
