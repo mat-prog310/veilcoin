@@ -60,7 +60,6 @@
             <div class="card bg-dark">
                 <div class="card-header">
                     <h4 style="color: #00ff88;">🟢 Offres de vente</h4>
-                    <p class="text-muted small mb-0">Connectez-vous pour acheter</p>
                 </div>
                 <div class="card-body">
                     <div id="orders-container" class="text-center">
@@ -75,11 +74,10 @@
             <div class="card bg-dark">
                 <div class="card-header">
                     <h4 style="color: #ff4444;">🔴 Vendre des VEIL</h4>
-                    <p class="text-muted small mb-0">Connectez-vous d'abord</p>
                 </div>
                 <div class="card-body">
                     <div id="sell-container" class="text-center">
-                        <p>Connectez-vous pour vendre des VEIL</p>
+                        <p>Connectez-vous pour vendre</p>
                     </div>
                 </div>
             </div>
@@ -90,7 +88,6 @@
             <div class="card bg-dark">
                 <div class="card-header">
                     <h4 style="color: #ffc107;">📦 Mes offres</h4>
-                    <p class="text-muted small mb-0">Connectez-vous pour voir vos offres</p>
                 </div>
                 <div class="card-body">
                     <div id="myorders-container" class="text-center">
@@ -104,8 +101,7 @@
         <div class="tab-pane fade" id="history" role="tabpanel">
             <div class="card bg-dark">
                 <div class="card-header">
-                    <h4 style="color: #00ff88;">📜 Historique public des transactions</h4>
-                    <p class="text-muted small mb-0">Données anonymes</p>
+                    <h4 style="color: #00ff88;">📜 Historique public</h4>
                 </div>
                 <div class="card-body">
                     <div id="history-container" class="text-center">
@@ -119,13 +115,12 @@
         <div class="tab-pane fade" id="admin-monitor" role="tabpanel">
             <div class="card bg-dark">
                 <div class="card-header">
-                    <h4 style="color: #ff00ff;">🛡️ ADMIN - Surveillance des ventes</h4>
+                    <h4 style="color: #ff00ff;">🛡️ ADMIN Monitor</h4>
                     <button id="admin-monitor-trigger" class="btn btn-sm btn-danger float-end">🔐 Charger</button>
-                    <p class="text-muted small">Toutes les offres avec noms des wallets (lecture seule)</p>
                 </div>
                 <div class="card-body">
                     <div id="admin-monitor-container" class="text-center">
-                        <p>Cliquez sur "Charger" et entrez votre seed admin</p>
+                        <p>Cliquez sur "Charger"</p>
                     </div>
                 </div>
             </div>
@@ -137,16 +132,16 @@
 <div id="buy-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #00ff88;">
     <h4 style="color:#00ff88;">🟢 Acheter des VEIL</h4>
     <p id="buy-details" style="color:white;"></p>
-    <label style="color:white;">📧 Votre email PayPal (obligatoire)</label>
+    <label style="color:white;">📧 Votre email PayPal</label>
     <input type="email" id="buyer-email" class="form-control bg-dark text-white mb-2" placeholder="votre@email.com" required>
-    <button id="confirm-buy-btn" class="btn btn-success w-100 mb-2">✅ Confirmer l'achat</button>
+    <button id="confirm-buy-btn" class="btn btn-success w-100 mb-2">✅ Confirmer</button>
     <button id="close-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
 
 <div id="pay-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a1a; padding:20px; border-radius:10px; z-index:1000; min-width:350px; border:1px solid #ffc107;">
     <h4 style="color:#ffc107;">📧 Paiement PayPal</h4>
-    <p style="color:white;">📧 Email du vendeur : <strong id="seller-email-display" style="color:#00ff88;"></strong></p>
-    <p style="color:white;">💰 Montant à payer : <strong id="pay-amount" style="color:#00ff88;"></strong> EUR</p>
+    <p style="color:white;">📧 Email du vendeur : <strong id="seller-email-display"></strong></p>
+    <p style="color:white;">💰 Montant : <strong id="pay-amount"></strong> EUR</p>
     <button id="confirm-payment-btn" class="btn btn-success w-100 mb-2">💸 J'ai payé</button>
     <button id="close-pay-modal" class="btn btn-secondary w-100">❌ Fermer</button>
 </div>
@@ -154,161 +149,109 @@
 <script>
 let currentWallet = null, currentBalance = 0, currentOrderId = null;
 
-// ==================== RÉPUTATION & BLOCS ====================
+// Réputation & blocs
 async function loadUserStats() {
     if (!currentWallet) return;
-    
     try {
-        // Réputation
         const repRes = await fetch(`/api/p2p/reputation/${currentWallet}`);
         const repData = await repRes.json();
         document.getElementById('reputation-score').innerText = repData.score;
         document.getElementById('reputation-status').innerText = repData.status;
         
-        // Blocs minés
         const blocksRes = await fetch(`/api/miner/user_blocks?wallet=${currentWallet}`);
         const blocksData = await blocksRes.json();
         document.getElementById('user-blocks-mined').innerText = blocksData.mined;
         document.getElementById('user-blocks-max').innerText = blocksData.max;
         const percent = (blocksData.mined / blocksData.max) * 100;
         document.getElementById('user-blocks-progress').style.width = percent + '%';
-    } catch(e) {
-        console.error(e);
-    }
+    } catch(e) { console.error(e); }
 }
 
-// ==================== CHARGEMENT PUBLIC ====================
-
+// Charger historique
 async function loadHistory() {
     try {
         const res = await fetch('/api/p2p/history');
         const data = await res.json();
         const container = document.getElementById('history-container');
-        
         if (!data.transactions || data.transactions.length === 0) {
-            container.innerHTML = '<p>Aucune transaction pour le moment</p>';
+            container.innerHTML = '<p>Aucune transaction</p>';
             return;
         }
-        
-        let html = '<div class="table-responsive"><table class="table table-dark">';
-        html += '<thead><tr><th>Date</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th></tr></thead><tbody>';
+        let html = '<div class="table-responsive"><table class="table table-dark"><thead><tr><th>Date</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th></tr></thead><tbody>';
         for (let tx of data.transactions) {
-            html += `<tr>
-                <td class="small">${new Date(tx.timestamp * 1000).toLocaleString()}</td>
-                <td class="text-center">${tx.amount_veil}</td>
-                <td class="text-center">${tx.price_eur} EUR</td>
-                <td class="text-center">${tx.total_eur} EUR</td>
-            </tr>`;
+            html += `<tr><td class="small">${new Date(tx.timestamp * 1000).toLocaleString()}</td><td class="text-center">${tx.amount_veil}</td><td class="text-center">${tx.price_eur} EUR</td><td class="text-center">${tx.total_eur} EUR</td></tr>`;
         }
         html += '</tbody></table></div>';
         container.innerHTML = html;
-    } catch(e) { 
-        console.error(e);
-        document.getElementById('history-container').innerHTML = '<p>Erreur de chargement</p>';
-    }
+    } catch(e) { console.error(e); }
 }
 
+// Charger offres
 async function loadOrders() {
     try {
         const res = await fetch('/api/p2p/orders');
         const data = await res.json();
         const container = document.getElementById('orders-container');
-        
-        if (!data.orders || data.orders.length === 0) {
-            container.innerHTML = '<p>Aucune offre de vente</p>';
-            return;
-        }
-        
-        let html = '<div class="table-responsive"><table class="table table-dark">';
-        html += '<thead><tr><th>ID</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th><th>Action</th></table></thead><tbody>';
-        for (let o of data.orders) {
-            html += `<tr>
-                <td class="text-center">${o.id}</td>
-                <td class="text-center">${o.amount_veil}</td>
-                <td class="text-center">${o.price_eur} EUR</td>
-                <td class="text-center">${o.total_eur} EUR</td>
-                <td class="text-center">${currentWallet ? `<button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">🟢 Acheter</button>` : '<span class="text-muted">Connectez-vous</span>'}</td>
-            </tr>`;
-        }
-        html += '</tbody></table></div>';
-        container.innerHTML = html;
-    } catch(e) { 
-        console.error(e);
-        container.innerHTML = '<p>Erreur de chargement</p>';
-    }
-}
-
-// ==================== CHARGEMENT AVEC CONNEXION ====================
-
-async function loadMyOrders() {
-    if (!currentWallet) {
-        document.getElementById('myorders-container').innerHTML = '<p>Connectez-vous pour voir vos offres</p>';
-        return;
-    }
-    try {
-        const res = await fetch(`/api/p2p/my-orders?wallet=${currentWallet}`);
-        const data = await res.json();
-        const container = document.getElementById('myorders-container');
-        
         if (!data.orders || data.orders.length === 0) {
             container.innerHTML = '<p>Aucune offre</p>';
             return;
         }
-        
-        let html = '<div class="table-responsive"><table class="table table-dark">';
-        html += '<thead><tr><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Action</th></tr></thead><tbody>';
+        let html = '<div class="table-responsive"><table class="table table-dark"><thead><tr><th>ID</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th><th>Action</th></tr></thead><tbody>';
         for (let o of data.orders) {
-            let statusText = '', actionButton = '';
-            if (o.status === 'open') {
-                statusText = '📢 En vente';
-                actionButton = `<button class="btn btn-sm btn-danger" onclick="cancelOrder('${o.id}')">Annuler</button>`;
-            } else if (o.status === 'matched') {
-                statusText = '⏳ En attente';
-                actionButton = `<button class="btn btn-sm btn-warning" onclick="confirmSellerManual('${o.id}')">Confirmer vente</button>`;
-            } else if (o.status === 'paid') {
-                statusText = '💸 Payé - Libérer';
-                actionButton = `<button class="btn btn-sm btn-success" onclick="releaseVeil('${o.id}')">✅ Libérer les VEIL</button>`;
-            } else {
-                statusText = '✅ Vendu';
-                actionButton = '✅ Terminé';
-            }
-            html += `<tr>
-                <td class="text-center">${o.id}</td>
-                <td class="text-center">${o.amount_veil}</td>
-                <td class="text-center">${o.price_eur} EUR</td>
-                <td class="text-center">${o.total_eur} EUR</td>
-                <td class="text-center">${statusText}</td>
-                <td class="text-center">${actionButton}</td>
-            </tr>`;
+            html += `<tr><td class="text-center">${o.id}</td><td class="text-center">${o.amount_veil}</td><td class="text-center">${o.price_eur} EUR</td><td class="text-center">${o.total_eur} EUR</td><td class="text-center">${currentWallet ? `<button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">Acheter</button>` : 'Connectez-vous'}</td></tr>`;
         }
         html += '</tbody></table></div>';
         container.innerHTML = html;
-    } catch(e) { 
-        console.error(e);
-    }
+    } catch(e) { console.error(e); }
 }
 
+// Mes offres
+async function loadMyOrders() {
+    if (!currentWallet) return;
+    try {
+        const res = await fetch(`/api/p2p/my-orders?wallet=${currentWallet}`);
+        const data = await res.json();
+        const container = document.getElementById('myorders-container');
+        if (!data.orders || data.orders.length === 0) {
+            container.innerHTML = '<p>Aucune offre</p>';
+            return;
+        }
+        let html = '<div class="table-responsive"><table class="table table-dark"><thead><tr><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Action</th></tr></thead><tbody>';
+        for (let o of data.orders) {
+            let statusText = '', actionButton = '';
+            if (o.status === 'open') {
+                statusText = 'En vente';
+                actionButton = `<button class="btn btn-sm btn-danger" onclick="cancelOrder('${o.id}')">Annuler</button>`;
+            } else if (o.status === 'matched') {
+                statusText = 'En attente';
+                actionButton = `<button class="btn btn-sm btn-warning" onclick="confirmSellerManual('${o.id}')">Confirmer vente</button>`;
+            } else if (o.status === 'paid') {
+                statusText = 'Payé - Libérer';
+                actionButton = `<button class="btn btn-sm btn-success" onclick="releaseVeil('${o.id}')">Libérer</button>`;
+            } else {
+                statusText = 'Vendu';
+                actionButton = 'Terminé';
+            }
+            html += `<tr><td class="text-center">${o.id}</td><td class="text-center">${o.amount_veil}</td><td class="text-center">${o.price_eur} EUR</td><td class="text-center">${o.total_eur} EUR</td><td class="text-center">${statusText}</td><td class="text-center">${actionButton}</td></tr>`;
+        }
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    } catch(e) { console.error(e); }
+}
+
+// Formulaire vente
 function loadSellForm() {
     if (!currentWallet) {
-        document.getElementById('sell-container').innerHTML = '<p>Connectez-vous pour vendre des VEIL</p>';
+        document.getElementById('sell-container').innerHTML = '<p>Connectez-vous</p>';
         return;
     }
     document.getElementById('sell-container').innerHTML = `
         <div class="row">
-            <div class="col-md-4">
-                <label>💰 Montant VEIL</label>
-                <input type="number" id="sell-amount" class="form-control bg-dark text-white" placeholder="Ex: 100">
-            </div>
-            <div class="col-md-4">
-                <label>💶 Prix par VEIL (EUR)</label>
-                <input type="number" id="sell-price" class="form-control bg-dark text-white" placeholder="Ex: 0.05" step="0.001">
-            </div>
-            <div class="col-md-4">
-                <label>📧 Votre email PayPal (OBLIGATOIRE)</label>
-                <input type="email" id="seller-email" class="form-control bg-dark text-white" placeholder="vendeur@email.com" required>
-            </div>
+            <div class="col-md-4"><label>Montant VEIL</label><input type="number" id="sell-amount" class="form-control bg-dark text-white" placeholder="100"></div>
+            <div class="col-md-4"><label>Prix par VEIL (EUR)</label><input type="number" id="sell-price" class="form-control bg-dark text-white" placeholder="0.05" step="0.001"></div>
+            <div class="col-md-4"><label>Email PayPal</label><input type="email" id="seller-email" class="form-control bg-dark text-white" placeholder="vendeur@email.com"></div>
         </div>
-        <button id="create-offer-btn" class="btn btn-primary w-100 mt-3">📢 Créer l'offre</button>
+        <button id="create-offer-btn" class="btn btn-primary w-100 mt-3">Créer l'offre</button>
     `;
     document.getElementById('create-offer-btn').onclick = createOffer;
 }
@@ -319,8 +262,7 @@ async function createOffer() {
     const price = parseFloat(document.getElementById('sell-price').value);
     const email = document.getElementById('seller-email').value;
     if (!amount || !price) { alert('Entrez montant et prix'); return; }
-    if (!email) { alert('Entrez votre email PayPal'); return; }
-    
+    if (!email) { alert('Entrez email'); return; }
     try {
         const res = await fetch('/api/p2p/create', {
             method: 'POST',
@@ -328,23 +270,16 @@ async function createOffer() {
             body: JSON.stringify({wallet: currentWallet, amount_veil: amount, price_eur: price, seller_email: email})
         });
         const data = await res.json();
-        if (data.success) {
-            alert('Offre créée !');
-            loadOrders();
-            loadMyOrders();
-        } else {
-            alert('Erreur: ' + data.error);
-        }
+        if (data.success) { alert('Offre créée !'); loadOrders(); loadMyOrders(); }
+        else { alert('Erreur: ' + data.error); }
     } catch(e) { alert('Erreur: ' + e.message); }
 }
 
-// ==================== CONNEXION ====================
-
+// Connexion
 document.getElementById('connect-btn').onclick = async () => {
     const name = document.getElementById('wallet-name').value;
     const seed = document.getElementById('wallet-seed').value;
     if (!name || !seed) { alert('Entrez nom et seed'); return; }
-    
     try {
         const res = await fetch('/api/wallet/login', {
             method: 'POST',
@@ -358,20 +293,14 @@ document.getElementById('connect-btn').onclick = async () => {
             document.getElementById('wallet-info').style.display = 'block';
             document.getElementById('connected-name').innerText = name;
             document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
-            loadMyOrders();
-            loadSellForm();
-            loadOrders();
-            loadUserStats();
-        } else {
-            alert('Erreur: ' + data.error);
-        }
+            loadMyOrders(); loadSellForm(); loadOrders(); loadUserStats();
+        } else { alert('Erreur: ' + data.error); }
     } catch(e) { alert('Erreur de connexion: ' + e.message); }
 };
 
-// ==================== ACTIONS ====================
-
+// Actions
 window.buyOrder = (orderId, amount, total) => {
-    if (!currentWallet) { alert('Connectez-vous pour acheter'); return; }
+    if (!currentWallet) { alert('Connectez-vous'); return; }
     currentOrderId = orderId;
     document.getElementById('buy-details').innerHTML = `Achat de ${amount} VEIL pour ${total} EUR`;
     document.getElementById('buyer-email').value = '';
@@ -380,8 +309,7 @@ window.buyOrder = (orderId, amount, total) => {
 
 document.getElementById('confirm-buy-btn').onclick = async () => {
     const email = document.getElementById('buyer-email').value;
-    if (!email) { alert('Entrez votre email PayPal'); return; }
-    
+    if (!email) { alert('Entrez email'); return; }
     try {
         const res = await fetch('/api/p2p/match', {
             method: 'POST',
@@ -394,9 +322,7 @@ document.getElementById('confirm-buy-btn').onclick = async () => {
             document.getElementById('seller-email-display').innerHTML = data.seller_email;
             document.getElementById('pay-amount').innerHTML = data.amount_eur;
             document.getElementById('pay-modal').style.display = 'block';
-        } else {
-            alert('Erreur: ' + data.error);
-        }
+        } else { alert('Erreur: ' + data.error); }
     } catch(e) { alert('Erreur: ' + e.message); }
 };
 
@@ -409,17 +335,15 @@ document.getElementById('confirm-payment-btn').onclick = async () => {
         });
         const data = await res.json();
         if (data.success) {
-            alert('✅ Paiement confirmé ! En attente de la libération par le vendeur');
+            alert('Paiement confirmé !');
             document.getElementById('pay-modal').style.display = 'none';
             loadMyOrders();
-        } else {
-            alert('Erreur: ' + data.error);
-        }
+        } else { alert('Erreur: ' + data.error); }
     } catch(e) { alert('Erreur: ' + e.message); }
 };
 
 window.releaseVeil = async (orderId) => {
-    if (!confirm('Confirmez-vous avoir reçu le paiement ? Les VEIL seront transférés.')) return;
+    if (!confirm('Libérer les VEIL ?')) return;
     try {
         const res = await fetch('/api/p2p/release', {
             method: 'POST',
@@ -428,23 +352,19 @@ window.releaseVeil = async (orderId) => {
         });
         const data = await res.json();
         if (data.success) {
-            alert(`✅ ${data.amount_veil} VEIL transférés !`);
-            loadMyOrders();
-            loadOrders();
-            loadHistory();
+            alert(`✅ ${data.amount_veil} VEIL transférés`);
+            loadMyOrders(); loadOrders(); loadHistory();
             const balanceRes = await fetch(`/api/wallet/${currentWallet}/balance`);
             const balanceData = await balanceRes.json();
             currentBalance = balanceData.balance_veil;
             document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
             loadUserStats();
-        } else {
-            alert('Erreur: ' + data.error);
-        }
+        } else { alert('Erreur: ' + data.error); }
     } catch(e) { alert('Erreur: ' + e.message); }
 };
 
 window.confirmSellerManual = async (orderId) => {
-    if (!confirm('Confirmez-vous avoir reçu le paiement ?')) return;
+    if (!confirm('Confirmer la vente ?')) return;
     try {
         const res = await fetch('/api/p2p/confirm', {
             method: 'POST',
@@ -452,17 +372,13 @@ window.confirmSellerManual = async (orderId) => {
             body: JSON.stringify({order_id: orderId, wallet: currentWallet, confirm_type: 'seller'})
         });
         const data = await res.json();
-        if (data.success) {
-            alert('Vente confirmée !');
-            loadMyOrders();
-        } else {
-            alert('Erreur: ' + data.error);
-        }
+        if (data.success) { alert('Vente confirmée !'); loadMyOrders(); }
+        else { alert('Erreur: ' + data.error); }
     } catch(e) { alert('Erreur: ' + e.message); }
 };
 
 window.cancelOrder = async (orderId) => {
-    if (!confirm('Annuler cette offre ?')) return;
+    if (!confirm('Annuler ?')) return;
     try {
         const res = await fetch('/api/p2p/cancel', {
             method: 'POST',
@@ -470,110 +386,58 @@ window.cancelOrder = async (orderId) => {
             body: JSON.stringify({order_id: orderId, wallet: currentWallet})
         });
         const data = await res.json();
-        if (data.success) {
-            alert('Offre annulée');
-            loadMyOrders();
-            loadOrders();
-        } else {
-            alert('Erreur: ' + data.error);
-        }
+        if (data.success) { alert('Offre annulée'); loadMyOrders(); loadOrders(); }
+        else { alert('Erreur: ' + data.error); }
     } catch(e) { alert('Erreur: ' + e.message); }
 };
 
 document.getElementById('close-modal').onclick = () => document.getElementById('buy-modal').style.display = 'none';
 document.getElementById('close-pay-modal').onclick = () => document.getElementById('pay-modal').style.display = 'none';
 
-// ==================== ADMIN MONITOR ====================
-
+// ADMIN MONITOR
 async function loadAdminMonitor() {
-    const adminSeed = prompt("🔐 Seed admin pour accéder au monitoring:");
+    const adminSeed = prompt("Seed admin:");
     if (!adminSeed) return;
-    
     try {
         const res = await fetch(`/api/admin/all_orders?admin_seed=${adminSeed}`);
         const data = await res.json();
         const container = document.getElementById('admin-monitor-container');
-        
         if (!data.orders || data.orders.length === 0) {
             container.innerHTML = '<p>Aucune offre</p>';
             return;
         }
-        
-        let html = '<div class="table-responsive"><table class="table table-dark">';
-        html += '<thead><tr><th>Wallet Vendeur</th><th>Email</th><th>ID</th><th>VEIL</th><th>Prix/VEIL</th><th>Total EUR</th><th>Statut</th><th>Acheteur</th><th>Actions</th></tr></thead><tbody>';
-        
+        let html = '<div class="table-responsive"><table class="table table-dark"><thead><tr><th>Wallet</th><th>Email</th><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Acheteur</th><th>Actions</th></tr></thead><tbody>';
         for (let o of data.orders) {
-            let statusClass = '';
-            if (o.status === 'open') statusClass = 'bg-success';
-            else if (o.status === 'matched') statusClass = 'bg-warning';
-            else if (o.status === 'paid') statusClass = 'bg-info';
-            else statusClass = 'bg-secondary';
-            
-            html += `<tr>
-                <td><strong>${o.seller}</strong></td>
-                <td><small>${o.seller_email || 'N/A'}</small></td>
-                <td>${o.id}</td>
-                <td>${o.amount_veil}</td>
-                <td>${o.price_eur} EUR</td>
-                <td>${o.total_eur} EUR</td>
-                <td><span class="badge ${statusClass}">${o.status}</span></td>
-                <td>${o.buyer || '—'}</td>
-                <td>
-                    <button class="btn btn-sm btn-danger" onclick="adminBanWallet('${o.seller}')">🚫 Bannir</button>
-                    <button class="btn btn-sm btn-warning" onclick="adminReportWallet('${o.seller}')">⚠️ Signalement</button>
-                </td>
-            `,};
+            html += `<tr><td><strong>${o.seller}</strong></td><td><small>${o.seller_email || 'N/A'}</small></td><td>${o.id}</td><td>${o.amount_veil}</td><td>${o.price_eur} EUR</td><td>${o.total_eur} EUR</td><td>${o.status}</td><td>${o.buyer || '—'}</td><td><button class="btn btn-sm btn-danger" onclick="adminBanWallet('${o.seller}')">🚫 Bannir</button> <button class="btn btn-sm btn-warning" onclick="adminReportWallet('${o.seller}')">⚠️ Signal</button></td></tr>`;
         }
         html += '</tbody></table></div>';
         container.innerHTML = html;
-    } catch(e) {
-        console.error(e);
-        document.getElementById('admin-monitor-container').innerHTML = '<p class="text-danger">Erreur ou seed incorrecte</p>';
-    }
+    } catch(e) { container.innerHTML = '<p class="text-danger">Erreur</p>'; }
 }
 
 async function adminBanWallet(wallet) {
-    const adminSeed = prompt("🔐 Confirmer seed admin pour bannir:");
-    if (!adminSeed) return;
-    if (!confirm(`Bannir définitivement "${wallet}" ?`)) return;
-    
-    try {
-        const res = await fetch('/api/admin/ban_wallet', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, reason: 'Fraude P2P'})
-        });
-        const data = await res.json();
-        alert(data.message);
-        loadAdminMonitor();
-    } catch(e) { alert('Erreur: ' + e.message); }
+    const adminSeed = prompt("Seed admin:");
+    if (!adminSeed || !confirm(`Bannir ${wallet} ?`)) return;
+    const res = await fetch('/api/admin/ban_wallet', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, reason: 'Fraude'})});
+    const data = await res.json();
+    alert(data.message);
+    loadAdminMonitor();
 }
 
 async function adminReportWallet(wallet) {
-    const adminSeed = prompt("🔐 Confirmer seed admin pour signaler:");
+    const adminSeed = prompt("Seed admin:");
     if (!adminSeed) return;
-    
-    try {
-        const res = await fetch('/api/admin/report_wallet', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, reason: 'Comportement suspect'})
-        });
-        const data = await res.json();
-        alert(data.message);
-    } catch(e) { alert('Erreur: ' + e.message); }
+    const res = await fetch('/api/admin/report_wallet', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({admin_seed: adminSeed, wallet: wallet, reason: 'Suspect'})});
+    const data = await res.json();
+    alert(data.message);
 }
 
 document.getElementById('admin-monitor-trigger').onclick = loadAdminMonitor;
 
-// ==================== INITIALISATION ====================
+// Initialisation
 loadHistory();
 loadOrders();
-if (currentWallet) {
-    loadMyOrders();
-    loadSellForm();
-}
-
+if (currentWallet) { loadMyOrders(); loadSellForm(); }
 setInterval(() => { loadHistory(); loadOrders(); }, 30000);
 </script>
 {% endblock %}
