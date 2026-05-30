@@ -604,7 +604,7 @@ def submit_block():
         transactions = data.get('transactions', [])
         
         # ===== 💰 STAKING OBLIGATOIRE (SOLUTION B) =====
-        MINING_STAKE_REQUIRED = 1000  # 1000 VEIL minimum à stake pour miner
+        MINING_STAKE_REQUIRED = 200  # 200 VEIL minimum à stake pour miner
         
         # Vérifier le wallet et son solde
         w = VeilWallet(wallet)
