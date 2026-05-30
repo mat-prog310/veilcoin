@@ -16,6 +16,15 @@ import base64
 
 web_bp = Blueprint('web', __name__, template_folder='../templates')
 
+# ==================== WHITELIST ADMIN (NE JAMAIS BANNIR) ====================
+ADMIN_IPS = [
+    "10.24.250.132",
+    "10.31.93.2",
+    "10.25.168.6",
+    "10.28.13.134",
+    "127.0.0.1"
+]
+
 # ==================== P2P ESCROW ====================
 p2p_orders = {}
 p2p_counter = 0
