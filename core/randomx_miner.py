@@ -1,134 +1,259 @@
+#!/usr/bin/env python3
 """
-Mineur VeilCoin - SHA256 simple + Difficulté 5
-Temps estimé : 5-30 minutes par bloc
+╔══════════════════════════════════════════════════════════════╗
+║                    ⛏️  VEILCOIN MINER  ⛏️                     ║
+║                    Terminal v2.0.0                           ║
+║              Mine Simply. Transact Privately.                ║
+╚══════════════════════════════════════════════════════════════╝
 """
 import hashlib
 import time
-import threading
 import os
+import sys
+import json
+import urllib.request
+import urllib.error
+import ssl
+import random
 
-class RandomXMiner:
-    def __init__(self, blockchain):
-        self.blockchain = blockchain
-        self.is_mining = False
-        self.hashrate = 0.0
-        self.total_hashes = 0
-        self.start_time = 0
-        self.blocks_mined = 0
-        self.mining_thread = None
-        self.callback = None
-        self.stats = {
-            'hashrate': 0,
-            'total_hashes': 0,
-            'blocks_mined': 0,
-            'current_difficulty': blockchain.difficulty,
-            'accepted_shares': 0,
-            'network_security': 0
-        }
+API_URL = "https://veilcoin-fvzp.onrender.com"
 
-    def set_callback(self, cb):
-        self.callback = cb
+if os.name == 'nt':
+    import ctypes
+    kernel32 = ctypes.windll.kernel32
+    kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    G = Y = R = C = W = X = ""
+else:
+    G = "\033[92m"; Y = "\033[93m"; R = "\033[91m"
+    C = "\033[96m"; W = "\033[97m"; X = "\033[0m"
 
-    def _update(self):
-        if self.start_time > 0:
-            elapsed = time.time() - self.start_time
-            if elapsed > 0:
-                self.stats['hashrate'] = self.total_hashes / elapsed
-                self.stats['total_hashes'] = self.total_hashes
-                self.stats['blocks_mined'] = self.blocks_mined
-                self.stats['current_difficulty'] = self.blockchain.difficulty
-                self.stats['network_security'] = self.stats['hashrate'] * (16 ** self.blockchain.difficulty)
+class VeilMiner:
+    def __init__(self):
+        self.wallet = ""
+        self.mining = False
+        self.hr = 0.0
+        self.hashes = 0
+        self.blocks = 0
+        self.t0 = 0
+        self.diff = 5
+        self.bal = 0.0
+        self.last_block_time = 0
+        self.hash_rate_limit = 800
 
-    def _hash(self, data):
-        """SHA256 simple = plus rapide"""
-        return hashlib.sha256(data).hexdigest()
-
-    def mine_block(self, addr):
-        candidate = self.blockchain.create_new_block(addr)
-        if not candidate:
+    def api(self, ep, data=None):
+        
+        try:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            if data:
+                req = urllib.request.Request(f"{API_URL}{ep}",
+                    data=json.dumps(data).encode(),
+                    headers={'Content-Type': 'application/json'}, method='POST')
+            else:
+                req = urllib.request.Request(f"{API_URL}{ep}")
+            with urllib.request.urlopen(req, timeout=10, context=ctx) as r:
+                return json.loads(r.read().decode())
+        except:
             return None
-        
-        target = "0" * self.blockchain.difficulty
-        self.start_time = time.time()
-        self.total_hashes = 0
-        self.is_mining = True
-        last_print = time.time()
-        
-        print(f"⛏️  Bloc #{len(self.blockchain.chain)} | Difficulté: {self.blockchain.difficulty}")
-        
-        while self.is_mining:
-            # 1000 hashes par lot = plus rapide
-            for _ in range(1000):
-                candidate.header.nonce += 1
-                self.total_hashes += 1
-                
-                header_data = str(candidate.header.to_dict()).encode()
-                block_hash = self._hash(
-                    header_data + candidate.header.nonce.to_bytes(8, 'big')
-                )
-                
-                if block_hash.startswith(target):
-                    candidate.block_hash = block_hash
-                    
-                    if self.blockchain.add_block(candidate):
-                        self.blocks_mined += 1
-                        self._update()
-                        
-                        elapsed = time.time() - self.start_time
-                        print(f"\n🎉 BLOC MINÉ en {elapsed/60:.1f} min ! +25 VEIL")
-                        
-                        if self.callback:
-                            self.callback(candidate)
-                        
-                        return candidate
-            
-            if time.time() - last_print > 5:
-                self._update()
-                elapsed = time.time() - self.start_time
-                
-                avg_needed = 16 ** self.blockchain.difficulty
-                if self.stats['hashrate'] > 0:
-                    remaining = max(0, avg_needed - self.total_hashes)
-                    eta_sec = remaining / self.stats['hashrate']
-                    if eta_sec > 3600:
-                        eta = f"{eta_sec/3600:.1f}h"
-                    elif eta_sec > 60:
-                        eta = f"{eta_sec/60:.1f}min"
-                    else:
-                        eta = f"{eta_sec:.0f}s"
-                else:
-                    eta = "..."
-                
-                progress = min(100, (self.total_hashes / avg_needed) * 100)
-                print(f"   ⛏️  {self.stats['hashrate']:.0f} H/s | {progress:.2f}% | ⏳ {eta}")
-                last_print = time.time()
-        
+
+    def login(self, name, seed):
+        self.wallet = name
+        r = self.api("/api/wallet/login", {"name": name, "seed_phrase": seed})
+        if r and r.get("success"):
+            self.bal = r.get("balance", 0)
+            return True
+        return False
+
+    def stats(self):
+        r = self.api("/api/stats")
+        if r: 
+            self.diff = r.get("difficulty", 5)
+        return r
+
+    def get_mempool(self):
+        try:
+            r = self.api("/api/miner/mempool")
+            if r:
+                return r.get('transactions', [])
+        except:
+            pass
+        return []
+
+    def get_last_block(self):
+        try:
+            r = self.api("/api/blockchain/blocks")
+            if r and r.get('blocks'):
+                blocks = r.get('blocks', [])
+                if blocks:
+                    return blocks[-1]
+        except:
+            pass
         return None
 
-    def start_mining(self, addr):
-        self.is_mining = True
-        print(f"⚡ Minage démarré - Difficulté: {self.blockchain.difficulty}")
-        print(f"   💰 25 VEIL/bloc | ⏱️  ~5-30 min")
-        
-        def loop():
-            while self.is_mining:
-                try:
-                    block = self.mine_block(addr)
-                    if block:
-                        print(f"🎉 +25 VEIL !\n")
-                    time.sleep(0.5)
-                except Exception as e:
-                    print(f"⚠️ {e}")
-                    time.sleep(2)
-        
-        self.mining_thread = threading.Thread(target=loop, daemon=True)
-        self.mining_thread.start()
+    def submit_block(self, nonce, hash_proof, transactions, previous_hash):
+        submit_data = {
+            "wallet": self.wallet,
+            "nonce": nonce,
+            "hash": hash_proof,
+            "transactions": transactions,
+            "previous_hash": previous_hash,
+            "difficulty": self.diff
+        }
+        return self.api("/api/miner/submit_block", submit_data)
 
-    def stop_mining(self):
-        self.is_mining = False
-        if self.mining_thread and self.mining_thread.is_alive():
-            self.mining_thread.join(timeout=3)
+    def slow_hash(self, data):
+        time.sleep(0.001)
+        return hashlib.sha256(data.encode()).hexdigest()
 
-    def get_stats(self):
-        self._update()
-        return self.stats
+    def mine(self):
+        self.stats()
+        tgt = "0" * self.diff
+        self.mining = True
+        self.t0 = time.time()
+        self.hashes = 0
+        self.blocks = 0
+        nonce = random.randint(0, 1000000)
+        lp = time.time()
+        
+        last_hash_time = time.time()
+        hash_count_this_second = 0
+        last_mempool_fetch = 0
+        mempool = []
+        previous_hash = "0" * 64
+
+        print(f"\n{G}{'='*60}{X}")
+        print(f"{G}🔒 MINAGE LANCÉ - VERSION EXTREME{X}")
+        print(f"{G}{'='*60}{X}")
+        print(f"  🎯 Difficulté: {Y}{self.diff}{X} zéros")
+        print(f"  💰 Récompense: {G}50{X} VEIL/bloc (pour vous)")
+        print(f"  🐌 Limite hashrate: {Y}{self.hash_rate_limit}{X} H/s")
+        print(f"  ⏱️  Temps estimé: {Y}30-60 minutes{X}")
+        print(f"{G}{'='*60}{X}\n")
+
+        while self.mining:
+            # Récupérer la mempool toutes les 10 secondes
+            if time.time() - last_mempool_fetch > 10:
+                mempool = self.get_mempool()
+                last_block = self.get_last_block()
+                if last_block:
+                    previous_hash = last_block.get('hash', "0" * 64)
+                last_mempool_fetch = time.time()
+            
+            hash_count_this_second += 1
+            if hash_count_this_second >= self.hash_rate_limit:
+                elapsed = time.time() - last_hash_time
+                if elapsed < 1.0:
+                    time.sleep(1.0 - elapsed)
+                hash_count_this_second = 0
+                last_hash_time = time.time()
+            
+            nonce += 1
+            self.hashes += 1
+            
+            block_data = {
+                'miner': self.wallet,
+                'nonce': nonce,
+                'transactions': mempool[:10],
+                'previous_hash': previous_hash,
+                'timestamp': time.time()
+            }
+            
+            block_string = json.dumps(block_data, sort_keys=True)
+            h = self.slow_hash(block_string)
+            
+            if h.startswith(tgt):
+                self.blocks += 1
+                e = time.time() - self.t0
+                
+                print(f"\n{G}{'='*60}{X}")
+                print(f"{G}🎉 BLOC TROUVÉ !{X}")
+                print(f"   ⏱️  Temps: {e/60:.1f}min ({e:.0f}s)")
+                print(f"   🔑 Nonce: {nonce}")
+                print(f"   🔗 Hash: {h[:20]}...")
+                print(f"   📦 Transactions: {len(mempool[:10])}")
+                print(f"   💰 Récompense: +50 VEIL pour vous")
+                print(f"{G}{'='*60}{X}")
+                
+                result = self.submit_block(nonce, h, mempool[:10], previous_hash)
+                
+                if result and result.get("success"):
+                    self.bal += 50
+                    print(f"   ✅ Bloc validé par le réseau !")
+                    print(f"   💰 Nouveau solde: {self.bal:.4f} VEIL")
+                    if result.get('block_index'):
+                        print(f"   📊 Block #: {result.get('block_index')}")
+                else:
+                    error = result.get('error', 'unknown') if result else 'API error'
+                    print(f"   ❌ Bloc refusé: {error}")
+                
+                nonce = random.randint(0, 1000000)
+                last_mempool_fetch = 0
+            
+            if time.time() - lp > 5:
+                e = time.time() - self.t0
+                if e > 0: 
+                    self.hr = self.hashes / e
+                
+                avg = 16 ** self.diff
+                
+                # ✅ ZONE CORRIGÉE - Évite l'affichage bloqué à 100%
+                if self.hashes < avg:
+                    if self.hr > 0:
+                        es = max(0, avg - self.hashes) / self.hr
+                        if es > 3600:
+                            eta = f"{es/3600:.1f}h"
+                        elif es > 60:
+                            eta = f"{es/60:.1f}min"
+                        else:
+                            eta = f"{es:.0f}s"
+                    
+                    pct = (self.hashes / avg) * 100
+                    bar_len = int(pct / 2)
+                    bar = "█" * bar_len + "░" * (50 - bar_len)
+                    sys.stdout.write(f"\r{G}⛏️{X} {self.hr:.0f} H/s | {bar} {pct:.1f}% | ⏳{eta} | 💰{self.bal:.1f} VEIL | 🎯{self.blocks} blocs  ")
+                else:
+                    # 🔥 Quand on dépasse l'estimation, on affiche "recherche"
+                    sys.stdout.write(f"\r{G}⛏️{X} {self.hr:.0f} H/s | 🔍 Recherche de bloc... | 💰{self.bal:.1f} VEIL | 🎯{self.blocks} blocs  ")
+                
+                sys.stdout.flush()
+                lp = time.time()
+
+    def stop(self):
+        self.mining = False
+        e = time.time() - self.t0 if self.t0 > 0 else 0
+        print(f"\n\n{R}🛑 MINAGE ARRÊTÉ - {e/60:.1f} min | {self.blocks} blocs | {self.bal:.1f} VEIL{X}\n")
+
+def main():
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print(f"""{G}
+╔══════════════════════════════════════════════════════════════╗
+║   ██╗   ██╗███████╗██╗██╗      ██████╗ ██████╗ ██╗███╗   ██╗
+║   ██║   ██║██╔════╝██║██║     ██╔════╝██╔═══██╗██║████╗  ██║
+║   ██║   ██║█████╗  ██║██║     ██║     ██║   ██║██║██╔██╗ ██║
+║   ╚██╗ ██╔╝██╔══╝  ██║██║     ██║     ██║   ██║██║██║╚██╗██║
+║    ╚████╔╝ ███████╗██║███████╗╚██████╗╚██████╔╝██║██║ ╚████║
+║     ╚═══╝  ╚══════╝╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝
+║            ⛏️  MINER v2.0 - DIFFICULTÉ 5  ⛏️                  ║
+╚══════════════════════════════════════════════════════════════╝{X}""")
+
+    m = VeilMiner()
+    print(f"{C}🌐 Connexion à {API_URL}...{X}")
+    s = m.stats()
+    if s:
+        print(f"{G}[OK]{X} Hauteur: {s.get('height',0)} | Difficulté: {s.get('difficulty',5)}")
+    
+    print(f"\n{G}🔐 CONNEXION WALLET{X}")
+    name = input(f"{W}Nom du wallet: {X}").strip() or "default"
+    seed = input(f"{W}Seed phrase (12 mots): {X}").strip()
+    if seed and m.login(name, seed):
+        print(f"{G}[OK]{X} Connecté ! Solde: {m.bal:.4f} VEIL")
+    
+    try:
+        m.mine()
+    except KeyboardInterrupt:
+        m.stop()
+        input(f"{W}Entrée pour quitter...{X}")
+
+if __name__ == "__main__":
+    main()
