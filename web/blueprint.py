@@ -1363,3 +1363,83 @@ def admin_recover_amount():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+# ==================== ADMIN MINING BAN ====================
+
+@web_bp.route('/api/admin/ban_mining', methods=['POST'])
+def admin_ban_mining():
+    """Bannir un wallet du MINAGE (admin seulement)"""
+    try:
+        d = request.get_json()
+        admin_seed = d.get('admin_seed', '')
+        wallet_to_ban = d.get('wallet')
+        reason = d.get('reason', 'Self-purchase manipulation - matched pattern')
+        
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'success': False, 'error': 'Non autorisé'}), 401
+        
+        if not wallet_to_ban:
+            return jsonify({'success': False, 'error': 'Wallet requis'}), 400
+        
+        # Bannir du minage
+        ban_from_mining(wallet_to_ban, reason)
+        
+        # Optionnel : aussi réduire sa réputation à 0
+        rep_data = reputation.get(wallet_to_ban)
+        rep_data['score'] = 0
+        reputation.reputation[wallet_to_ban] = rep_data
+        reputation.save()
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ Wallet {wallet_to_ban} banni du MINAGE',
+            'reason': reason,
+            'permanent': True
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/admin/mining_blacklist', methods=['GET'])
+def admin_mining_blacklist():
+    """Voir la liste des wallets bannis du minage"""
+    try:
+        admin_seed = request.args.get('admin_seed', '')
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'error': 'Non autorisé'}), 401
+        
+        blacklist = load_mining_blacklist()
+        return jsonify({
+            'banned_wallets': blacklist['wallets'],
+            'reasons': blacklist['reasons'],
+            'count': len(blacklist['wallets'])
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@web_bp.route('/api/admin/unban_mining', methods=['POST'])
+def admin_unban_mining():
+    """Débannir un wallet du minage"""
+    try:
+        d = request.get_json()
+        admin_seed = d.get('admin_seed', '')
+        wallet_to_unban = d.get('wallet')
+        
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'success': False, 'error': 'Non autorisé'}), 401
+        
+        blacklist = load_mining_blacklist()
+        if wallet_to_unban in blacklist['wallets']:
+            blacklist['wallets'].remove(wallet_to_unban)
+            if wallet_to_unban in blacklist['reasons']:
+                del blacklist['reasons'][wallet_to_unban]
+            save_mining_blacklist(blacklist)
+            return jsonify({'success': True, 'message': f'Wallet {wallet_to_unban} débanni'})
+        
+        return jsonify({'success': False, 'error': 'Wallet non trouvé dans la blacklist'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
