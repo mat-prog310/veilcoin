@@ -658,6 +658,97 @@ def submit_block():
             'nonce': nonce,
             'previous_hash': existing_blocks[-1].get('hash', '0'*64) if existing_blocks else '0'*64,
             'hash': hash_proof,
+            'miner': wallet,@web_bp.route('/api/miner/submit_block', methods=['POST'])
+def submit_block():
+    try:
+        data = request.get_json()
+        wallet = data.get('wallet')
+        nonce = data.get('nonce')
+        hash_proof = data.get('hash')
+        transactions = data.get('transactions', [])
+        
+        # ===== 💰 STAKING OBLIGATOIRE (SOLUTION B) =====
+        MINING_STAKE_REQUIRED = 1000  # 1000 VEIL minimum à stake pour miner
+        
+        # Vérifier le wallet et son solde
+        w = VeilWallet(wallet)
+        w.load_or_create()
+        
+        # SI PAS ASSEZ DE VEIL STAKÉS
+        if w.balance < MINING_STAKE_REQUIRED:
+            print(f"⚠️ STAKING INSUFFISANT: {wallet} a {w.balance} VEIL, besoin de {MINING_STAKE_REQUIRED}")
+            return jsonify({
+                'success': False,
+                'error': f'❌ Staking minimum de {MINING_STAKE_REQUIRED} VEIL requis pour miner',
+                'current_balance': w.balance,
+                'needed': MINING_STAKE_REQUIRED - w.balance,
+                'buy_veil': True,
+                'link': '/market',
+                'message': f'Achetez {MINING_STAKE_REQUIRED - w.balance} VEIL sur le marché pour miner'
+            }), 403
+        
+        # Capturer l'IP du mineur
+        client_ip = request.remote_addr
+        print(f"📡 Tentative de minage depuis IP: {client_ip}, Wallet: {wallet}")
+        
+        # Vérification IP BANNIE
+        is_ip_banned_flag, ip_reason = is_ip_banned(client_ip)
+        if is_ip_banned_flag:
+            print(f"⛔ IP BANNIE TENTE DE MINER: {client_ip}")
+            return jsonify({'error': 'IP_BANNED', 'reason': ip_reason}), 403
+        
+        # ===== ⛔ VÉRIFICATION BAN MINAGE =====
+        is_banned, ban_reason = is_mining_banned(wallet)
+        if is_banned:
+            print(f"⚠️ TENTATIVE DE MINAGE PAR WALLET BANNI: {wallet} - {ban_reason}")
+            
+            # 🔥 CONFISQUER LES VEIL STAKÉS (PÉNALITÉ)
+            w = VeilWallet(wallet)
+            w.load_or_create()
+            confiscated = w.balance
+            w.balance = 0
+            w.save()
+            
+            # Bannir automatiquement son IP
+            ban_ip_address(client_ip, f"Auto-ban - Wallet {wallet} mining attempt while banned - {confiscated} VEIL confiscated", permanent=True)
+            
+            return jsonify({
+                'success': False, 
+                'error': f'❌ MINING BANNED - {ban_reason}',
+                'confiscated': confiscated,
+                'message': f'{confiscated} VEIL ont été confisqués',
+                'code': 'MINING_BAN_001',
+                'appeal': False
+            }), 403
+        
+        if not hash_proof.startswith('00000'):
+            return jsonify({'success': False, 'error': 'Preuve invalide'})
+        
+        existing_blocks = []
+        if os.path.exists(MINED_BLOCKS_FILE):
+            with open(MINED_BLOCKS_FILE, 'r') as f:
+                existing_blocks = json.load(f)
+        
+        # ✅ LIMITE PAR WALLET : 1000 BLOCS MAXIMUM
+        MAX_BLOCKS_PER_WALLET = 1000
+        
+        user_blocks = [b for b in existing_blocks if b.get('miner') == wallet]
+        
+        if len(user_blocks) >= MAX_BLOCKS_PER_WALLET:
+            return jsonify({
+                'success': False, 
+                'error': f'❌ Limite atteinte ! Ce wallet a déjà miné {MAX_BLOCKS_PER_WALLET} blocs maximum.'
+            })
+        
+        last_index = existing_blocks[-1].get('index', 0) if existing_blocks else 0
+        
+        new_block = {
+            'index': last_index + 1,
+            'timestamp': time.time(),
+            'transactions': transactions,
+            'nonce': nonce,
+            'previous_hash': existing_blocks[-1].get('hash', '0'*64) if existing_blocks else '0'*64,
+            'hash': hash_proof,
             'miner': wallet,
             'reward_miner': 50,
             'reward_pool': 0,
@@ -678,9 +769,7 @@ def submit_block():
                 'error': 'MINING_BANNED - Block rejected, reward forfeited'
             }), 403
         
-        # Distribution de la reward (SEULEMENT si pas banni)
-        w = VeilWallet(wallet)
-        w.load_or_create()
+        # Distribution de la reward (SEULEMENT si pas banni ET si stake OK)
         w.balance += 50
         w.save()
         active_wallets[wallet] = w
@@ -694,6 +783,8 @@ def submit_block():
             'block_index': new_block['index'],
             'blocks_mined_by_this_wallet': len(user_blocks) + 1,
             'blocks_left_for_this_wallet': remaining_blocks,
+            'stake_required': MINING_STAKE_REQUIRED,
+            'stake_status': 'OK',
             'message': f'✅ Bloc #{new_block["index"]} miné !'
         })
     except Exception as e:
