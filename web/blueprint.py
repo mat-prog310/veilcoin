@@ -595,6 +595,8 @@ def api_price():
     return jsonify({'current_price': price})
 
 # ==================== API MINER ====================
+# ==================== API MINER ====================
+@web_bp.route('/api/miner/submit_block', methods=['POST'])
 def submit_block():
     try:
         data = request.get_json()
