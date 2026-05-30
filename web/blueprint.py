@@ -200,21 +200,20 @@ def unban_ip_address(ip_address):
 
 @web_bp.before_request
 def block_banned_ips():
-    """🔒 BLOQUE IMMÉDIATEMENT TOUTE IP BANNIE - AVANT MÊME DE LIRE LA REQUÊTE"""
-    
     client_ip = request.remote_addr
     
-    # Ignorer certaines routes admin (pour pas se bloquer soi-même)
+    # 🔥 NE JAMAIS BLOQUER LES ADMINS
+    if client_ip in ADMIN_IPS:
+        return None
+    
+    # Ignorer certaines routes admin
     if request.path.startswith('/admin') and request.args.get('admin_seed'):
         return None
     
-    # VÉRIFICATION CRITIQUE - IP BANNIE ?
     is_banned, reason = is_ip_banned(client_ip)
     
     if is_banned:
         print(f"⛔ ACCÈS REFUSÉ - IP BANNIE: {client_ip} - {reason}")
-        
-        # Retourne une réponse 403 immédiate
         return jsonify({
             'error': 'ACCESS_DENIED',
             'code': 'IP_BANNED',
