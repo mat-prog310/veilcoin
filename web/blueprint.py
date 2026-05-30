@@ -198,31 +198,7 @@ def unban_ip_address(ip_address):
 
 # ==================== MIDDLEWARE BLOCAGE IP (AVANT TOUTE REQUÊTE) ====================
 
-@web_bp.before_request
-def block_banned_ips():
-    client_ip = request.remote_addr
-    
-    # 🔥 NE JAMAIS BLOQUER LES ADMINS
-    if client_ip in ADMIN_IPS:
-        return None
-    
-    # Ignorer certaines routes admin
-    if request.path.startswith('/admin') and request.args.get('admin_seed'):
-        return None
-    
-    is_banned, reason = is_ip_banned(client_ip)
-    
-    if is_banned:
-        print(f"⛔ ACCÈS REFUSÉ - IP BANNIE: {client_ip} - {reason}")
-        return jsonify({
-            'error': 'ACCESS_DENIED',
-            'code': 'IP_BANNED',
-            'reason': reason,
-            'message': 'Your IP address has been permanently banned from this service.',
-            'timestamp': time.time()
-        }), 403
-    
-    return None
+
 
 # ==================== IMPORT DES MODULES APRÈS DATA_DIR ====================
 from core.reputation import ReputationSystem
