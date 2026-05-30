@@ -108,12 +108,114 @@ def ban_from_mining(wallet_address, reason):
         return True
     return False
 
-def load_blacklist():
-    if os.path.exists(BLACKLIST_FILE):
-        with open(BLACKLIST_FILE, 'r') as f:
+# ==================== IP BLACKLIST (BAN IP) ====================
+IP_BLACKLIST_FILE = os.path.join(DATA_DIR, "ip_blacklist.json")
+
+def load_ip_blacklist():
+    """Charge la liste des IP bannies"""
+    if os.path.exists(IP_BLACKLIST_FILE):
+        with open(IP_BLACKLIST_FILE, 'r') as f:
             return json.load(f)
-    return {'wallets': [], 'ips': [], 'users': []}
+    return {'ips': [], 'reasons': {}, 'permanent': []}
+
+def save_ip_blacklist(blacklist):
+    with open(IP_BLACKLIST_FILE, 'w') as f:
+        json.dump(blacklist, f, indent=2)
+
+def is_ip_banned(client_ip):
+    """Vérifie si une IP est bannie (ACCÈS IMMÉDIATEMENT REFUSÉ)"""
+    blacklist = load_ip_blacklist()
+    
+    # Vérification exacte
+    if client_ip in blacklist['ips']:
+        return True, blacklist['reasons'].get(client_ip, "IP banned")
+    
+    # Vérification par plage (optionnel : bloque /24)
+    ip_parts = client_ip.split('.')
+    if len(ip_parts) == 4:
+        ip_range = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}"
+        for banned_ip in blacklist['ips']:
+            if banned_ip.endswith('.0/24') and ip_range in banned_ip:
+                return True, "IP range banned"
+    
+    return False, None
+
+def ban_ip_address(ip_address, reason, permanent=True):
+    """Bannir une IP définitivement"""
+    blacklist = load_ip_blacklist()
+    
+    if ip_address not in blacklist['ips']:
+        blacklist['ips'].append(ip_address)
+        blacklist['reasons'][ip_address] = reason
+        if permanent:
+            blacklist['permanent'].append(ip_address)
+        save_ip_blacklist(blacklist)
         
+        print(f"🚫 IP BANNIE: {ip_address} - {reason}")
+        
+        # Optionnel : bloquer au niveau système
+        try:
+            import subprocess
+            subprocess.run(['iptables', '-A', 'INPUT', '-s', ip_address, '-j', 'DROP'], 
+                          stderr=subprocess.DEVNULL)
+        except:
+            pass
+        
+        return True
+    return False
+
+def unban_ip_address(ip_address):
+    """Débannir une IP"""
+    blacklist = load_ip_blacklist()
+    
+    if ip_address in blacklist['ips']:
+        blacklist['ips'].remove(ip_address)
+        if ip_address in blacklist['reasons']:
+            del blacklist['reasons'][ip_address]
+        if ip_address in blacklist['permanent']:
+            blacklist['permanent'].remove(ip_address)
+        save_ip_blacklist(blacklist)
+        
+        # Optionnel : débloquer au niveau système
+        try:
+            import subprocess
+            subprocess.run(['iptables', '-D', 'INPUT', '-s', ip_address, '-j', 'DROP'],
+                          stderr=subprocess.DEVNULL)
+        except:
+            pass
+        
+        return True
+    return False
+
+# ==================== MIDDLEWARE BLOCAGE IP (AVANT TOUTE REQUÊTE) ====================
+
+@web_bp.before_request
+def block_banned_ips():
+    """🔒 BLOQUE IMMÉDIATEMENT TOUTE IP BANNIE - AVANT MÊME DE LIRE LA REQUÊTE"""
+    
+    client_ip = request.remote_addr
+    
+    # Ignorer certaines routes admin (pour pas se bloquer soi-même)
+    if request.path.startswith('/admin') and request.args.get('admin_seed'):
+        return None
+    
+    # VÉRIFICATION CRITIQUE - IP BANNIE ?
+    is_banned, reason = is_ip_banned(client_ip)
+    
+    if is_banned:
+        print(f"⛔ ACCÈS REFUSÉ - IP BANNIE: {client_ip} - {reason}")
+        
+        # Retourne une réponse 403 immédiate
+        return jsonify({
+            'error': 'ACCESS_DENIED',
+            'code': 'IP_BANNED',
+            'reason': reason,
+            'message': 'Your IP address has been permanently banned from this service.',
+            'timestamp': time.time()
+        }), 403
+    
+    return None
+
 # ==================== IMPORT DES MODULES APRÈS DATA_DIR ====================
 from core.reputation import ReputationSystem
 from core.secure_storage import SecureStorage
@@ -503,10 +605,24 @@ def submit_block():
         hash_proof = data.get('hash')
         transactions = data.get('transactions', [])
         
-        # ===== ⛔ VÉRIFICATION BAN MINAGE (AJOUT CRITIQUE) ⛔ =====
+        # Capturer l'IP du mineur
+        client_ip = request.remote_addr
+        print(f"📡 Tentative de minage depuis IP: {client_ip}, Wallet: {wallet}")
+        
+        # Vérification IP BANNIE (redondant avec middleware mais sécurité double)
+        is_ip_banned_flag, ip_reason = is_ip_banned(client_ip)
+        if is_ip_banned_flag:
+            print(f"⛔ IP BANNIE TENTE DE MINER: {client_ip}")
+            return jsonify({'error': 'IP_BANNED', 'reason': ip_reason}), 403
+        
+        # ===== ⛔ VÉRIFICATION BAN MINAGE ⛔ =====
         is_banned, ban_reason = is_mining_banned(wallet)
         if is_banned:
             print(f"⚠️ TENTATIVE DE MINAGE PAR WALLET BANNI: {wallet} - {ban_reason}")
+            
+            # 🔥 Bannir AUTOMATIQUEMENT son IP aussi
+            ban_ip_address(client_ip, f"Auto-ban - Wallet {wallet} mining attempt while banned", permanent=True)
+            
             return jsonify({
                 'success': False, 
                 'error': f'❌ MINING BANNED - {ban_reason}',
@@ -582,6 +698,7 @@ def submit_block():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
 @web_bp.route('/api/miner/user_blocks', methods=['GET'])
 def get_user_blocks():
     wallet = request.args.get('wallet')
@@ -708,8 +825,7 @@ def p2p_match_order():
             return jsonify({'success': False, 'error': 'Offre déjà prise'})
         
         order['buyer'] = buyer_name
-        order['buyer_email'] = buyer_email
-        order['status'] = 'matched'
+        order['buyer_email'] = buyer_email        order['status'] = 'matched'
         
         save_p2p_orders()
         
@@ -1132,6 +1248,7 @@ def admin_validate_proof():
         return jsonify({'success': False, 'error': 'Action inconnue'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
 # ==================== ADMIN WALLETS MANAGEMENT ====================
 @web_bp.route('/admin/wallets')
 def admin_wallets_page():
@@ -1281,6 +1398,7 @@ def admin_all_orders():
     except Exception as e:
         print(f"Erreur admin_all_orders: {e}")
         return jsonify({'error': str(e)}), 500
+
 @web_bp.route('/api/admin/report_wallet', methods=['POST'])
 def admin_report_wallet():
     """Signaler un wallet (admin seulement)"""
@@ -1441,5 +1559,125 @@ def admin_unban_mining():
             return jsonify({'success': True, 'message': f'Wallet {wallet_to_unban} débanni'})
         
         return jsonify({'success': False, 'error': 'Wallet non trouvé dans la blacklist'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+# ==================== ADMIN IP BAN MANAGEMENT ====================
+
+@web_bp.route('/api/admin/ban_ip', methods=['POST'])
+def admin_ban_ip():
+    """Bannir une IP (admin seulement)"""
+    try:
+        d = request.get_json()
+        admin_seed = d.get('admin_seed', '')
+        ip_to_ban = d.get('ip')
+        reason = d.get('reason', 'Violation des conditions d\'utilisation')
+        
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'success': False, 'error': 'Non autorisé'}), 401
+        
+        if not ip_to_ban:
+            return jsonify({'success': False, 'error': 'IP requise'}), 400
+        
+        # Valider le format IP
+        import re
+        ip_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
+        if not re.match(ip_pattern, ip_to_ban):
+            return jsonify({'success': False, 'error': 'Format IP invalide'}), 400
+        
+        ban_ip_address(ip_to_ban, reason, permanent=True)
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ IP {ip_to_ban} bannie définitivement',
+            'reason': reason,
+            'ip': ip_to_ban
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/admin/unban_ip', methods=['POST'])
+def admin_unban_ip():
+    """Débannir une IP"""
+    try:
+        d = request.get_json()
+        admin_seed = d.get('admin_seed', '')
+        ip_to_unban = d.get('ip')
+        
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'success': False, 'error': 'Non autorisé'}), 401
+        
+        if unban_ip_address(ip_to_unban):
+            return jsonify({'success': True, 'message': f'IP {ip_to_unban} débannie'})
+        return jsonify({'success': False, 'error': 'IP non trouvée'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@web_bp.route('/api/admin/ip_blacklist', methods=['GET'])
+def admin_ip_blacklist():
+    """Voir toutes les IP bannies"""
+    try:
+        admin_seed = request.args.get('admin_seed', '')
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'error': 'Non autorisé'}), 401
+        
+        blacklist = load_ip_blacklist()
+        return jsonify({
+            'banned_ips': blacklist['ips'],
+            'reasons': blacklist['reasons'],
+            'permanent': blacklist['permanent'],
+            'count': len(blacklist['ips'])
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@web_bp.route('/api/admin/ban_by_wallet', methods=['POST'])
+def admin_ban_by_wallet():
+    """
+    Bannir TOUT (IP + Wallet + Mining) d'un utilisateur
+    Utile pour bannir complètement quelqu'un
+    """
+    try:
+        d = request.get_json()
+        admin_seed = d.get('admin_seed', '')
+        wallet_address = d.get('wallet')
+        ip_address = d.get('ip')
+        reason = d.get('reason', 'Complete ban - matched pattern self-purchase')
+        
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'success': False, 'error': 'Non autorisé'}), 401
+        
+        results = []
+        
+        # 1. Bannir du minage
+        ban_from_mining(wallet_address, reason)
+        results.append(f"Mining ban: {wallet_address}")
+        
+        # 2. Bannir l'IP si fournie
+        if ip_address:
+            ban_ip_address(ip_address, reason, permanent=True)
+            results.append(f"IP ban: {ip_address}")
+        
+        # 3. Baisser la réputation à 0
+        rep_data = reputation.get(wallet_address)
+        rep_data['score'] = 0
+        reputation.reputation[wallet_address] = rep_data
+        reputation.save()
+        results.append(f"Reputation: {wallet_address} → 0")
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ BAN TOTAL pour {wallet_address}',
+            'details': results,
+            'reason': reason
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
