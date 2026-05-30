@@ -825,7 +825,8 @@ def p2p_match_order():
             return jsonify({'success': False, 'error': 'Offre déjà prise'})
         
         order['buyer'] = buyer_name
-        order['buyer_email'] = buyer_email        order['status'] = 'matched'
+        order['buyer_email'] = buyer_email
+        order['status'] = 'matched'
         
         save_p2p_orders()
         
