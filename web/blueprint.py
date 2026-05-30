@@ -76,10 +76,6 @@ def save_blacklist(blacklist):
     with open(BLACKLIST_FILE, 'w') as f:
         json.dump(blacklist, f, indent=2)
 
-# ==================== BLACKLIST ====================
-BLACKLIST_FILE = os.path.join(DATA_DIR, "blacklist.json")
-
-# ⚠️ AJOUTE ÇA JUSTE EN DESSOUS ⚠️
 # ==================== MINING BLACKLIST (BAN TOTAL) ====================
 MINING_BLACKLIST_FILE = os.path.join(DATA_DIR, "mining_blacklist.json")
 
