@@ -503,6 +503,17 @@ def submit_block():
         hash_proof = data.get('hash')
         transactions = data.get('transactions', [])
         
+        # ===== ⛔ VÉRIFICATION BAN MINAGE (AJOUT CRITIQUE) ⛔ =====
+        is_banned, ban_reason = is_mining_banned(wallet)
+        if is_banned:
+            print(f"⚠️ TENTATIVE DE MINAGE PAR WALLET BANNI: {wallet} - {ban_reason}")
+            return jsonify({
+                'success': False, 
+                'error': f'❌ MINING BANNED - {ban_reason}',
+                'code': 'MINING_BAN_001',
+                'appeal': False
+            }), 403
+        
         if not hash_proof.startswith('00000'):
             return jsonify({'success': False, 'error': 'Preuve invalide'})
         
@@ -511,10 +522,9 @@ def submit_block():
             with open(MINED_BLOCKS_FILE, 'r') as f:
                 existing_blocks = json.load(f)
         
-        # ✅ LIMITE PAR WALLET : 1 000 BLOCS MAXIMUM
+        # ✅ LIMITE PAR WALLET : 1000 BLOCS MAXIMUM
         MAX_BLOCKS_PER_WALLET = 1000
         
-        # Compter les blocs de ce wallet
         user_blocks = [b for b in existing_blocks if b.get('miner') == wallet]
         
         if len(user_blocks) >= MAX_BLOCKS_PER_WALLET:
@@ -542,13 +552,23 @@ def submit_block():
         with open(MINED_BLOCKS_FILE, 'w') as f:
             json.dump(existing_blocks[-100:], f, indent=2)
         
+        # ✅ Vérification DOUBLE avant de donner la reward
+        is_banned_again, _ = is_mining_banned(wallet)
+        if is_banned_again:
+            # Ne PAS donner la reward au banni
+            print(f"🚫 BLOC REJETÉ - Reward bloquée pour wallet banni: {wallet}")
+            return jsonify({
+                'success': False,
+                'error': 'MINING_BANNED - Block rejected, reward forfeited'
+            }), 403
+        
+        # Distribution de la reward (SEULEMENT si pas banni)
         w = VeilWallet(wallet)
         w.load_or_create()
         w.balance += 50
         w.save()
         active_wallets[wallet] = w
         
-        # Blocs restants pour ce wallet
         remaining_blocks = MAX_BLOCKS_PER_WALLET - len(user_blocks) - 1
         
         return jsonify({
@@ -558,11 +578,10 @@ def submit_block():
             'block_index': new_block['index'],
             'blocks_mined_by_this_wallet': len(user_blocks) + 1,
             'blocks_left_for_this_wallet': remaining_blocks,
-            'message': f'✅ Bloc #{new_block["index"]} - Plus que {remaining_blocks} blocs à miner pour ce wallet !'
+            'message': f'✅ Bloc #{new_block["index"]} miné !'
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
-
 @web_bp.route('/api/miner/user_blocks', methods=['GET'])
 def get_user_blocks():
     wallet = request.args.get('wallet')
