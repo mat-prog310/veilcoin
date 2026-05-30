@@ -75,6 +75,48 @@ def load_blacklist():
 def save_blacklist(blacklist):
     with open(BLACKLIST_FILE, 'w') as f:
         json.dump(blacklist, f, indent=2)
+
+# ==================== BLACKLIST ====================
+BLACKLIST_FILE = os.path.join(DATA_DIR, "blacklist.json")
+
+# ⚠️ AJOUTE ÇA JUSTE EN DESSOUS ⚠️
+# ==================== MINING BLACKLIST (BAN TOTAL) ====================
+MINING_BLACKLIST_FILE = os.path.join(DATA_DIR, "mining_blacklist.json")
+
+def load_mining_blacklist():
+    """Charge la liste des wallets bannis du MINAGE"""
+    if os.path.exists(MINING_BLACKLIST_FILE):
+        with open(MINING_BLACKLIST_FILE, 'r') as f:
+            return json.load(f)
+    return {'wallets': [], 'reasons': {}}
+
+def save_mining_blacklist(blacklist):
+    with open(MINING_BLACKLIST_FILE, 'w') as f:
+        json.dump(blacklist, f, indent=2)
+
+def is_mining_banned(wallet_address):
+    """Vérifie si un wallet est banni du minage"""
+    blacklist = load_mining_blacklist()
+    if wallet_address in blacklist['wallets']:
+        return True, blacklist['reasons'].get(wallet_address, "Banned")
+    return False, None
+
+def ban_from_mining(wallet_address, reason):
+    """Bannir un wallet du minage (PERMANENT)"""
+    blacklist = load_mining_blacklist()
+    if wallet_address not in blacklist['wallets']:
+        blacklist['wallets'].append(wallet_address)
+        blacklist['reasons'][wallet_address] = reason
+        save_mining_blacklist(blacklist)
+        print(f"⛔ WALLET BANNI DU MINAGE: {wallet_address} - {reason}")
+        return True
+    return False
+
+def load_blacklist():
+    if os.path.exists(BLACKLIST_FILE):
+        with open(BLACKLIST_FILE, 'r') as f:
+            return json.load(f)
+    return {'wallets': [], 'ips': [], 'users': []}
         
 # ==================== IMPORT DES MODULES APRÈS DATA_DIR ====================
 from core.reputation import ReputationSystem
