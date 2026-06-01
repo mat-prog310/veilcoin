@@ -806,8 +806,16 @@ def p2p_list_orders():
 @web_bp.route('/api/p2p/my-orders', methods=['GET'])
 def p2p_my_orders():
     wallet = request.args.get('wallet')
-    my_orders = [o for o in p2p_orders.values() if o.get('seller') == wallet]
-    return jsonify({'orders': my_orders})
+    if not wallet:
+        return jsonify({'orders': [], 'count': 0})
+    
+    # Retourne les offres où l'utilisateur est vendeur OU acheteur
+    my_orders = []
+    for o in p2p_orders.values():
+        if o.get('seller') == wallet or o.get('buyer') == wallet:
+            my_orders.append(o)
+    
+    return jsonify({'orders': my_orders, 'count': len(my_orders)})
 
 @web_bp.route('/api/p2p/history', methods=['GET'])
 def p2p_history():
