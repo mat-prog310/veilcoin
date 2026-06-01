@@ -192,7 +192,7 @@ async function loadHistory() {
         for (let tx of data.transactions) {
             html += `<tr><td class="small">${new Date(tx.timestamp * 1000).toLocaleString()}</td><td class="text-center">${tx.amount_veil}</td><td class="text-center">${tx.price_eur} EUR</td><td class="text-center">${tx.total_eur} EUR</td></tr>`;
         }
-        html += '</tbody>}</table></div>';
+        html += '</tbody>}<tr></div>';
         container.innerHTML = html;
     } catch(e) { console.error(e); }
 }
@@ -211,7 +211,7 @@ async function loadOrders() {
         for (let o of data.orders) {
             html += `<tr><td class="text-center">${o.id}</td><td class="text-center">${o.amount_veil}</td><td class="text-center">${o.price_eur} EUR</td><td class="text-center">${o.total_eur} EUR</td><td class="text-center">${currentWallet ? `<button class="btn btn-sm btn-success" onclick="buyOrder('${o.id}', ${o.amount_veil}, ${o.total_eur})">Acheter</button>` : 'Connectez-vous'}</td></tr>`;
         }
-        html += '</tbody></table></div>';
+        html += '</tbody>}</table></div>';
         container.innerHTML = html;
     } catch(e) { console.error(e); }
 }
@@ -230,25 +230,48 @@ async function loadMyOrders() {
         let html = '<div class="table-responsive"><table class="table table-dark"><thead><tr><th>ID</th><th>VEIL</th><th>Prix</th><th>Total</th><th>Statut</th><th>Action</th></tr></thead><tbody>';
         for (let o of data.orders) {
             let statusText = '', actionButton = '';
+            
             if (o.status === 'open') {
                 statusText = 'En vente';
                 actionButton = `<button class="btn btn-sm btn-danger" onclick="cancelOrder('${o.id}')">Annuler</button>`;
-            } else if (o.status === 'matched') {
-                statusText = 'En attente';
-                actionButton = `<button class="btn btn-sm btn-warning" onclick="confirmSellerManual('${o.id}')">Confirmer vente</button>`;
-            } else if (o.status === 'paid') {
-                statusText = 'Payé';
-                actionButton = `<button class="btn btn-sm btn-info" onclick="showUploadProof('${o.id}')">📸 Envoyer preuve</button>`;
-            } else if (o.status === 'completed') {
-                statusText = 'Terminé';
-                actionButton = '✅ Vendu';
-            } else {
+            } 
+            else if (o.status === 'matched') {
+                statusText = 'En attente de paiement';
+                if (o.buyer === currentWallet) {
+                    // L'acheteur doit payer
+                    actionButton = `<button class="btn btn-sm btn-warning" onclick="payOrder('${o.id}', ${o.total_eur})">💸 J'ai payé</button>`;
+                } else {
+                    actionButton = 'En attente';
+                }
+            }
+            else if (o.status === 'pending_proof') {
+                statusText = 'Preuve en attente';
+                if (o.buyer === currentWallet) {
+                    actionButton = `<button class="btn btn-sm btn-info" onclick="showUploadProof('${o.id}')">📸 Envoyer preuve</button>`;
+                } else if (o.seller === currentWallet) {
+                    actionButton = `<button class="btn btn-sm btn-success" onclick="acceptProof('${o.id}')">✅ Accepter preuve</button>`;
+                }
+            }
+            else if (o.status === 'paid') {
+                statusText = 'Payé - En attente de libération';
+                if (o.seller === currentWallet) {
+                    actionButton = `<button class="btn btn-sm btn-primary" onclick="releaseVeil('${o.id}')">🚀 Libérer VEIL</button>`;
+                } else {
+                    actionButton = 'En attente vendeur';
+                }
+            }
+            else if (o.status === 'completed') {
+                statusText = '✅ Terminé';
+                actionButton = 'Terminé';
+            }
+            else {
                 statusText = o.status;
                 actionButton = '—';
             }
+            
             html += `<tr><td class="text-center">${o.id}</td><td class="text-center">${o.amount_veil}</td><td class="text-center">${o.price_eur} EUR</td><td class="text-center">${o.total_eur} EUR</td><td class="text-center">${statusText}</td><td class="text-center">${actionButton}</td></tr>`;
         }
-        html += '</tbody></table></div>';
+        html += '</tbody>}可能是</div>';
         container.innerHTML = html;
     } catch(e) { console.error(e); }
 }
@@ -340,6 +363,7 @@ document.getElementById('confirm-buy-btn').onclick = async () => {
     } catch(e) { alert('Erreur: ' + e.message); }
 };
 
+// L'acheteur confirme le paiement
 document.getElementById('confirm-payment-btn').onclick = async () => {
     try {
         const res = await fetch('/api/p2p/pay', {
@@ -354,6 +378,13 @@ document.getElementById('confirm-payment-btn').onclick = async () => {
             loadMyOrders();
         } else { alert('Erreur: ' + data.error); }
     } catch(e) { alert('Erreur: ' + e.message); }
+};
+
+// L'acheteur upload la preuve
+window.payOrder = (orderId, total) => {
+    currentOrderId = orderId;
+    document.getElementById('pay-amount').innerHTML = total;
+    document.getElementById('pay-modal').style.display = 'block';
 };
 
 // ==================== PREUVE DE PAIEMENT ====================
@@ -386,14 +417,14 @@ document.getElementById('upload-proof-btn').onclick = async () => {
     formData.append('proof', file);
     
     try {
-        const res = await fetch('/api/p2p/upload_proof', {
+        const res = await fetch('/api/upload/proof', {
             method: 'POST',
             body: formData
         });
         const data = await res.json();
         
         if (data.success) {
-            alert('✅ Preuve envoyée ! L\'administrateur va vérifier.');
+            alert('✅ Preuve envoyée ! Le vendeur va vérifier.');
             document.getElementById('proof-modal').style.display = 'none';
             loadMyOrders();
         } else {
@@ -404,13 +435,67 @@ document.getElementById('upload-proof-btn').onclick = async () => {
     }
 };
 
-document.getElementById('close-proof-modal').onclick = () => {
-    document.getElementById('proof-modal').style.display = 'none';
+// Le vendeur accepte la preuve
+window.acceptProof = async (orderId) => {
+    if (!confirm('Accepter cette preuve de paiement ? Les VEIL seront disponibles pour libération.')) return;
+    try {
+        const res = await fetch('/api/p2p/accept_proof', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: orderId, seller: currentWallet})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('✅ Preuve acceptée ! Vous pouvez maintenant libérer les VEIL.');
+            loadMyOrders();
+        } else {
+            alert('❌ Erreur: ' + data.error);
+        }
+    } catch(e) { alert('Erreur: ' + e.message); }
+};
+
+// Le vendeur libère les VEIL
+window.releaseVeil = async (orderId) => {
+    if (!confirm('⚠️ Êtes-vous sûr de vouloir libérer les VEIL ? Cette action est irréversible.')) return;
+    try {
+        const res = await fetch('/api/p2p/release', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: orderId, seller: currentWallet})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`✅ ${data.amount_veil} VEIL ont été transférés à l'acheteur !`);
+            loadMyOrders();
+            loadOrders();
+            loadHistory();
+            const balanceRes = await fetch(`/api/wallet/${currentWallet}/balance`);
+            const balanceData = await balanceRes.json();
+            currentBalance = balanceData.balance_veil;
+            document.getElementById('connected-balance').innerText = currentBalance.toFixed(4);
+            loadUserStats();
+        } else { alert('Erreur: ' + data.error); }
+    } catch(e) { alert('Erreur: ' + e.message); }
+};
+
+window.cancelOrder = async (orderId) => {
+    if (!confirm('Annuler cette offre ?')) return;
+    try {
+        const res = await fetch('/api/p2p/cancel', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order_id: orderId, wallet: currentWallet})
+        });
+        const data = await res.json();
+        if (data.success) { alert('Offre annulée'); loadMyOrders(); loadOrders(); }
+        else { alert('Erreur: ' + data.error); }
+    } catch(e) { alert('Erreur: ' + e.message); }
 };
 
 // Fermeture modals
 document.getElementById('close-modal').onclick = () => document.getElementById('buy-modal').style.display = 'none';
 document.getElementById('close-pay-modal').onclick = () => document.getElementById('pay-modal').style.display = 'none';
+document.getElementById('close-proof-modal').onclick = () => document.getElementById('proof-modal').style.display = 'none';
 
 // ADMIN MONITOR
 async function loadAdminMonitor() {
@@ -428,7 +513,7 @@ async function loadAdminMonitor() {
         for (let o of data.orders) {
             html += `<tr><td><strong>${o.seller}</strong></td><td><small>${o.seller_email || 'N/A'}</small></td><td>${o.id}</td><td>${o.amount_veil}</td><td>${o.price_eur} EUR</td><td>${o.total_eur} EUR</td><td>${o.status}</td><td>${o.buyer || '—'}</td><td><button class="btn btn-sm btn-danger" onclick="adminBanWallet('${o.seller}')">🚫 Bannir</button> <button class="btn btn-sm btn-warning" onclick="adminReportWallet('${o.seller}')">⚠️ Signal</button></td></tr>`;
         }
-        html += '</tbody></table></div>';
+        html += '</tbody>}可能是</div>';
         container.innerHTML = html;
     } catch(e) { container.innerHTML = '<p class="text-danger">Erreur</p>'; }
 }
