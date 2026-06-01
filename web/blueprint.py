@@ -1126,11 +1126,21 @@ def view_proof_vendor(filename):
         
         # Récupérer la preuve
         proof = secure_storage.get_payment_proof(filename, "")
+        
         if not proof:
             return jsonify({'error': 'Fichier non trouvé'}), 404
         
+        # 🔥 Vérifier que proof est une string base64 valide
+        import base64
+        try:
+            # Tester si c'est du base64 valide
+            base64.b64decode(proof)
+        except:
+            return jsonify({'error': 'Format de preuve invalide'}), 500
+        
         return jsonify({'success': True, 'proof': proof})
     except Exception as e:
+        print(f"❌ Erreur view_proof: {e}")
         return jsonify({'error': str(e)}), 500
 
 # ==================== ADMIN FORCE TRANSFER ====================
