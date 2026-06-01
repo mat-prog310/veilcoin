@@ -245,13 +245,18 @@ async function loadMyOrders() {
                 }
             }
             else if (o.status === 'pending_proof') {
-                statusText = 'Preuve en attente';
-                if (o.buyer === currentWallet) {
-                    actionButton = `<button class="btn btn-sm btn-info" onclick="showUploadProof('${o.id}')">📸 Envoyer preuve</button>`;
-                } else if (o.seller === currentWallet) {
-                    actionButton = `<button class="btn btn-sm btn-success" onclick="acceptProof('${o.id}')">✅ Accepter preuve</button>`;
-                }
-            }
+    statusText = 'Preuve en attente';
+    if (o.buyer === currentWallet) {
+        actionButton = `<button class="btn btn-sm btn-info" onclick="showUploadProof('${o.id}')">📸 Envoyer preuve</button>`;
+    } else if (o.seller === currentWallet) {
+        // 🔥 Ajoute un bouton pour voir la preuve
+        let proofButton = '';
+        if (o.payment_proof) {
+            proofButton = `<button class="btn btn-sm btn-secondary me-1" onclick="viewProof('${o.payment_proof}')">👁️ Voir preuve</button>`;
+        }
+        actionButton = proofButton + `<button class="btn btn-sm btn-success" onclick="acceptProof('${o.id}')">✅ Accepter preuve</button>`;
+    }
+}
             else if (o.status === 'paid') {
                 statusText = 'Payé - En attente de libération';
                 if (o.seller === currentWallet) {
