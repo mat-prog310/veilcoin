@@ -16,7 +16,7 @@ import urllib.error
 import ssl
 import random
 
-API_URL = "https://veilcoin-fvzp.onrender.com"
+API_URL = "https://veilcoin.xyz"
 
 if os.name == 'nt':
     import ctypes
