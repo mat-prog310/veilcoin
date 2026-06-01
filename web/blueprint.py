@@ -255,19 +255,42 @@ load_p2p_orders()
 # ==================== PRIX BASÉ SUR TRANSACTIONS P2P ====================
 
 def get_current_price():
-    """Calcule le prix basé sur les transactions P2P complétées (status 'completed')"""
     completed_orders = [o for o in p2p_orders.values() if o['status'] == 'completed']
     
     if not completed_orders:
         return 0.01
     
-    last_10 = completed_orders[-10:]
+    # 🔥 Ignorer les transactions trop petites
+    min_veil_amount = 10  # Au moins 10 VEIL pour influencer le prix
+    filtered_orders = [o for o in completed_orders if o.get('amount_veil', 0) >= min_veil_amount]
+    
+    if not filtered_orders:
+        # Si pas de transactions suffisantes, retourner le prix précédent
+        if hasattr(get_current_price, 'last_price'):
+            return get_current_price.last_price
+        return 0.01
+    
+    last_10 = filtered_orders[-10:]
+    
     total_value = sum(o['total_eur'] for o in last_10)
     total_veil = sum(o['amount_veil'] for o in last_10)
-    price = total_value / total_veil if total_veil > 0 else 0.01
     
-    return price
-
+    if total_veil <= 0:
+        return get_current_price.last_price if hasattr(get_current_price, 'last_price') else 0.01
+    
+    price = total_value / total_veil
+    
+    # Limite à 5% de variation max
+    if hasattr(get_current_price, 'last_price'):
+        max_change = get_current_price.last_price * 0.05
+        if price > get_current_price.last_price + max_change:
+            price = get_current_price.last_price + max_change
+        elif price < get_current_price.last_price - max_change:
+            price = get_current_price.last_price - max_change
+    
+    get_current_price.last_price = price
+    
+    return round(price, 6)
 # ==================== HISTORIQUE DES PRIX ====================
 PRICE_HISTORY_FILE = os.path.join(DATA_DIR, "price_history.json")
 
