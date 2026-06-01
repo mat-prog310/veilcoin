@@ -1019,26 +1019,26 @@ def get_reputation(wallet):
 PROOF_DIR = os.path.join(DATA_DIR, "payment_proofs")
 os.makedirs(PROOF_DIR, exist_ok=True)
 
-@web_bp.route('/api/p2p/upload_proof', methods=['POST'])
-def upload_payment_proof():
+@web_bp.route('/api/p2p/upload_proof', methods=['POST', 'OPTIONS'])
+def upload_payment_proof_fixed():
+    """Route upload preuve - version corrigée pour Cloudflare"""
     try:
         order_id = request.form.get('order_id')
         buyer_name = request.form.get('buyer')
         file = request.files.get('proof')
-        admin_seed = os.environ.get('ADMIN_SEED', '')
         
         if not file:
-            return jsonify({'success': False, 'error': 'Aucun fichier'})
+            return jsonify({'success': False, 'error': 'Aucun fichier'}), 400
         
         if order_id not in p2p_orders:
-            return jsonify({'success': False, 'error': 'Offre introuvable'})
+            return jsonify({'success': False, 'error': 'Offre introuvable'}), 404
         
         order = p2p_orders[order_id]
-        if order['buyer'] != buyer_name:
-            return jsonify({'success': False, 'error': 'Non autorisé'})
+        if order.get('buyer') != buyer_name:
+            return jsonify({'success': False, 'error': 'Non autorisé'}), 403
         
         image_data = base64.b64encode(file.read()).decode('utf-8')
-        filename = secure_storage.store_payment_proof(order_id, buyer_name, image_data, admin_seed)
+        filename = secure_storage.store_payment_proof(order_id, buyer_name, image_data, "")
         
         order['payment_proof'] = filename
         order['proof_uploaded'] = True
@@ -1046,7 +1046,7 @@ def upload_payment_proof():
         
         return jsonify({'success': True, 'message': 'Preuve envoyée'})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @web_bp.route('/api/admin/view_proof/<filename>', methods=['GET'])
 def admin_view_proof(filename):
