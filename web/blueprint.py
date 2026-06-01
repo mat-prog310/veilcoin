@@ -782,9 +782,24 @@ def p2p_create_order():
         price_eur = float(d.get('price_eur', 0))
         seller_email = d.get('seller_email', '')
         
-        if not seller_email:
-            return jsonify({'success': False, 'error': 'Email PayPal obligatoire pour vendre'})
+        # 🔥 PRIX FLOOR ET CEILING
+        current_price = get_current_price()
+        max_price = current_price * 1.20  # +20% max
+        min_price = current_price * 0.80  # -20% max
         
+        if price_eur > max_price:
+            return jsonify({
+                'success': False,
+                'error': f'❌ Prix trop élevé ! Maximum {max_price:.4f}€ (prix actuel: {current_price:.4f}€)'
+            }), 403
+        
+        if price_eur < min_price:
+            return jsonify({
+                'success': False,
+                'error': f'❌ Prix trop bas ! Minimum {min_price:.4f}€ (prix actuel: {current_price:.4f}€)'
+            }), 403
+        
+          
         w = active_wallets.get(wallet_name)
         if not w:
             w = VeilWallet(wallet_name)
