@@ -1019,54 +1019,45 @@ def get_reputation(wallet):
 PROOF_DIR = os.path.join(DATA_DIR, "payment_proofs")
 os.makedirs(PROOF_DIR, exist_ok=True)
 
-@web_bp.route('/api/p2p/upload_proof', methods=['POST', 'OPTIONS'])
-def upload_payment_proof_fixed():
-    """Route upload preuve - version corrigée pour Cloudflare"""
+@web_bp.route('/api/upload/proof', methods=['POST'])
+def upload_proof_new():
+    """Route pour l'upload de preuve - acheteur envoie, vendeur peut aussi"""
     try:
         order_id = request.form.get('order_id')
-        buyer_name = request.form.get('buyer')
+        user_name = request.form.get('buyer')
         file = request.files.get('proof')
-        
-        # 🔍 LOGS POUR DEBUG
-        print("="*50)
-        print("🔍 UPLOAD PROOF DEBUG")
-        print(f"order_id reçu: {order_id}")
-        print(f"buyer_name reçu: {buyer_name}")
-        print(f"file: {file.filename if file else 'None'}")
         
         if not file:
             return jsonify({'success': False, 'error': 'Aucun fichier'}), 400
         
         if order_id not in p2p_orders:
-            print(f"❌ Offre {order_id} non trouvée")
             return jsonify({'success': False, 'error': 'Offre introuvable'}), 404
         
         order = p2p_orders[order_id]
-        print(f"order['buyer'] stocké: {order.get('buyer')}")
-        print(f"order['seller'] stocké: {order.get('seller')}")
-        print(f"order['status']: {order.get('status')}")
         
-        if order.get('buyer') != buyer_name:
-            print(f"❌ NON AUTORISE! {order.get('buyer')} != {buyer_name}")
+        # Vérifier si l'utilisateur est l'acheteur OU le vendeur
+        is_buyer = (order.get('buyer') == user_name)
+        is_seller = (order.get('seller') == user_name)
+        
+        # Si buyer est null, on autorise le premier (acheteur ou vendeur)
+        if order.get('buyer') is None:
+            order['buyer'] = user_name
+            print(f"✅ Buyer assigné: {user_name} pour {order_id}")
+        elif not (is_buyer or is_seller):
             return jsonify({
                 'success': False, 
-                'error': f'Non autorisé. Acheteur: {order.get("buyer")}, Vous: {buyer_name}'
+                'error': f'Non autorisé. Seul {order.get("buyer")} (acheteur) ou {order.get("seller")} (vendeur) peut uploader'
             }), 403
         
-        print("✅ Vérification passée, sauvegarde...")
-        
         image_data = base64.b64encode(file.read()).decode('utf-8')
-        filename = secure_storage.store_payment_proof(order_id, buyer_name, image_data, "")
+        filename = secure_storage.store_payment_proof(order_id, user_name, image_data, "")
         
         order['payment_proof'] = filename
         order['proof_uploaded'] = True
         save_p2p_orders()
         
-        print(f"✅ Preuve sauvegardée: {filename}")
-        
         return jsonify({'success': True, 'message': 'Preuve envoyée'})
     except Exception as e:
-        print(f"❌ ERREUR EXCEPTION: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @web_bp.route('/api/admin/view_proof/<filename>', methods=['GET'])
