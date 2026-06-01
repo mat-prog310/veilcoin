@@ -1082,7 +1082,7 @@ def accept_proof():
             return jsonify({'success': False, 'error': 'Aucune preuve reçue'}), 400
         
         # Accepter la preuve et passer en 'paid'
-        order['status'] = 'paid'
+        order['status'] = 'pending_proof'
         order['seller_confirmed'] = True
         save_p2p_orders()
         
