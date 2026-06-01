@@ -1029,7 +1029,7 @@ os.makedirs(PROOF_DIR, exist_ok=True)
 
 @web_bp.route('/api/upload/proof', methods=['POST'])
 def upload_proof_new():
-    """Route pour l'upload de preuve - acheteur envoie, vendeur peut aussi"""
+    """Route pour l'upload de preuve - corrigée"""
     try:
         order_id = request.form.get('order_id')
         user_name = request.form.get('buyer')
@@ -1047,7 +1047,7 @@ def upload_proof_new():
         is_buyer = (order.get('buyer') == user_name)
         is_seller = (order.get('seller') == user_name)
         
-        # Si buyer est null, on autorise le premier (acheteur ou vendeur)
+        # Si buyer est null, on autorise le premier
         if order.get('buyer') is None:
             order['buyer'] = user_name
             print(f"✅ Buyer assigné: {user_name} pour {order_id}")
@@ -1057,8 +1057,18 @@ def upload_proof_new():
                 'error': f'Non autorisé. Seul {order.get("buyer")} (acheteur) ou {order.get("seller")} (vendeur) peut uploader'
             }), 403
         
-        image_data = base64.b64encode(file.read()).decode('utf-8')
-        filename = secure_storage.store_payment_proof(order_id, user_name, image_data, "")
+        # 🔥 Lire et encoder l'image CORRECTEMENT
+        file_content = file.read()
+        image_data = base64.b64encode(file_content).decode('utf-8')
+        
+        # 🔥 Sauvegarder avec un nom unique
+        import uuid
+        filename = f"{uuid.uuid4().hex}.txt"
+        
+        # Sauvegarder directement dans le dossier proof_dir
+        proof_path = os.path.join(PROOF_DIR, filename)
+        with open(proof_path, 'w') as f:
+            f.write(image_data)
         
         order['payment_proof'] = filename
         order['proof_uploaded'] = True
@@ -1066,6 +1076,7 @@ def upload_proof_new():
         
         return jsonify({'success': True, 'message': 'Preuve envoyée'})
     except Exception as e:
+        print(f"❌ Erreur upload: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @web_bp.route('/api/p2p/accept_proof', methods=['POST'])
@@ -1122,21 +1133,16 @@ def view_proof_vendor(filename):
         
         # Vérifier que l'utilisateur est le vendeur
         if found_order.get('seller') != wallet:
-            return jsonify({'error': 'Non autorisé - vous n\'êtes pas le vendeur'}), 403
+            return jsonify({'error': 'Non autorisé'}), 403
         
-        # Récupérer la preuve
-        proof = secure_storage.get_payment_proof(filename, "")
+        # 🔥 Lire le fichier directement
+        proof_path = os.path.join(PROOF_DIR, filename)
         
-        if not proof:
+        if not os.path.exists(proof_path):
             return jsonify({'error': 'Fichier non trouvé'}), 404
         
-        # 🔥 Vérifier que proof est une string base64 valide
-        import base64
-        try:
-            # Tester si c'est du base64 valide
-            base64.b64decode(proof)
-        except:
-            return jsonify({'error': 'Format de preuve invalide'}), 500
+        with open(proof_path, 'r') as f:
+            proof = f.read()
         
         return jsonify({'success': True, 'proof': proof})
     except Exception as e:
