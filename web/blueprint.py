@@ -1101,18 +1101,33 @@ def accept_proof():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@web_bp.route('/api/admin/view_proof/<filename>', methods=['GET'])
-def admin_view_proof(filename):
+@web_bp.route('/api/p2p/view_proof/<filename>', methods=['GET'])
+def view_proof_vendor(filename):
+    """Le vendeur peut voir la preuve sans seed admin"""
     try:
-        admin_seed = request.args.get('admin_seed', '')
-        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        wallet = request.args.get('wallet')
         
-        if admin_seed != ADMIN_SEED:
-            return jsonify({'error': 'Non autorisé'}), 403
+        if not wallet:
+            return jsonify({'error': 'Wallet non spécifié'}), 400
         
-        proof = secure_storage.get_payment_proof(filename, admin_seed)
-        if not proof:
+        # Chercher l'offre qui contient cette preuve
+        found_order = None
+        for order in p2p_orders.values():
+            if order.get('payment_proof') == filename:
+                found_order = order
+                break
+        
+        if not found_order:
             return jsonify({'error': 'Preuve non trouvée'}), 404
+        
+        # Vérifier que l'utilisateur est le vendeur
+        if found_order.get('seller') != wallet:
+            return jsonify({'error': 'Non autorisé - vous n\'êtes pas le vendeur'}), 403
+        
+        # Récupérer la preuve
+        proof = secure_storage.get_payment_proof(filename, "")
+        if not proof:
+            return jsonify({'error': 'Fichier non trouvé'}), 404
         
         return jsonify({'success': True, 'proof': proof})
     except Exception as e:
