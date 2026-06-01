@@ -585,8 +585,8 @@ def api_price():
 
 # ==================== API MINER ====================
 # ==================== API MINER ====================
-@web_bp.route('/api/miner/mine', methods=['POST'])
-def mine_block():
+@web_bp.route('/api/miner/submit_block', methods=['POST'])
+def submit_block():
     try:
         data = request.get_json()
         wallet = data.get('wallet')
@@ -594,12 +594,12 @@ def mine_block():
         hash_proof = data.get('hash')
         transactions = data.get('transactions', [])
         
-        MINING_STAKE_REQUIRED = 200  # ← Défini la constante ici
+        MINING_STAKE_REQUIRED = 200
         
-        # Vérification du staking (200 VEIL)
         w = VeilWallet(wallet)
         w.load_or_create()
         
+        # Vérification du staking
         if w.balance < MINING_STAKE_REQUIRED:
             return jsonify({
                 'success': False,
@@ -1694,84 +1694,7 @@ def admin_ban_by_wallet():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-@web_bp.route('/api/miner/mine', methods=['POST'])
-def mine_block():
-    """Nouvelle route pour le minage avec staking 200 VEIL"""
-    try:
-        data = request.get_json()
-        wallet = data.get('wallet')
-        nonce = data.get('nonce')
-        hash_proof = data.get('hash')
-        transactions = data.get('transactions', [])
-        
-        MINING_STAKE_REQUIRED = 200
-        
-        # Vérification du staking
-        w = VeilWallet(wallet)
-        w.load_or_create()
-        
-        if w.balance < MINING_STAKE_REQUIRED:
-            return jsonify({
-                'success': False,
-                'error': f'❌ Staking minimum de {MINING_STAKE_REQUIRED} VEIL requis pour miner',
-                'current_balance': w.balance,
-                'needed': MINING_STAKE_REQUIRED - w.balance
-            }), 403
-        
-        if not hash_proof.startswith('00000'):
-            return jsonify({'success': False, 'error': 'Preuve invalide'}), 400
-        
-        # Récupérer les blocs existants
-        existing_blocks = []
-        if os.path.exists(MINED_BLOCKS_FILE):
-            with open(MINED_BLOCKS_FILE, 'r') as f:
-                existing_blocks = json.load(f)
-        
-        MAX_BLOCKS_PER_WALLET = 1000
-        user_blocks = [b for b in existing_blocks if b.get('miner') == wallet]
-        
-        if len(user_blocks) >= MAX_BLOCKS_PER_WALLET:
-            return jsonify({
-                'success': False,
-                'error': f'❌ Limite atteinte ! Maximum {MAX_BLOCKS_PER_WALLET} blocs'
-            }), 403
-        
-        last_index = existing_blocks[-1].get('index', 0) if existing_blocks else 0
-        last_hash = existing_blocks[-1].get('hash', '0'*64) if existing_blocks else '0'*64
-        
-        new_block = {
-            'index': last_index + 1,
-            'timestamp': time.time(),
-            'transactions': transactions,
-            'nonce': nonce,
-            'previous_hash': last_hash,
-            'hash': hash_proof,
-            'miner': wallet,
-            'reward_miner': 50,
-            'reward_pool': 0,
-            'difficulty': 5
-        }
-        
-        existing_blocks.append(new_block)
-        with open(MINED_BLOCKS_FILE, 'w') as f:
-            json.dump(existing_blocks[-100:], f, indent=2)
-        
-        # Reward
-        w.balance += 50
-        w.save()
-        active_wallets[wallet] = w
-        
-        return jsonify({
-            'success': True,
-            'reward_miner': 50,
-            'new_balance': w.balance,
-            'block_index': new_block['index'],
-            'stake_required': MINING_STAKE_REQUIRED,
-            'stake_status': 'OK',
-            'message': f'✅ Bloc #{new_block["index"]} miné ! +50 VEIL'
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @web_bp.route('/api/miner/status', methods=['GET'])
 def miner_status():
