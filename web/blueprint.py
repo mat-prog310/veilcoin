@@ -198,7 +198,12 @@ def unban_ip_address(ip_address):
 
 # ==================== MIDDLEWARE BLOCAGE IP (AVANT TOUTE REQUÊTE) ====================
 
-
+# ==================== MIDDLEWARE BLOCAGE IP (AVANT TOUTE REQUÊTE) ====================
+@web_bp.before_request
+def block_banned_ips():
+    """🔒 Middleware - tout le monde passe (ban IP désactivé)"""
+    # Ban IP complètement désactivé pour l'instant
+    return None
 
 # ==================== IMPORT DES MODULES APRÈS DATA_DIR ====================
 from core.reputation import ReputationSystem
