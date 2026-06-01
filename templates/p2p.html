@@ -439,7 +439,25 @@ document.getElementById('upload-proof-btn').onclick = async () => {
         alert('❌ Erreur réseau: ' + e.message);
     }
 };
-
+window.viewProof = async (filename) => {
+    const adminSeed = prompt("Seed admin pour voir la preuve:");
+    if (!adminSeed) return;
+    
+    try {
+        const res = await fetch(`/api/admin/view_proof/${filename}?admin_seed=${adminSeed}`);
+        const data = await res.json();
+        
+        if (data.success && data.proof) {
+            // Ouvrir l'image dans une nouvelle fenêtre
+            const win = window.open();
+            win.document.write(`<img src="data:image/png;base64,${data.proof}" style="max-width:100%; height:auto;">`);
+        } else {
+            alert('❌ Impossible de voir la preuve: ' + (data.error || 'Erreur inconnue'));
+        }
+    } catch(e) {
+        alert('❌ Erreur: ' + e.message);
+    }
+};
 // Le vendeur accepte la preuve
 window.acceptProof = async (orderId) => {
     if (!confirm('Accepter cette preuve de paiement ? Les VEIL seront disponibles pour libération.')) return;
@@ -539,6 +557,7 @@ async function adminReportWallet(wallet) {
     const data = await res.json();
     alert(data.message);
 }
+    
 
 document.getElementById('admin-monitor-trigger').onclick = loadAdminMonitor;
 
