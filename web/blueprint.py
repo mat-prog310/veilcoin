@@ -1060,6 +1060,39 @@ def upload_proof_new():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@web_bp.route('/api/p2p/accept_proof', methods=['POST'])
+def accept_proof():
+    """Le vendeur accepte la preuve et la transaction passe en 'paid'"""
+    try:
+        d = request.get_json()
+        order_id = d.get('order_id')
+        seller_name = d.get('seller')
+        
+        if order_id not in p2p_orders:
+            return jsonify({'success': False, 'error': 'Offre introuvable'}), 404
+        
+        order = p2p_orders[order_id]
+        
+        # Vérifier que c'est bien le vendeur
+        if order.get('seller') != seller_name:
+            return jsonify({'success': False, 'error': 'Non autorisé - vous n\'êtes pas le vendeur'}), 403
+        
+        # Vérifier qu'une preuve a été envoyée
+        if not order.get('payment_proof'):
+            return jsonify({'success': False, 'error': 'Aucune preuve reçue'}), 400
+        
+        # Accepter la preuve et passer en 'paid'
+        order['status'] = 'paid'
+        order['seller_confirmed'] = True
+        save_p2p_orders()
+        
+        return jsonify({
+            'success': True, 
+            'message': '✅ Preuve acceptée ! Vous pouvez libérer les VEIL'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @web_bp.route('/api/admin/view_proof/<filename>', methods=['GET'])
 def admin_view_proof(filename):
     try:
