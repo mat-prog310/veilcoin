@@ -100,7 +100,7 @@ class VeilMiner:
             "previous_hash": previous_hash,
             "difficulty": self.diff
         }
-        return self.api("/api/miner/submit_block", submit_data)
+        return self.api("/api/miner/mine", submit_data)  # au lieu de submit_block
 
     def slow_hash(self, data):
         time.sleep(0.001)
