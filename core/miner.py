@@ -92,15 +92,16 @@ class VeilMiner:
         return None
 
     def submit_block(self, nonce, hash_proof, transactions, previous_hash):
-        submit_data = {
-            "wallet": self.wallet,
-            "nonce": nonce,
-            "hash": hash_proof,
-            "transactions": transactions,
-            "previous_hash": previous_hash,
-            "difficulty": self.diff
-        }
-        return self.api("/api/miner/submit_block", submit_data)
+    submit_data = {
+        "wallet": self.wallet,
+        "nonce": nonce,
+        "hash": hash_proof,
+        "transactions": transactions,
+        "previous_hash": previous_hash,
+        "difficulty": self.diff
+    }
+    # Change l'URL ici : "/api/miner/submit_block" -> "/api/miner/submit"
+    return self.api("/api/miner/submit", submit_data)
 
     def slow_hash(self, data):
         time.sleep(0.001)
