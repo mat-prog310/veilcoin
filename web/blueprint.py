@@ -785,9 +785,9 @@ def p2p_create_order():
         # 🔥 Utiliser le prix du marché (pool) au lieu du prix P2P
         current_price = pool.get_veil_price() if pool else 0.01
         
-        # Limites : ±50% (plus large pour laisser de la flexibilité)
-        max_price = current_price * 1.50  # +50% max
-        min_price = current_price * 0.50  # -50% max
+        # Limites : ±50%
+        max_price = current_price * 1.50
+        min_price = current_price * 0.50
         
         if price_eur > max_price:
             return jsonify({
@@ -801,7 +801,14 @@ def p2p_create_order():
                 'error': f'❌ Prix trop bas ! Minimum {min_price:.4f}€ (prix marché: {current_price:.4f}€)'
             }), 403
         
-                
+        # 🔥 Limiter la taille de l'offre (anti-dump)
+        max_veil_per_order = 10000
+        if amount_veil > max_veil_per_order:
+            return jsonify({
+                'success': False,
+                'error': f'❌ Montant trop élevé ! Maximum {max_veil_per_order} VEIL par offre'
+            }), 403
+        
         w = active_wallets.get(wallet_name)
         if not w:
             w = VeilWallet(wallet_name)
@@ -832,14 +839,7 @@ def p2p_create_order():
             'buyer_confirmed': False,
             'created_at': time.time()
         }
-        # Limiter la taille de l'offre (anti-dump)
-max_veil_per_order = 10000  # Maximum 10000 VEIL par offre
-if amount_veil > max_veil_per_order:
-    return jsonify({
-        'success': False,
-        'error': f'❌ Montant trop élevé ! Maximum {max_veil_per_order} VEIL par offre'
-    }), 403
-    
+        
         save_p2p_orders()
         return jsonify({'success': True, 'order_id': order_id, 'order': p2p_orders[order_id]})
     except Exception as e:
