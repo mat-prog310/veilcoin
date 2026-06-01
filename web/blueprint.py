@@ -1027,15 +1027,33 @@ def upload_payment_proof_fixed():
         buyer_name = request.form.get('buyer')
         file = request.files.get('proof')
         
+        # 🔍 LOGS POUR DEBUG
+        print("="*50)
+        print("🔍 UPLOAD PROOF DEBUG")
+        print(f"order_id reçu: {order_id}")
+        print(f"buyer_name reçu: {buyer_name}")
+        print(f"file: {file.filename if file else 'None'}")
+        
         if not file:
             return jsonify({'success': False, 'error': 'Aucun fichier'}), 400
         
         if order_id not in p2p_orders:
+            print(f"❌ Offre {order_id} non trouvée")
             return jsonify({'success': False, 'error': 'Offre introuvable'}), 404
         
         order = p2p_orders[order_id]
+        print(f"order['buyer'] stocké: {order.get('buyer')}")
+        print(f"order['seller'] stocké: {order.get('seller')}")
+        print(f"order['status']: {order.get('status')}")
+        
         if order.get('buyer') != buyer_name:
-            return jsonify({'success': False, 'error': 'Non autorisé'}), 403
+            print(f"❌ NON AUTORISE! {order.get('buyer')} != {buyer_name}")
+            return jsonify({
+                'success': False, 
+                'error': f'Non autorisé. Acheteur: {order.get("buyer")}, Vous: {buyer_name}'
+            }), 403
+        
+        print("✅ Vérification passée, sauvegarde...")
         
         image_data = base64.b64encode(file.read()).decode('utf-8')
         filename = secure_storage.store_payment_proof(order_id, buyer_name, image_data, "")
@@ -1044,8 +1062,11 @@ def upload_payment_proof_fixed():
         order['proof_uploaded'] = True
         save_p2p_orders()
         
+        print(f"✅ Preuve sauvegardée: {filename}")
+        
         return jsonify({'success': True, 'message': 'Preuve envoyée'})
     except Exception as e:
+        print(f"❌ ERREUR EXCEPTION: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @web_bp.route('/api/admin/view_proof/<filename>', methods=['GET'])
