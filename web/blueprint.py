@@ -1029,7 +1029,7 @@ os.makedirs(PROOF_DIR, exist_ok=True)
 
 @web_bp.route('/api/upload/proof', methods=['POST'])
 def upload_proof_new():
-    """Route pour l'upload de preuve - corrigée"""
+    """Route pour l'upload de preuve"""
     try:
         order_id = request.form.get('order_id')
         user_name = request.form.get('buyer')
@@ -1043,29 +1043,17 @@ def upload_proof_new():
         
         order = p2p_orders[order_id]
         
-        # Vérifier si l'utilisateur est l'acheteur OU le vendeur
-        is_buyer = (order.get('buyer') == user_name)
-        is_seller = (order.get('seller') == user_name)
+        # Vérifier que c'est l'acheteur
+        if order.get('buyer') != user_name:
+            return jsonify({'success': False, 'error': 'Non autorisé'}), 403
         
-        # Si buyer est null, on autorise le premier
-        if order.get('buyer') is None:
-            order['buyer'] = user_name
-            print(f"✅ Buyer assigné: {user_name} pour {order_id}")
-        elif not (is_buyer or is_seller):
-            return jsonify({
-                'success': False, 
-                'error': f'Non autorisé. Seul {order.get("buyer")} (acheteur) ou {order.get("seller")} (vendeur) peut uploader'
-            }), 403
+        # 🔥 Sauvegarde simple
+        import uuid
+        filename = f"{order_id}_{int(time.time())}.txt"
         
-        # 🔥 Lire et encoder l'image CORRECTEMENT
         file_content = file.read()
         image_data = base64.b64encode(file_content).decode('utf-8')
         
-        # 🔥 Sauvegarder avec un nom unique
-        import uuid
-        filename = f"{uuid.uuid4().hex}.txt"
-        
-        # Sauvegarder directement dans le dossier proof_dir
         proof_path = os.path.join(PROOF_DIR, filename)
         with open(proof_path, 'w') as f:
             f.write(image_data)
@@ -1073,6 +1061,8 @@ def upload_proof_new():
         order['payment_proof'] = filename
         order['proof_uploaded'] = True
         save_p2p_orders()
+        
+        print(f"✅ Preuve sauvegardée: {filename}")
         
         return jsonify({'success': True, 'message': 'Preuve envoyée'})
     except Exception as e:
@@ -1114,14 +1104,14 @@ def accept_proof():
 
 @web_bp.route('/api/p2p/view_proof/<filename>', methods=['GET'])
 def view_proof_vendor(filename):
-    """Le vendeur peut voir la preuve sans seed admin"""
+    """Le vendeur peut voir la preuve"""
     try:
         wallet = request.args.get('wallet')
         
         if not wallet:
             return jsonify({'error': 'Wallet non spécifié'}), 400
         
-        # Chercher l'offre qui contient cette preuve
+        # Chercher l'offre
         found_order = None
         for order in p2p_orders.values():
             if order.get('payment_proof') == filename:
@@ -1131,11 +1121,10 @@ def view_proof_vendor(filename):
         if not found_order:
             return jsonify({'error': 'Preuve non trouvée'}), 404
         
-        # Vérifier que l'utilisateur est le vendeur
         if found_order.get('seller') != wallet:
             return jsonify({'error': 'Non autorisé'}), 403
         
-        # 🔥 Lire le fichier directement
+        # 🔥 Lire le fichier
         proof_path = os.path.join(PROOF_DIR, filename)
         
         if not os.path.exists(proof_path):
@@ -1146,7 +1135,6 @@ def view_proof_vendor(filename):
         
         return jsonify({'success': True, 'proof': proof})
     except Exception as e:
-        print(f"❌ Erreur view_proof: {e}")
         return jsonify({'error': str(e)}), 500
 
 # ==================== ADMIN FORCE TRANSFER ====================
