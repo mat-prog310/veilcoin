@@ -440,17 +440,26 @@ document.getElementById('upload-proof-btn').onclick = async () => {
     }
 };
 window.viewProof = async (filename) => {
-    const adminSeed = prompt("Seed admin pour voir la preuve:");
-    if (!adminSeed) return;
+    if (!currentWallet) {
+        alert('Connectez-vous d\'abord');
+        return;
+    }
     
     try {
-        const res = await fetch(`/api/admin/view_proof/${filename}?admin_seed=${adminSeed}`);
+        const res = await fetch(`/api/p2p/view_proof/${filename}?wallet=${currentWallet}`);
         const data = await res.json();
         
         if (data.success && data.proof) {
             // Ouvrir l'image dans une nouvelle fenêtre
             const win = window.open();
-            win.document.write(`<img src="data:image/png;base64,${data.proof}" style="max-width:100%; height:auto;">`);
+            win.document.write(`
+                <html>
+                <head><title>Preuve de paiement</title></head>
+                <body style="margin:0; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#1a1a1a;">
+                    <img src="data:image/png;base64,${data.proof}" style="max-width:100%; height:auto; border:2px solid #00ff88;">
+                </body>
+                </html>
+            `);
         } else {
             alert('❌ Impossible de voir la preuve: ' + (data.error || 'Erreur inconnue'));
         }
