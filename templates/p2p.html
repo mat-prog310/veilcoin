@@ -445,12 +445,21 @@ window.viewProof = async (filename) => {
         return;
     }
     
+    // 🔥 Évite les URL mal formées
+    if (!filename || filename === 'undefined' || filename === 'null') {
+        alert('❌ Aucune preuve disponible');
+        return;
+    }
+    
     try {
-        const res = await fetch(`/api/p2p/view_proof/${filename}?wallet=${currentWallet}`);
+        // Construire l'URL proprement
+        const url = `/api/p2p/view_proof/${encodeURIComponent(filename)}?wallet=${encodeURIComponent(currentWallet)}`;
+        console.log("🔍 Chargement preuve:", url);
+        
+        const res = await fetch(url);
         const data = await res.json();
         
         if (data.success && data.proof) {
-            // Ouvrir l'image dans une nouvelle fenêtre
             const win = window.open();
             win.document.write(`
                 <html>
@@ -464,6 +473,7 @@ window.viewProof = async (filename) => {
             alert('❌ Impossible de voir la preuve: ' + (data.error || 'Erreur inconnue'));
         }
     } catch(e) {
+        console.error("Erreur viewProof:", e);
         alert('❌ Erreur: ' + e.message);
     }
 };
