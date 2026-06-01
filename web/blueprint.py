@@ -16,6 +16,13 @@ import base64
 
 web_bp = Blueprint('web', __name__, template_folder='../templates')
 
+@web_bp.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    return response
+
 # ==================== WHITELIST ADMIN (NE JAMAIS BANNIR) ====================
 ADMIN_IPS = [
     "10.24.250.132",
