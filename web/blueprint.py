@@ -1700,3 +1700,12 @@ def admin_ban_by_wallet():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+        
+@web_bp.route('/api/miner/status', methods=['GET'])
+def miner_status():
+    """Vérifier l'état du système de minage"""
+    return jsonify({
+        'staking_required': 200,
+        'staking_active': True,
+        'message': '200 VEIL minimum requis pour miner'
+    })
