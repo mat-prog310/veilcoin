@@ -585,8 +585,8 @@ def api_price():
 
 # ==================== API MINER ====================
 # ==================== API MINER ====================
-@web_bp.route('/api/miner/submit_block', methods=['POST'])
-def submit_block():
+@web_bp.route('/api/miner/mine', methods=['POST'])
+def mine_block():
     try:
         data = request.get_json()
         wallet = data.get('wallet')
