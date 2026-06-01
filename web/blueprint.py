@@ -876,7 +876,7 @@ def p2p_confirm_payment():
         if order['status'] != 'matched' or order['buyer'] != buyer_name:
             return jsonify({'success': False, 'error': 'Non autorisé'})
         
-        order['status'] = 'paid'
+        order['status'] = 'pending_proof'
         save_p2p_orders()
         
         return jsonify({'success': True, 'message': 'Paiement confirmé, attente validation vendeur'})
@@ -1082,7 +1082,7 @@ def accept_proof():
             return jsonify({'success': False, 'error': 'Aucune preuve reçue'}), 400
         
         # Accepter la preuve et passer en 'paid'
-        order['status'] = 'pending_proof'
+        order['status'] = 'paid'
         order['seller_confirmed'] = True
         save_p2p_orders()
         
