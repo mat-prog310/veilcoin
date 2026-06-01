@@ -1791,5 +1791,32 @@ def miner_status():
         'staking_active': True,
         'message': '200 VEIL minimum requis pour miner'
     })
-
+@web_bp.route('/api/upload/proof', methods=['POST'])
+def upload_proof_new():
+    """Route alternative pour l'upload de preuve (contourne Cloudflare)"""
+    try:
+        order_id = request.form.get('order_id')
+        buyer_name = request.form.get('buyer')
+        file = request.files.get('proof')
+        
+        if not file:
+            return jsonify({'success': False, 'error': 'Aucun fichier'}), 400
+        
+        if order_id not in p2p_orders:
+            return jsonify({'success': False, 'error': 'Offre introuvable'}), 404
+        
+        order = p2p_orders[order_id]
+        if order.get('buyer') != buyer_name:
+            return jsonify({'success': False, 'error': 'Non autorisé'}), 403
+        
+        image_data = base64.b64encode(file.read()).decode('utf-8')
+        filename = secure_storage.store_payment_proof(order_id, buyer_name, image_data, "")
+        
+        order['payment_proof'] = filename
+        order['proof_uploaded'] = True
+        save_p2p_orders()
+        
+        return jsonify({'success': True, 'message': 'Preuve envoyée'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
