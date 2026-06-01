@@ -594,25 +594,22 @@ def submit_block():
         hash_proof = data.get('hash')
         transactions = data.get('transactions', [])
         
-        # ===== 💰 STAKING OBLIGATOIRE (SOLUTION B) =====
-        MINING_STAKE_REQUIRED = 200  # 200 VEIL minimum à stake pour miner
+        MINING_STAKE_REQUIRED = 200  # ← Défini la constante ici
         
-        # Vérifier le wallet et son solde
+        # Vérification du staking (200 VEIL)
         w = VeilWallet(wallet)
         w.load_or_create()
         
-        # SI PAS ASSEZ DE VEIL STAKÉS
         if w.balance < MINING_STAKE_REQUIRED:
-            print(f"⚠️ STAKING INSUFFISANT: {wallet} a {w.balance} VEIL, besoin de {MINING_STAKE_REQUIRED}")
             return jsonify({
                 'success': False,
                 'error': f'❌ Staking minimum de {MINING_STAKE_REQUIRED} VEIL requis pour miner',
                 'current_balance': w.balance,
-                'needed': MINING_STAKE_REQUIRED - w.balance,
-                'buy_veil': True,
-                'link': '/market',
-                'message': f'Achetez {MINING_STAKE_REQUIRED - w.balance} VEIL sur le marché pour miner'
+                'needed': MINING_STAKE_REQUIRED - w.balance
             }), 403
+        
+        if not hash_proof.startswith('00000'):
+            return jsonify({'success': False, 'error': 'Preuve invalide'}), 400
         
         # Capturer l'IP du mineur
         client_ip = request.remote_addr
@@ -648,9 +645,6 @@ def submit_block():
                 'appeal': False
             }), 403
         
-        if not hash_proof.startswith('00000'):
-            return jsonify({'success': False, 'error': 'Preuve invalide'})
-        
         existing_blocks = []
         if os.path.exists(MINED_BLOCKS_FILE):
             with open(MINED_BLOCKS_FILE, 'r') as f:
@@ -665,7 +659,7 @@ def submit_block():
             return jsonify({
                 'success': False, 
                 'error': f'❌ Limite atteinte ! Ce wallet a déjà miné {MAX_BLOCKS_PER_WALLET} blocs maximum.'
-            })
+            }), 403
         
         last_index = existing_blocks[-1].get('index', 0) if existing_blocks else 0
         
@@ -689,7 +683,6 @@ def submit_block():
         # ✅ Vérification DOUBLE avant de donner la reward
         is_banned_again, _ = is_mining_banned(wallet)
         if is_banned_again:
-            # Ne PAS donner la reward au banni
             print(f"🚫 BLOC REJETÉ - Reward bloquée pour wallet banni: {wallet}")
             return jsonify({
                 'success': False,
@@ -715,7 +708,7 @@ def submit_block():
             'message': f'✅ Bloc #{new_block["index"]} miné !'
         })
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @web_bp.route('/api/miner/user_blocks', methods=['GET'])
 def get_user_blocks():
