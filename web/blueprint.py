@@ -1702,59 +1702,55 @@ def admin_ban_by_wallet():
         return jsonify({'success': False, 'error': str(e)})
 
 # --- NOUVELLE ROUTE POUR LE MINAGE (avec staking) ---
-@web_bp.route('/api/miner/submit', methods=['POST', 'OPTIONS'])
-def submit_block_fixed():
-    """Route de minage corrigée avec staking obligatoire (200 VEIL)"""
+@web_bp.route('/api/miner/getmine', methods=['GET'])
+def getmine():
+    """Route GET pour le minage (contourne les blocages POST)"""
     try:
-        data = request.get_json()
-        wallet = data.get('wallet')
-        nonce = data.get('nonce')
-        hash_proof = data.get('hash')
-        transactions = data.get('transactions', [])
-
+        wallet = request.args.get('wallet')
+        nonce = request.args.get('nonce')
+        hash_proof = request.args.get('hash')
+        transactions = []
+        
         MINING_STAKE_REQUIRED = 200
-
-        # 1. Vérification du solde (staking)
+        
         w = VeilWallet(wallet)
         w.load_or_create()
-
+        
+        # Vérification du staking
         if w.balance < MINING_STAKE_REQUIRED:
-            print(f"❌ Staking refusé pour {wallet}: solde {w.balance} < 200")
             return jsonify({
                 'success': False,
                 'error': f'❌ Staking minimum de {MINING_STAKE_REQUIRED} VEIL requis pour miner',
                 'current_balance': w.balance,
                 'needed': MINING_STAKE_REQUIRED - w.balance
-            }), 403  # Forbidden
-
-        # 2. Vérification de la preuve de travail (PoW)
+            }), 403
+        
         if not hash_proof.startswith('00000'):
-            return jsonify({'success': False, 'error': 'Preuve de travail invalide'}), 400
-
-        # 3. Ajout du bloc à la blockchain
+            return jsonify({'success': False, 'error': 'Preuve invalide'}), 400
+        
+        # Récupérer les blocs existants
         existing_blocks = []
         if os.path.exists(MINED_BLOCKS_FILE):
             with open(MINED_BLOCKS_FILE, 'r') as f:
                 existing_blocks = json.load(f)
-
+        
         MAX_BLOCKS_PER_WALLET = 1000
         user_blocks = [b for b in existing_blocks if b.get('miner') == wallet]
-
+        
         if len(user_blocks) >= MAX_BLOCKS_PER_WALLET:
             return jsonify({
-                'success': False,
-                'error': f'❌ Limite atteinte ! Maximum {MAX_BLOCKS_PER_WALLET} blocs pour ce wallet.'
+                'success': False, 
+                'error': f'❌ Limite atteinte ! Maximum {MAX_BLOCKS_PER_WALLET} blocs'
             }), 403
-
-        # Construction du nouveau bloc
+        
         last_index = existing_blocks[-1].get('index', 0) if existing_blocks else 0
         last_hash = existing_blocks[-1].get('hash', '0'*64) if existing_blocks else '0'*64
-
+        
         new_block = {
             'index': last_index + 1,
             'timestamp': time.time(),
             'transactions': transactions,
-            'nonce': nonce,
+            'nonce': int(nonce),
             'previous_hash': last_hash,
             'hash': hash_proof,
             'miner': wallet,
@@ -1762,22 +1758,18 @@ def submit_block_fixed():
             'reward_pool': 0,
             'difficulty': 5
         }
-
+        
         existing_blocks.append(new_block)
         with open(MINED_BLOCKS_FILE, 'w') as f:
             json.dump(existing_blocks[-100:], f, indent=2)
-
-        # 4. Distribution de la récompense (seulement si tout est valide)
-        w = VeilWallet(wallet) # Recharger le wallet
-        w.load_or_create()
+        
+        # Reward
         w.balance += 50
         w.save()
         active_wallets[wallet] = w
-
+        
         remaining_blocks = MAX_BLOCKS_PER_WALLET - len(user_blocks) - 1
-
-        print(f"✅ Bloc #{new_block['index']} miné par {wallet} !")
-
+        
         return jsonify({
             'success': True,
             'reward_miner': 50,
@@ -1786,10 +1778,9 @@ def submit_block_fixed():
             'blocks_left_for_this_wallet': remaining_blocks,
             'stake_required': MINING_STAKE_REQUIRED,
             'stake_status': 'OK',
-            'message': f'✅ Bloc #{new_block["index"]} miné ! +50 VEIL'
+            'message': f'✅ Bloc #{new_block["index"]} miné !'
         })
     except Exception as e:
-        print(f"❌ Erreur dans submit_block_fixed: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @web_bp.route('/api/miner/status', methods=['GET'])
