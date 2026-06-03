@@ -1925,9 +1925,9 @@ def miner_status():
 # ==================== ANTI-FERME MINAGE ====================
 # Protection contre les fermes de minage (mining farms)
 mining_sessions = {}  # wallet -> {"start_time": xxx, "blocks_mined": 0, "last_block_time": 0}
-MINING_RATE_LIMIT = 5  # 🔥 MAXIMUM 5 BLOCS PAR HEURE PAR WALLET
+MINING_RATE_LIMIT = 3  # 🔥 MAXIMUM 5 BLOCS PAR HEURE PAR WALLET
 MINING_SESSION_DURATION = 3600  # Durée max d'une session de minage (1 heure)
-MINING_COOLDOWN = 1800  # Cooldown de 30 minutes après session complète
+MINING_COOLDOWN = 3600  # Cooldown de 30 minutes après session complète
 
 def check_mining_farm(wallet_address):
     """Vérifie si un wallet est une ferme de minage"""
