@@ -1971,3 +1971,30 @@ def farm_status():
         'cooldown_minutes': int(cooldown_left / 60),
         'can_mine': blocks_left > 0 and cooldown_left == 0
     })
+
+@web_bp.route('/api/admin/unban_wallet', methods=['POST'])
+def admin_unban_wallet():
+    try:
+        d = request.get_json()
+        admin_seed = d.get('admin_seed', '')
+        wallet_name = d.get('wallet')
+        
+        ADMIN_SEED = os.environ.get('ADMIN_SEED', '')
+        if admin_seed != ADMIN_SEED:
+            return jsonify({'error': 'Non autorisé'}), 401
+        
+        # Retirer de la blacklist
+        blacklist = load_blacklist()
+        if wallet_name in blacklist['wallets']:
+            blacklist['wallets'].remove(wallet_name)
+        save_blacklist(blacklist)
+        
+        # Remettre la réputation à 50
+        rep_data = reputation.get(wallet_name)
+        rep_data['score'] = 50
+        reputation.reputation[wallet_name] = rep_data
+        reputation.save()
+        
+        return jsonify({'success': True, 'message': f'Wallet {wallet_name} débanni'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
