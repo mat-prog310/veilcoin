@@ -801,7 +801,23 @@ def p2p_create_order():
         price_eur = float(d.get('price_eur', 0))
         seller_email = d.get('seller_email', '')
         current_price = get_current_price()
-       
+        # Prix minimum = 80% du prix actuel (protection anti-dump)
+        min_price = current_price * 0.80
+        
+        # Prix maximum = 150% du prix actuel (protection anti-pump)
+        max_price = current_price * 1.50
+        
+        if price_eur < min_price:
+            return jsonify({
+                'success': False,
+                'error': f'❌ Prix trop bas ! Minimum {min_price:.4f}€ (prix marché: {current_price:.4f}€)'
+            }), 403
+        
+        if price_eur > max_price:
+            return jsonify({
+                'success': False,
+                'error': f'❌ Prix trop élevé ! Maximum {max_price:.4f}€ (prix marché: {current_price:.4f}€)'
+            }), 403
         # 🔥 Limiter la taille de l'offre (anti-dump)
         max_veil_per_order = 10000
         if amount_veil > max_veil_per_order:
