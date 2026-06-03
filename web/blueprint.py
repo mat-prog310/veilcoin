@@ -1842,6 +1842,11 @@ def admin_ban_by_wallet():
 # --- NOUVELLE ROUTE POUR LE MINAGE (avec staking) ---
 @web_bp.route('/api/miner/getmine', methods=['GET'])
 def getmine():
+     return jsonify({
+        'success': False,
+        'error': '❌ Le minage est temporairement désactivé.',
+        'message': 'VeilCoin évolue. Le P2P reste actif.'
+    }), 403
     """Route GET pour le minage (contourne les blocages POST)"""
     try:
         wallet = request.args.get('wallet')
