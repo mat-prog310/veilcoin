@@ -802,11 +802,11 @@ def p2p_create_order():
         seller_email = d.get('seller_email', '')
         
         # 🔥 Utiliser le prix du marché (pool) au lieu du prix P2P
-        current_price = pool.get_veil_price() if pool else 0.01
+        current_price = pool.get_veil_price() if pool else 0.02
         
         # Limites : ±50%
-        max_price = current_price * 1.50
-        min_price = current_price * 0.50
+        max_price = current_price * 0.03
+        min_price = current_price * 0.02
         
         if price_eur > max_price:
             return jsonify({
