@@ -611,6 +611,14 @@ def api_price():
 # ==================== API MINER ====================
 @web_bp.route('/api/miner/submit_block', methods=['POST'])
 def submit_block():
+      # 🔥 MINAGE TEMPORAIREMENT DÉSACTIVÉ
+    return jsonify({
+        'success': False,
+        'error': '❌ Le minage est temporairement désactivé.',
+        'message': 'VeilCoin évolue. Le P2P reste actif. Réactivation prochainement.',
+        'code': 'MINING_DISABLED'
+    }), 403
+    
     try:
         data = request.get_json()
         wallet = data.get('wallet')
