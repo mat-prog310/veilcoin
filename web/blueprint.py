@@ -255,41 +255,35 @@ load_p2p_orders()
 # ==================== PRIX BASÉ SUR TRANSACTIONS P2P ====================
 
 def get_current_price():
+    # Utiliser UNIQUEMENT les transactions COMPLÉTÉES
     completed_orders = [o for o in p2p_orders.values() if o['status'] == 'completed']
     
-    if not completed_orders:
-        return 0.01
+    # 🔥 Filtrer les petites transactions (moins de 10 VEIL)
+    filtered = [o for o in completed_orders if o.get('amount_veil', 0) >= 10]
     
-    # 🔥 Ignorer les transactions trop petites
-    min_veil_amount = 10  # Au moins 10 VEIL pour influencer le prix
-    filtered_orders = [o for o in completed_orders if o.get('amount_veil', 0) >= min_veil_amount]
+    if not filtered:
+        # Prix par défaut si pas de transactions
+        return 0.02
     
-    if not filtered_orders:
-        # Si pas de transactions suffisantes, retourner le prix précédent
-        if hasattr(get_current_price, 'last_price'):
-            return get_current_price.last_price
-        return 0.01
-    
-    last_10 = filtered_orders[-10:]
-    
+    # Moyenne des 10 dernières transactions complétées
+    last_10 = filtered[-10:]
     total_value = sum(o['total_eur'] for o in last_10)
     total_veil = sum(o['amount_veil'] for o in last_10)
     
     if total_veil <= 0:
-        return get_current_price.last_price if hasattr(get_current_price, 'last_price') else 0.01
+        return 0.02
     
     price = total_value / total_veil
     
-    # Limite à 5% de variation max
+    # Limiter la variation à 10% max
     if hasattr(get_current_price, 'last_price'):
-        max_change = get_current_price.last_price * 0.05
+        max_change = get_current_price.last_price * 0.10
         if price > get_current_price.last_price + max_change:
             price = get_current_price.last_price + max_change
         elif price < get_current_price.last_price - max_change:
             price = get_current_price.last_price - max_change
     
     get_current_price.last_price = price
-    
     return round(price, 6)
 # ==================== HISTORIQUE DES PRIX ====================
 PRICE_HISTORY_FILE = os.path.join(DATA_DIR, "price_history.json")
