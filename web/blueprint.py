@@ -800,7 +800,7 @@ def p2p_create_order():
         amount_veil = float(d.get('amount_veil', 0))
         price_eur = float(d.get('price_eur', 0))
         seller_email = d.get('seller_email', '')
-        
+        current_price = get_current_price()
        
         # 🔥 Limiter la taille de l'offre (anti-dump)
         max_veil_per_order = 10000
