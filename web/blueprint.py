@@ -1842,89 +1842,14 @@ def admin_ban_by_wallet():
 # --- NOUVELLE ROUTE POUR LE MINAGE (avec staking) ---
 @web_bp.route('/api/miner/getmine', methods=['GET'])
 def getmine():
-     return jsonify({
+    """Route GET pour le minage (contourne les blocages POST)"""
+    # 🔥 MINAGE TEMPORAIREMENT DÉSACTIVÉ
+    return jsonify({
         'success': False,
         'error': '❌ Le minage est temporairement désactivé.',
         'message': 'VeilCoin évolue. Le P2P reste actif.'
     }), 403
-    """Route GET pour le minage (contourne les blocages POST)"""
-    try:
-        wallet = request.args.get('wallet')
-        nonce = request.args.get('nonce')
-        hash_proof = request.args.get('hash')
-        transactions = []
-        
-        MINING_STAKE_REQUIRED = 200
-        
-        w = VeilWallet(wallet)
-        w.load_or_create()
-        
-        # Vérification du staking
-        if w.balance < MINING_STAKE_REQUIRED:
-            return jsonify({
-                'success': False,
-                'error': f'❌ Staking minimum de {MINING_STAKE_REQUIRED} VEIL requis pour miner',
-                'current_balance': w.balance,
-                'needed': MINING_STAKE_REQUIRED - w.balance
-            }), 403
-        
-        if not hash_proof.startswith('00000'):
-            return jsonify({'success': False, 'error': 'Preuve invalide'}), 400
-        
-        # Récupérer les blocs existants
-        existing_blocks = []
-        if os.path.exists(MINED_BLOCKS_FILE):
-            with open(MINED_BLOCKS_FILE, 'r') as f:
-                existing_blocks = json.load(f)
-        
-        MAX_BLOCKS_PER_WALLET = 1000
-        user_blocks = [b for b in existing_blocks if b.get('miner') == wallet]
-        
-        if len(user_blocks) >= MAX_BLOCKS_PER_WALLET:
-            return jsonify({
-                'success': False, 
-                'error': f'❌ Limite atteinte ! Maximum {MAX_BLOCKS_PER_WALLET} blocs'
-            }), 403
-        
-        last_index = existing_blocks[-1].get('index', 0) if existing_blocks else 0
-        last_hash = existing_blocks[-1].get('hash', '0'*64) if existing_blocks else '0'*64
-        
-        new_block = {
-            'index': last_index + 1,
-            'timestamp': time.time(),
-            'transactions': transactions,
-            'nonce': int(nonce),
-            'previous_hash': last_hash,
-            'hash': hash_proof,
-            'miner': wallet,
-            'reward_miner': 50,
-            'reward_pool': 0,
-            'difficulty': 5
-        }
-        
-        existing_blocks.append(new_block)
-        with open(MINED_BLOCKS_FILE, 'w') as f:
-            json.dump(existing_blocks[-100:], f, indent=2)
-        
-        # Reward
-        w.balance += 50
-        w.save()
-        active_wallets[wallet] = w
-        
-        remaining_blocks = MAX_BLOCKS_PER_WALLET - len(user_blocks) - 1
-        
-        return jsonify({
-            'success': True,
-            'reward_miner': 50,
-            'new_balance': w.balance,
-            'block_index': new_block['index'],
-            'blocks_left_for_this_wallet': remaining_blocks,
-            'stake_required': MINING_STAKE_REQUIRED,
-            'stake_status': 'OK',
-            'message': f'✅ Bloc #{new_block["index"]} miné !'
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+    
 
 @web_bp.route('/api/miner/status', methods=['GET'])
 def miner_status():
